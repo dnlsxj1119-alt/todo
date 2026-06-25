@@ -23,7 +23,7 @@ export default function App() {
 
   const [modal, setModal] = useState(null);
 
-  const { items, addItem, updateItem, deleteItem, toggleComplete, moveItem, getItemsForDate, getItemsForCell } = useItems();
+  const { items, loading, addItem, updateItem, deleteItem, toggleComplete, moveItem, getItemsForDate, getItemsForCell } = useItems();
   const { projects, addProject, updateProject, deleteProject, toggleTask, cycleEmailStatus } = useProjects();
 
   const openAdd = useCallback((defaultDate, defaultSlot) => {
@@ -53,6 +53,15 @@ export default function App() {
   const total = items.length;
   const done = items.filter(i => i.completed).length;
   const progress = total > 0 ? Math.round((done / total) * 100) : 0;
+
+  if (loading) {
+    return (
+      <div className="app-loading">
+        <div className="loading-spinner" />
+        <span>데이터 불러오는 중...</span>
+      </div>
+    );
+  }
 
   return (
     <div className="app">

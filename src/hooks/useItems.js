@@ -1,54 +1,97 @@
-import { useState, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { supabase } from '../lib/supabase';
 import { getTimeSlotFromTime } from '../utils/dateUtils';
 
-const INITIAL_ITEMS = [
-  { id: 1, type: 'todo', title: 'Corning 서류 정리', date: '2026-06-25', completed: false, priority: 'high', description: '' },
-  { id: 2, type: 'education', title: 'DTU 마이크로팹 세미나', date: '2026-06-27', time: '14:00', timeSlot: 'lunch', completed: false, priority: 'medium', description: '나노팹 관련 강연' },
-  { id: 3, type: 'schedule', title: '면접 준비', date: '2026-06-26', time: '10:00', timeSlot: 'morning', completed: false, priority: 'high', description: '자기소개 연습' },
-  { id: 4, type: 'todo', title: '이력서 업데이트', date: '2026-06-28', completed: true, priority: 'medium', description: '' },
-  { id: 5, type: 'education', title: 'React 심화 강의', date: '2026-06-30', time: '20:00', timeSlot: 'evening', completed: false, priority: 'low', description: 'Udemy 강좌' },
-  { id: 6, type: 'schedule', title: '팀 회의', date: '2026-07-01', time: '13:00', timeSlot: 'lunch', completed: false, priority: 'medium', description: '주간 싱크' },
-  { id: 7, type: 'todo', title: '독서 — 딥워크', date: '2026-06-29', completed: false, priority: 'low', description: '3장까지' },
-];
+function toLocal(row) {
+  return {
+    id: row.id,
+    type: row.type,
+    title: row.title,
+    description: row.description ?? '',
+    date: row.date,
+    time: row.time ?? '',
+    timeSlot: row.time_slot ?? 'morning',
+    completed: row.completed ?? false,
+    priority: row.priority ?? 'medium',
+  };
+}
 
-let nextId = INITIAL_ITEMS.length + 1;
+function toRow(data) {
+  return {
+    type: data.type,
+    title: data.title,
+    description: data.description ?? '',
+    date: data.date,
+    time: data.time ?? '',
+    time_slot: data.timeSlot ?? 'morning',
+    completed: data.completed ?? false,
+    priority: data.priority ?? 'medium',
+  };
+}
 
 export function useItems() {
-  const [items, setItems] = useState(INITIAL_ITEMS);
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const addItem = useCallback((data) => {
+  // 초기 로드
+  useEffect(() => {
+    supabase
+      .from('items')
+      .select('*')
+      .order('created_at', { ascending: true })
+      .then(({ data }) => {
+        if (data) setItems(data.map(toLocal));
+        setLoading(false);
+      });
+  }, []);
+
+  // 실시간 구독
+  useEffect(() => {
+    const channel = supabase
+      .channel('items-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'items' }, (payload) => {
+        if (payload.eventType === 'INSERT') {
+          setItems(prev => [...prev, toLocal(payload.new)]);
+        } else if (payload.eventType === 'UPDATE') {
+          setItems(prev => prev.map(i => i.id === payload.new.id ? toLocal(payload.new) : i));
+        } else if (payload.eventType === 'DELETE') {
+          setItems(prev => prev.filter(i => i.id !== payload.old.id));
+        }
+      })
+      .subscribe();
+
+    return () => supabase.removeChannel(channel);
+  }, []);
+
+  const addItem = useCallback(async (data) => {
     const slot = data.timeSlot || (data.time ? getTimeSlotFromTime(data.time) : 'morning');
-    setItems(prev => [...prev, { ...data, id: nextId++, timeSlot: slot, completed: data.completed ?? false }]);
+    await supabase.from('items').insert(toRow({ ...data, timeSlot: slot }));
   }, []);
 
-  const updateItem = useCallback((id, data) => {
+  const updateItem = useCallback(async (id, data) => {
     const slot = data.timeSlot || (data.time ? getTimeSlotFromTime(data.time) : undefined);
-    setItems(prev => prev.map(item =>
-      item.id === id ? { ...item, ...data, ...(slot ? { timeSlot: slot } : {}) } : item
-    ));
+    await supabase.from('items').update(toRow({ ...data, timeSlot: slot ?? data.timeSlot })).eq('id', id);
   }, []);
 
-  const deleteItem = useCallback((id) => {
-    setItems(prev => prev.filter(item => item.id !== id));
+  const deleteItem = useCallback(async (id) => {
+    await supabase.from('items').delete().eq('id', id);
   }, []);
 
-  const toggleComplete = useCallback((id) => {
-    setItems(prev => prev.map(item =>
-      item.id === id ? { ...item, completed: !item.completed } : item
-    ));
-  }, []);
+  const toggleComplete = useCallback(async (id) => {
+    const item = items.find(i => i.id === id);
+    if (!item) return;
+    await supabase.from('items').update({ completed: !item.completed }).eq('id', id);
+  }, [items]);
 
-  const moveItem = useCallback((id, newDate, newTimeSlot) => {
-    setItems(prev => prev.map(item =>
-      item.id === id ? { ...item, date: newDate, timeSlot: newTimeSlot } : item
-    ));
+  const moveItem = useCallback(async (id, newDate, newTimeSlot) => {
+    await supabase.from('items').update({ date: newDate, time_slot: newTimeSlot }).eq('id', id);
   }, []);
 
   const getItemsForDate = useCallback((dateStr) =>
-    items.filter(item => item.date === dateStr), [items]);
+    items.filter(i => i.date === dateStr), [items]);
 
   const getItemsForCell = useCallback((dateStr, slot) =>
-    items.filter(item => item.date === dateStr && item.timeSlot === slot), [items]);
+    items.filter(i => i.date === dateStr && i.timeSlot === slot), [items]);
 
-  return { items, addItem, updateItem, deleteItem, toggleComplete, moveItem, getItemsForDate, getItemsForCell };
+  return { items, loading, addItem, updateItem, deleteItem, toggleComplete, moveItem, getItemsForDate, getItemsForCell };
 }
