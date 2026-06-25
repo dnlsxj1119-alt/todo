@@ -302,7 +302,21 @@ input, textarea, select { font-family: inherit; }
 .chip--purple { background: var(--purple-light); color: var(--purple-dark); }
 .chip--blue   { background: var(--blue-light);   color: var(--blue-dark); }
 .chip--green  { background: var(--green-light);  color: var(--green-dark); }
-.chip--done   { opacity: 0.5; text-decoration: line-through; }
+.chip--done   {
+  background: #F0F0F0 !important;
+  color: #9CA3AF !important;
+  opacity: 1;
+}
+.chip--done .chip-title {
+  text-decoration: line-through;
+  text-decoration-thickness: 2px;
+  text-decoration-color: #9CA3AF;
+  color: #9CA3AF;
+}
+.chip--done .chip-check {
+  color: #6B7280;
+  font-weight: 900;
+}
 .chip-check {
   font-size: 10px;
   font-weight: 700;
@@ -426,10 +440,23 @@ input, textarea, select { font-family: inherit; }
 }
 .week-card:hover { box-shadow: var(--shadow-sm); transform: translateY(-1px); }
 .week-card:active { cursor: grabbing; }
-.week-card--done { opacity: 0.5; }
 .week-card--purple { background: var(--purple-light); color: var(--purple-dark); border-left: 3px solid var(--purple-mid); }
 .week-card--blue   { background: var(--blue-light);   color: var(--blue-dark);   border-left: 3px solid var(--blue-mid); }
 .week-card--green  { background: var(--green-light);  color: var(--green-dark);  border-left: 3px solid var(--green-mid); }
+.week-card--done {
+  background: #F3F4F6 !important;
+  border-left-color: #D1D5DB !important;
+  color: #9CA3AF !important;
+}
+.week-card--done .card-title {
+  text-decoration: line-through;
+  text-decoration-thickness: 2px;
+  text-decoration-color: #9CA3AF;
+  color: #9CA3AF;
+}
+.week-card--done .card-time,
+.week-card--done .card-desc { opacity: 0.5; }
+.week-card--done .card-check { color: #6B7280; font-weight: 900; }
 
 .week-card-top { display: flex; align-items: center; gap: 5px; }
 .card-check {
@@ -693,8 +720,13 @@ input, textarea, select { font-family: inherit; }
   transition: background var(--transition);
 }
 .proj-task:hover { background: var(--bg); }
-.task--done { color: var(--text-secondary); }
-.task--done .task-label { text-decoration: line-through; opacity: 0.7; }
+.task--done { background: #F3F4F6; color: #9CA3AF; }
+.task--done .task-label {
+  text-decoration: line-through;
+  text-decoration-thickness: 2px;
+  text-decoration-color: #9CA3AF;
+  color: #9CA3AF;
+}
 .task--progress { color: var(--text-primary); background: #FFF8E7; }
 .task--upcoming { color: var(--text-muted); }
 .task-emoji { font-size: 14px; flex-shrink: 0; }
