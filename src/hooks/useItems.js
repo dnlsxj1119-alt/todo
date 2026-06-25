@@ -31,7 +31,6 @@ export function useItems() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // 초기 로드
   useEffect(() => {
     supabase
       .from('items')
@@ -43,13 +42,15 @@ export function useItems() {
       });
   }, []);
 
-  // 실시간 구독
   useEffect(() => {
     const channel = supabase
       .channel('items-realtime')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'items' }, (payload) => {
         if (payload.eventType === 'INSERT') {
-          setItems(prev => [...prev, toLocal(payload.new)]);
+          setItems(prev => {
+            if (prev.some(i => i.id === payload.new.id)) return prev;
+            return [...prev, toLocal(payload.new)];
+          });
         } else if (payload.eventType === 'UPDATE') {
           setItems(prev => prev.map(i => i.id === payload.new.id ? toLocal(payload.new) : i));
         } else if (payload.eventType === 'DELETE') {
@@ -68,20 +69,27 @@ export function useItems() {
 
   const updateItem = useCallback(async (id, data) => {
     const slot = data.timeSlot || (data.time ? getTimeSlotFromTime(data.time) : undefined);
+    // 낙관적 업데이트
+    setItems(prev => prev.map(i => i.id === id ? { ...i, ...data, timeSlot: slot ?? data.timeSlot } : i));
     await supabase.from('items').update(toRow({ ...data, timeSlot: slot ?? data.timeSlot })).eq('id', id);
   }, []);
 
   const deleteItem = useCallback(async (id) => {
+    // 낙관적 업데이트: UI 즉시 반영 후 DB 삭제
+    setItems(prev => prev.filter(i => i.id !== id));
     await supabase.from('items').delete().eq('id', id);
   }, []);
 
   const toggleComplete = useCallback(async (id) => {
+    // 낙관적 업데이트
+    setItems(prev => prev.map(i => i.id === id ? { ...i, completed: !i.completed } : i));
     const item = items.find(i => i.id === id);
     if (!item) return;
     await supabase.from('items').update({ completed: !item.completed }).eq('id', id);
   }, [items]);
 
   const moveItem = useCallback(async (id, newDate, newTimeSlot) => {
+    setItems(prev => prev.map(i => i.id === id ? { ...i, date: newDate, timeSlot: newTimeSlot } : i));
     await supabase.from('items').update({ date: newDate, time_slot: newTimeSlot }).eq('id', id);
   }, []);
 

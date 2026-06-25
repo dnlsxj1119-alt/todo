@@ -123,6 +123,7 @@ export default function ItemModal({ item, defaultDate, onSave, onDelete, onClose
                   id="time"
                   className="field-input"
                   type="time"
+                  step="600"
                   value={form.time}
                   onChange={(e) => handleTimeChange(e.target.value)}
                 />
