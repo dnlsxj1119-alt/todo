@@ -12,7 +12,6 @@ function toLocal(row) {
     time: row.time ?? '',
     timeSlot: row.time_slot ?? 'morning',
     completed: row.completed ?? false,
-    priority: row.priority ?? 'medium',
   };
 }
 
@@ -25,7 +24,6 @@ function toRow(data) {
     time: data.time ?? '',
     time_slot: data.timeSlot ?? 'morning',
     completed: data.completed ?? false,
-    priority: data.priority ?? 'medium',
   };
 }
 

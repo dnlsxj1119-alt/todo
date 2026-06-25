@@ -7,12 +7,6 @@ const TYPE_COLOR = {
   schedule:  'chip--green',
 };
 
-const PRIORITY_DOT = {
-  high:   '🔴',
-  medium: '🟡',
-  low:    '',
-};
-
 function ItemChip({ item, onClick, onToggle }) {
   return (
     <div
@@ -30,9 +24,6 @@ function ItemChip({ item, onClick, onToggle }) {
         >
           {item.completed ? '✓' : '○'}
         </span>
-      )}
-      {PRIORITY_DOT[item.priority] && (
-        <span className="chip-priority">{PRIORITY_DOT[item.priority]}</span>
       )}
       <span className="chip-title">{item.title}</span>
     </div>

@@ -7,12 +7,6 @@ const TYPE_CONFIG = {
   schedule:  { label: '일정',   emoji: '🟢', color: 'green' },
 };
 
-const PRIORITY_CONFIG = {
-  low:    { label: '낮음', emoji: '⚪' },
-  medium: { label: '보통', emoji: '🟡' },
-  high:   { label: '높음', emoji: '🔴' },
-};
-
 export default function ItemModal({ item, defaultDate, onSave, onDelete, onClose }) {
   const isEdit = !!item;
   const overlayRef = useRef(null);
@@ -24,7 +18,6 @@ export default function ItemModal({ item, defaultDate, onSave, onDelete, onClose
     date: item?.date ?? defaultDate ?? '',
     time: item?.time ?? '',
     timeSlot: item?.timeSlot ?? 'morning',
-    priority: item?.priority ?? 'medium',
     completed: item?.completed ?? false,
   });
 
@@ -36,6 +29,11 @@ export default function ItemModal({ item, defaultDate, onSave, onDelete, onClose
 
   const set = (key, val) => setForm(f => ({ ...f, [key]: val }));
 
+  // 타입 변경 시 time 초기화
+  const handleTypeChange = (type) => {
+    setForm(f => ({ ...f, type, time: '', timeSlot: 'morning' }));
+  };
+
   // 시간 변경 시 슬롯 자동 계산
   const handleTimeChange = (val) => {
     const slot = val ? getTimeSlotFromTime(val) : 'morning';
@@ -45,7 +43,6 @@ export default function ItemModal({ item, defaultDate, onSave, onDelete, onClose
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!form.title.trim()) return;
-    // 할일은 항상 'all' 슬롯
     onSave({ ...form, timeSlot: form.type === 'todo' ? 'all' : form.timeSlot });
   };
 
@@ -70,7 +67,7 @@ export default function ItemModal({ item, defaultDate, onSave, onDelete, onClose
                   key={key}
                   type="button"
                   className={`type-tab type-tab--${cfg.color} ${form.type === key ? 'active' : ''}`}
-                  onClick={() => set('type', key)}
+                  onClick={() => handleTypeChange(key)}
                 >
                   {cfg.emoji} {cfg.label}
                 </button>
@@ -144,23 +141,6 @@ export default function ItemModal({ item, defaultDate, onSave, onDelete, onClose
               {!form.time && ' — 시간을 입력하면 자동 설정'}
             </div>
           )}
-
-          {/* Priority */}
-          <div className="field-group">
-            <label className="field-label">우선순위</label>
-            <div className="priority-row">
-              {Object.entries(PRIORITY_CONFIG).map(([key, cfg]) => (
-                <button
-                  key={key}
-                  type="button"
-                  className={`priority-btn ${form.priority === key ? 'active' : ''}`}
-                  onClick={() => set('priority', key)}
-                >
-                  {cfg.emoji} {cfg.label}
-                </button>
-              ))}
-            </div>
-          </div>
 
           {/* Actions */}
           <div className="modal-actions">

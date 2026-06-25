@@ -7,8 +7,6 @@ const TYPE_COLOR = {
   schedule:  'card--green',
 };
 
-const PRIORITY_ICON = { high: '🔴', medium: '🟡', low: '' };
-
 function WeekCard({ item, onItemClick, onToggle, onDragStart }) {
   return (
     <div
@@ -28,9 +26,6 @@ function WeekCard({ item, onItemClick, onToggle, onDragStart }) {
           </button>
         )}
         <span className="card-title">{item.title}</span>
-        {PRIORITY_ICON[item.priority] && (
-          <span className="card-priority">{PRIORITY_ICON[item.priority]}</span>
-        )}
       </div>
       {item.time && <div className="card-time">⏰ {item.time}</div>}
       {item.description && <div className="card-desc">{item.description}</div>}
