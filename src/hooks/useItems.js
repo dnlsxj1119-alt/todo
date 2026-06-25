@@ -90,8 +90,10 @@ export function useItems() {
   const getItemsForDate = useCallback((dateStr) =>
     items.filter(i => i.date === dateStr), [items]);
 
-  const getItemsForCell = useCallback((dateStr, slot) =>
-    items.filter(i => i.date === dateStr && i.timeSlot === slot), [items]);
+  const getItemsForCell = useCallback((dateStr, slot) => {
+    if (slot === 'all') return items.filter(i => i.date === dateStr && i.type === 'todo');
+    return items.filter(i => i.date === dateStr && i.timeSlot === slot && i.type !== 'todo');
+  }, [items]);
 
   return { items, loading, addItem, updateItem, deleteItem, toggleComplete, moveItem, getItemsForDate, getItemsForCell };
 }

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { TIME_SLOTS } from '../utils/dateUtils';
+import { getTimeSlotFromTime, TIME_SLOTS } from '../utils/dateUtils';
 
 const TYPE_CONFIG = {
   todo:      { label: '할일',   emoji: '🟣', color: 'purple' },
@@ -36,13 +36,21 @@ export default function ItemModal({ item, defaultDate, onSave, onDelete, onClose
 
   const set = (key, val) => setForm(f => ({ ...f, [key]: val }));
 
+  // 시간 변경 시 슬롯 자동 계산
+  const handleTimeChange = (val) => {
+    const slot = val ? getTimeSlotFromTime(val) : 'morning';
+    setForm(f => ({ ...f, time: val, timeSlot: slot }));
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!form.title.trim()) return;
-    onSave(form);
+    // 할일은 항상 'all' 슬롯
+    onSave({ ...form, timeSlot: form.type === 'todo' ? 'all' : form.timeSlot });
   };
 
   const needsTime = form.type === 'schedule' || form.type === 'education';
+  const currentSlot = TIME_SLOTS.find(s => s.key === form.timeSlot);
 
   return (
     <div className="modal-overlay" ref={overlayRef} onClick={(e) => { if (e.target === overlayRef.current) onClose(); }}>
@@ -119,28 +127,23 @@ export default function ItemModal({ item, defaultDate, onSave, onDelete, onClose
                   className="field-input"
                   type="time"
                   value={form.time}
-                  onChange={(e) => set('time', e.target.value)}
+                  onChange={(e) => handleTimeChange(e.target.value)}
                 />
               </div>
             )}
           </div>
 
-          {/* Time slot */}
-          <div className="field-group">
-            <label className="field-label">주간뷰 시간대</label>
-            <div className="slot-grid">
-              {TIME_SLOTS.map(slot => (
-                <button
-                  key={slot.key}
-                  type="button"
-                  className={`slot-btn ${form.timeSlot === slot.key ? 'active' : ''}`}
-                  onClick={() => set('timeSlot', slot.key)}
-                >
-                  {slot.emoji} {slot.label}
-                </button>
-              ))}
+          {/* 슬롯 표시 (자동 계산 결과) */}
+          {form.type === 'todo' ? (
+            <div className="slot-hint slot-hint--all">
+              📋 주간뷰 <strong>전체</strong> 행에 표시됩니다
             </div>
-          </div>
+          ) : (
+            <div className="slot-hint">
+              {currentSlot ? `${currentSlot.emoji} ${currentSlot.label} (${currentSlot.range}) 행에 표시됩니다` : ''}
+              {!form.time && ' — 시간을 입력하면 자동 설정'}
+            </div>
+          )}
 
           {/* Priority */}
           <div className="field-group">

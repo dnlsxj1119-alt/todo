@@ -14,7 +14,7 @@ function WeekCard({ item, onItemClick, onToggle, onDragStart }) {
     <div
       className={`week-card ${TYPE_COLOR[item.type]} ${item.completed ? 'week-card--done' : ''}`}
       draggable
-      onDragStart={(e) => onDragStart(e, item.id)}
+      onDragStart={(e) => onDragStart(e, item.id, item.type)}
       onClick={() => onItemClick(item)}
     >
       <div className="week-card-top">
@@ -40,6 +40,7 @@ function WeekCard({ item, onItemClick, onToggle, onDragStart }) {
 
 export default function WeeklyView({ currentWeek, setCurrentWeek, getItemsForCell, onItemClick, onDayClick, onToggle, moveItem, filterType }) {
   const [dragOverCell, setDragOverCell] = useState(null);
+  const [dragItemType, setDragItemType] = useState(null);
 
   const days = getWeekDays(currentWeek);
 
@@ -60,12 +61,17 @@ export default function WeeklyView({ currentWeek, setCurrentWeek, getItemsForCel
     setCurrentWeek(new Date(today.setDate(diff)));
   };
 
-  // Drag handlers
-  const handleDragStart = (e, itemId) => {
+  const handleDragStart = (e, itemId, itemType) => {
     e.dataTransfer.setData('itemId', String(itemId));
+    e.dataTransfer.setData('itemType', itemType);
+    setDragItemType(itemType);
   };
 
   const handleDragOver = (e, dateStr, slotKey) => {
+    // 할일은 'all' 행에만, 교육/일정은 시간 행에만 드롭 허용
+    const isTodo = dragItemType === 'todo';
+    if (isTodo && slotKey !== 'all') return;
+    if (!isTodo && slotKey === 'all') return;
     e.preventDefault();
     setDragOverCell(`${dateStr}-${slotKey}`);
   };
@@ -73,14 +79,49 @@ export default function WeeklyView({ currentWeek, setCurrentWeek, getItemsForCel
   const handleDrop = (e, dateStr, slotKey) => {
     e.preventDefault();
     const id = Number(e.dataTransfer.getData('itemId'));
+    const type = e.dataTransfer.getData('itemType');
+    if (type === 'todo' && slotKey !== 'all') return;
+    if (type !== 'todo' && slotKey === 'all') return;
     moveItem(id, dateStr, slotKey);
     setDragOverCell(null);
+    setDragItemType(null);
   };
 
   const handleDragLeave = () => setDragOverCell(null);
+  const handleDragEnd = () => { setDragOverCell(null); setDragItemType(null); };
+
+  const renderCell = (ds, slotKey) => {
+    const cellKey = `${ds}-${slotKey}`;
+    const cellItems = getItemsForCell(ds, slotKey).filter(item => !filterType || item.type === filterType);
+    const isDragOver = dragOverCell === cellKey;
+
+    return (
+      <div
+        key={cellKey}
+        className={`wg-cell ${isDragOver ? 'wg-cell--drag-over' : ''} ${slotKey === 'all' ? 'wg-cell--all' : ''}`}
+        onDragOver={(e) => handleDragOver(e, ds, slotKey)}
+        onDrop={(e) => handleDrop(e, ds, slotKey)}
+        onDragLeave={handleDragLeave}
+        onDoubleClick={() => onDayClick(ds, slotKey)}
+      >
+        {cellItems.length === 0
+          ? <div className="wg-cell-empty" title="더블클릭으로 추가" />
+          : cellItems.map(item => (
+              <WeekCard
+                key={item.id}
+                item={item}
+                onItemClick={onItemClick}
+                onToggle={onToggle}
+                onDragStart={handleDragStart}
+              />
+            ))
+        }
+      </div>
+    );
+  };
 
   return (
-    <div className="weekly-view">
+    <div className="weekly-view" onDragEnd={handleDragEnd}>
       {/* Nav */}
       <div className="cal-nav">
         <button className="nav-btn" onClick={prevWeek} aria-label="이전 주">‹</button>
@@ -91,7 +132,6 @@ export default function WeeklyView({ currentWeek, setCurrentWeek, getItemsForCel
         <button className="nav-btn" onClick={nextWeek} aria-label="다음 주">›</button>
       </div>
 
-      {/* Grid wrapper */}
       <div className="week-grid-wrapper">
         <div className="week-grid">
           {/* Corner */}
@@ -113,48 +153,23 @@ export default function WeeklyView({ currentWeek, setCurrentWeek, getItemsForCel
             );
           })}
 
-          {/* Rows: time slot × day */}
+          {/* 전체 행 (할일) */}
+          <div className="wg-slot-label wg-slot-label--all">
+            <span className="slot-emoji">📋</span>
+            <span className="slot-name">전체</span>
+            <span className="slot-range">할일</span>
+          </div>
+          {days.map(day => renderCell(toDateString(day), 'all'))}
+
+          {/* 시간대 행 (교육/일정) */}
           {TIME_SLOTS.map(slot => (
             <>
-              {/* Slot label */}
               <div key={`label-${slot.key}`} className="wg-slot-label">
                 <span className="slot-emoji">{slot.emoji}</span>
                 <span className="slot-name">{slot.label}</span>
                 <span className="slot-range">{slot.range}</span>
               </div>
-
-              {/* Cells */}
-              {days.map((day) => {
-                const ds = toDateString(day);
-                const cellKey = `${ds}-${slot.key}`;
-                const cellItems = getItemsForCell(ds, slot.key).filter(item => !filterType || item.type === filterType);
-                const isDragOver = dragOverCell === cellKey;
-
-                return (
-                  <div
-                    key={cellKey}
-                    className={`wg-cell ${isDragOver ? 'wg-cell--drag-over' : ''}`}
-                    onDragOver={(e) => handleDragOver(e, ds, slot.key)}
-                    onDrop={(e) => handleDrop(e, ds, slot.key)}
-                    onDragLeave={handleDragLeave}
-                    onDoubleClick={() => onDayClick(ds, slot.key)}
-                  >
-                    {cellItems.length === 0 ? (
-                      <div className="wg-cell-empty" title="더블클릭으로 추가" />
-                    ) : (
-                      cellItems.map(item => (
-                        <WeekCard
-                          key={item.id}
-                          item={item}
-                          onItemClick={onItemClick}
-                          onToggle={onToggle}
-                          onDragStart={handleDragStart}
-                        />
-                      ))
-                    )}
-                  </div>
-                );
-              })}
+              {days.map(day => renderCell(toDateString(day), slot.key))}
             </>
           ))}
         </div>
