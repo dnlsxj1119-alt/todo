@@ -77,6 +77,44 @@ export function getSpanCount(startSlot, endSlot) {
   return e - s + 1;
 }
 
+// 시간대 행 높이 (px) — 시간당 20px 비율
+export const SLOT_HEIGHTS = { morning: 120, lunch: 100, evening: 80, night: 180 };
+export const SLOT_START_H  = { morning: 6,   lunch: 12,  evening: 17, night: 21  };
+const PX_PER_HOUR = 20;
+const GRID_GAP = 1;
+
+export function timeToSlotPx(timeStr, slotKey) {
+  if (!timeStr || SLOT_START_H[slotKey] === undefined) return 0;
+  const [h, m] = timeStr.split(':').map(Number);
+  let hours = h - SLOT_START_H[slotKey] + m / 60;
+  if (hours < 0) hours += 24; // night slot wrap
+  return Math.max(0, Math.min(hours * PX_PER_HOUR, SLOT_HEIGHTS[slotKey]));
+}
+
+export function getCardStyle(item, span) {
+  if (item.type === 'todo' || !item.time) return {};
+
+  const top = timeToSlotPx(item.time, item.timeSlot);
+
+  if (!item.endTime || span <= 1) {
+    return { position: 'absolute', top, left: 4, right: 4, minHeight: 36 };
+  }
+
+  const endSlot = getTimeSlotFromTime(item.endTime);
+  const startIdx = TIME_SLOT_ORDER.indexOf(item.timeSlot);
+  const endIdx   = TIME_SLOT_ORDER.indexOf(endSlot);
+
+  let height = SLOT_HEIGHTS[item.timeSlot] - top;
+  for (let i = startIdx + 1; i <= endIdx; i++) {
+    height += GRID_GAP;
+    height += i < endIdx
+      ? SLOT_HEIGHTS[TIME_SLOT_ORDER[i]]
+      : timeToSlotPx(item.endTime, TIME_SLOT_ORDER[i]);
+  }
+
+  return { position: 'absolute', top, left: 4, right: 4, height: Math.max(36, height) };
+}
+
 export function getTimeSlotFromTime(time) {
   if (!time) return 'morning';
   const [h] = time.split(':').map(Number);

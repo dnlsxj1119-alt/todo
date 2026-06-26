@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import {
   getWeekDays, toDateString, isToday, formatWeekRange,
   TIME_SLOTS, TIME_SLOT_ORDER, DAY_NAMES_WEEK,
-  getTimeSlotFromTime, getSpanCount,
+  getTimeSlotFromTime, getSpanCount, getCardStyle,
 } from '../utils/dateUtils';
 
 const TYPE_COLOR = {
@@ -11,10 +11,11 @@ const TYPE_COLOR = {
   schedule:  'card--green',
 };
 
-function WeekCard({ item, onItemClick, onToggle, onDragStart, spanning }) {
+function WeekCard({ item, onItemClick, onToggle, onDragStart, cardStyle }) {
   return (
     <div
-      className={`week-card ${TYPE_COLOR[item.type]} ${item.completed ? 'week-card--done' : ''} ${spanning ? 'week-card--spanning' : ''}`}
+      className={`week-card ${TYPE_COLOR[item.type]} ${item.completed ? 'week-card--done' : ''}`}
+      style={cardStyle}
       draggable
       onDragStart={(e) => onDragStart(e, item.id, item.type)}
       onClick={() => onItemClick(item)}
@@ -133,7 +134,8 @@ export default function WeeklyView({
           : cellItems.map(item => (
               <WeekCard key={item.id} item={item}
                 onItemClick={onItemClick} onToggle={onToggle}
-                onDragStart={handleDragStart} spanning={span > 1} />
+                onDragStart={handleDragStart}
+                cardStyle={slotKey !== 'all' ? getCardStyle(item, span) : {}} />
             ))
         }
       </div>
