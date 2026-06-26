@@ -66,7 +66,14 @@ export function useItems() {
 
   const addItem = useCallback(async (data) => {
     const slot = data.timeSlot || (data.time ? getTimeSlotFromTime(data.time) : 'morning');
-    await supabase.from('items').insert(toRow({ ...data, timeSlot: slot }));
+    const { data: inserted } = await supabase
+      .from('items')
+      .insert(toRow({ ...data, timeSlot: slot }))
+      .select()
+      .single();
+    if (inserted) {
+      setItems(prev => prev.some(i => i.id === inserted.id) ? prev : [...prev, toLocal(inserted)]);
+    }
   }, []);
 
   const updateItem = useCallback(async (id, data) => {

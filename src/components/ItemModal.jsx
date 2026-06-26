@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
-import { getTimeSlotFromTime, getSpanCount, TIME_SLOTS, TIME_SLOT_ORDER } from '../utils/dateUtils';
+import { getTimeSlotFromTime, getSpanCount, TIME_SLOTS } from '../utils/dateUtils';
+import TimePicker from './TimePicker';
 
 const TYPE_CONFIG = {
   todo:      { label: '할일',   emoji: '🟣', color: 'purple' },
@@ -107,17 +108,14 @@ export default function ItemModal({ item, defaultDate, onSave, onDelete, onClose
             </div>
             {needsTime && (
               <div className="field-group field-group--third">
-                <label className="field-label" htmlFor="time">시작 시간</label>
-                <input id="time" className="field-input" type="time" step="600"
-                  value={form.time} onChange={(e) => handleTimeChange(e.target.value)} />
+                <label className="field-label">시작 시간</label>
+                <TimePicker value={form.time} onChange={handleTimeChange} />
               </div>
             )}
             {needsTime && form.time && (
               <div className="field-group field-group--third">
-                <label className="field-label" htmlFor="endTime">종료 시간</label>
-                <input id="endTime" className="field-input" type="time" step="600"
-                  min={form.time} value={form.endTime}
-                  onChange={(e) => set('endTime', e.target.value)} />
+                <label className="field-label">종료 시간</label>
+                <TimePicker value={form.endTime} onChange={(v) => set('endTime', v)} />
               </div>
             )}
           </div>

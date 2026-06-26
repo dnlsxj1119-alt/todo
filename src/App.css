@@ -599,6 +599,29 @@ input, textarea, select { font-family: inherit; }
 .slot-btn:hover { background: var(--purple-light); color: var(--purple-dark); }
 .slot-btn.active { background: var(--purple-light); color: var(--purple-dark); border-color: var(--purple-mid); }
 
+/* Time Picker */
+.time-picker {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.time-select {
+  flex: 1;
+  padding: 9px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  color: var(--text-primary);
+  background: var(--bg);
+  outline: none;
+  cursor: pointer;
+  transition: border-color var(--transition), box-shadow var(--transition);
+  appearance: none;
+  text-align: center;
+}
+.time-select:focus { border-color: var(--purple-mid); box-shadow: 0 0 0 3px rgba(127,119,221,0.12); }
+.time-colon { font-size: 16px; font-weight: 700; color: var(--text-secondary); flex-shrink: 0; }
+
 /* Slot hint */
 .slot-hint {
   font-size: 12px;
