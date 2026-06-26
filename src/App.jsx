@@ -167,6 +167,7 @@ export default function App() {
           <WeeklyView
             currentWeek={currentWeek}
             setCurrentWeek={setCurrentWeek}
+            items={items}
             getItemsForCell={getItemsForCell}
             onItemClick={openEdit}
             onDayClick={(ds, slot) => openAdd(ds, slot)}

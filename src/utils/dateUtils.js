@@ -68,6 +68,15 @@ export const TIME_SLOTS = [
   { key: 'night',   label: '밤',   emoji: '🌙', range: '21:00 – 06:00' },
 ];
 
+export const TIME_SLOT_ORDER = ['morning', 'lunch', 'evening', 'night'];
+
+export function getSpanCount(startSlot, endSlot) {
+  const s = TIME_SLOT_ORDER.indexOf(startSlot);
+  const e = TIME_SLOT_ORDER.indexOf(endSlot);
+  if (s === -1 || e === -1 || e <= s) return 1;
+  return e - s + 1;
+}
+
 export function getTimeSlotFromTime(time) {
   if (!time) return 'morning';
   const [h] = time.split(':').map(Number);

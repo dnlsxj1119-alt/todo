@@ -1,5 +1,9 @@
-import { useState } from 'react';
-import { getWeekDays, toDateString, isToday, formatWeekRange, TIME_SLOTS, DAY_NAMES_WEEK } from '../utils/dateUtils';
+import { useState, useMemo } from 'react';
+import {
+  getWeekDays, toDateString, isToday, formatWeekRange,
+  TIME_SLOTS, TIME_SLOT_ORDER, DAY_NAMES_WEEK,
+  getTimeSlotFromTime, getSpanCount,
+} from '../utils/dateUtils';
 
 const TYPE_COLOR = {
   todo:      'card--purple',
@@ -7,53 +11,74 @@ const TYPE_COLOR = {
   schedule:  'card--green',
 };
 
-function WeekCard({ item, onItemClick, onToggle, onDragStart }) {
+function WeekCard({ item, onItemClick, onToggle, onDragStart, spanning }) {
   return (
     <div
-      className={`week-card ${TYPE_COLOR[item.type]} ${item.completed ? 'week-card--done' : ''}`}
+      className={`week-card ${TYPE_COLOR[item.type]} ${item.completed ? 'week-card--done' : ''} ${spanning ? 'week-card--spanning' : ''}`}
       draggable
       onDragStart={(e) => onDragStart(e, item.id, item.type)}
       onClick={() => onItemClick(item)}
     >
       <div className="week-card-top">
         {item.type === 'todo' && (
-          <button
-            className="card-check"
+          <button className="card-check"
             onClick={(e) => { e.stopPropagation(); onToggle(item.id); }}
-            aria-label={item.completed ? '완료 취소' : '완료'}
-          >
+            aria-label={item.completed ? '완료 취소' : '완료'}>
             {item.completed ? '✓' : '○'}
           </button>
         )}
         <span className="card-title">{item.title}</span>
       </div>
-      {item.time && <div className="card-time">⏰ {item.time}</div>}
+      {(item.time || item.endTime) && (
+        <div className="card-time">
+          ⏰ {item.time}{item.endTime ? ` – ${item.endTime}` : ''}
+        </div>
+      )}
       {item.description && <div className="card-desc">{item.description}</div>}
     </div>
   );
 }
 
-export default function WeeklyView({ currentWeek, setCurrentWeek, getItemsForCell, onItemClick, onDayClick, onToggle, moveItem, filterType }) {
+// 각 날짜×슬롯의 span 수와 covered 여부를 미리 계산
+function useSpanData(items) {
+  return useMemo(() => {
+    const spanMap = {};   // `${date}-${slot}` → span count
+    const covered = new Set(); // 위 셀의 span에 가려진 셀들
+
+    items.forEach(item => {
+      if (!item.endTime || !item.time || item.type === 'todo') return;
+      const endSlot = getTimeSlotFromTime(item.endTime);
+      const span = getSpanCount(item.timeSlot, endSlot);
+      if (span <= 1) return;
+
+      const key = `${item.date}-${item.timeSlot}`;
+      spanMap[key] = Math.max(spanMap[key] || 1, span);
+
+      const startIdx = TIME_SLOT_ORDER.indexOf(item.timeSlot);
+      for (let i = 1; i < span; i++) {
+        covered.add(`${item.date}-${TIME_SLOT_ORDER[startIdx + i]}`);
+      }
+    });
+
+    return { spanMap, covered };
+  }, [items]);
+}
+
+export default function WeeklyView({
+  currentWeek, setCurrentWeek, items, getItemsForCell,
+  onItemClick, onDayClick, onToggle, moveItem, filterType,
+}) {
   const [dragOverCell, setDragOverCell] = useState(null);
   const [dragItemType, setDragItemType] = useState(null);
 
   const days = getWeekDays(currentWeek);
+  const { spanMap, covered } = useSpanData(items);
 
-  const prevWeek = () => {
-    const d = new Date(currentWeek);
-    d.setDate(d.getDate() - 7);
-    setCurrentWeek(d);
-  };
-  const nextWeek = () => {
-    const d = new Date(currentWeek);
-    d.setDate(d.getDate() + 7);
-    setCurrentWeek(d);
-  };
+  const prevWeek = () => { const d = new Date(currentWeek); d.setDate(d.getDate() - 7); setCurrentWeek(d); };
+  const nextWeek = () => { const d = new Date(currentWeek); d.setDate(d.getDate() + 7); setCurrentWeek(d); };
   const goThisWeek = () => {
-    const today = new Date();
-    const dow = today.getDay();
-    const diff = today.getDate() - dow + (dow === 0 ? -6 : 1);
-    setCurrentWeek(new Date(today.setDate(diff)));
+    const t = new Date(); const dow = t.getDay();
+    setCurrentWeek(new Date(t.setDate(t.getDate() - dow + (dow === 0 ? -6 : 1))));
   };
 
   const handleDragStart = (e, itemId, itemType) => {
@@ -62,86 +87,85 @@ export default function WeeklyView({ currentWeek, setCurrentWeek, getItemsForCel
     setDragItemType(itemType);
   };
 
-  const handleDragOver = (e, dateStr, slotKey) => {
-    // 할일은 'all' 행에만, 교육/일정은 시간 행에만 드롭 허용
+  const handleDragOver = (e, ds, slotKey) => {
     const isTodo = dragItemType === 'todo';
     if (isTodo && slotKey !== 'all') return;
     if (!isTodo && slotKey === 'all') return;
     e.preventDefault();
-    setDragOverCell(`${dateStr}-${slotKey}`);
+    setDragOverCell(`${ds}-${slotKey}`);
   };
 
-  const handleDrop = (e, dateStr, slotKey) => {
+  const handleDrop = (e, ds, slotKey) => {
     e.preventDefault();
     const id = Number(e.dataTransfer.getData('itemId'));
     const type = e.dataTransfer.getData('itemType');
     if (type === 'todo' && slotKey !== 'all') return;
     if (type !== 'todo' && slotKey === 'all') return;
-    moveItem(id, dateStr, slotKey);
-    setDragOverCell(null);
-    setDragItemType(null);
+    moveItem(id, ds, slotKey);
+    setDragOverCell(null); setDragItemType(null);
   };
 
-  const handleDragLeave = () => setDragOverCell(null);
   const handleDragEnd = () => { setDragOverCell(null); setDragItemType(null); };
 
-  const renderCell = (ds, slotKey) => {
+  // 셀 렌더링 (슬롯 row 인덱스 포함)
+  const renderCell = (ds, slotKey, rowNum, colNum) => {
     const cellKey = `${ds}-${slotKey}`;
-    const cellItems = getItemsForCell(ds, slotKey).filter(item => !filterType || item.type === filterType);
+
+    // 위 셀의 span에 가려진 경우 렌더링 스킵
+    if (covered.has(cellKey)) return null;
+
+    const span = spanMap[cellKey] || 1;
+    const cellItems = getItemsForCell(ds, slotKey).filter(i => !filterType || i.type === filterType);
     const isDragOver = dragOverCell === cellKey;
 
     return (
       <div
         key={cellKey}
         className={`wg-cell ${isDragOver ? 'wg-cell--drag-over' : ''} ${slotKey === 'all' ? 'wg-cell--all' : ''}`}
+        style={{ gridRow: span > 1 ? `${rowNum} / span ${span}` : rowNum, gridColumn: colNum }}
         onDragOver={(e) => handleDragOver(e, ds, slotKey)}
         onDrop={(e) => handleDrop(e, ds, slotKey)}
-        onDragLeave={handleDragLeave}
+        onDragLeave={() => setDragOverCell(null)}
         onDoubleClick={() => onDayClick(ds, slotKey)}
       >
         {cellItems.length === 0
           ? <div className="wg-cell-empty" title="더블클릭으로 추가" />
           : cellItems.map(item => (
-              <WeekCard
-                key={item.id}
-                item={item}
-                onItemClick={onItemClick}
-                onToggle={onToggle}
-                onDragStart={handleDragStart}
-              />
+              <WeekCard key={item.id} item={item}
+                onItemClick={onItemClick} onToggle={onToggle}
+                onDragStart={handleDragStart} spanning={span > 1} />
             ))
         }
       </div>
     );
   };
 
+  // 그리드 행 번호: 1=헤더, 2=전체, 3=아침, 4=점심, 5=저녁, 6=밤
+  const SLOT_ROW = { all: 2, morning: 3, lunch: 4, evening: 5, night: 6 };
+
   return (
     <div className="weekly-view" onDragEnd={handleDragEnd}>
-      {/* Nav */}
       <div className="cal-nav">
-        <button className="nav-btn" onClick={prevWeek} aria-label="이전 주">‹</button>
+        <button className="nav-btn" onClick={prevWeek}>‹</button>
         <div className="cal-title-group">
           <h2 className="cal-title">{formatWeekRange(currentWeek)}</h2>
           <button className="today-btn" onClick={goThisWeek}>이번 주</button>
         </div>
-        <button className="nav-btn" onClick={nextWeek} aria-label="다음 주">›</button>
+        <button className="nav-btn" onClick={nextWeek}>›</button>
       </div>
 
       <div className="week-grid-wrapper">
         <div className="week-grid">
-          {/* Corner */}
-          <div className="wg-corner" />
+          {/* 코너 */}
+          <div className="wg-corner" style={{ gridRow: 1, gridColumn: 1 }} />
 
-          {/* Day headers */}
+          {/* 요일 헤더 */}
           {days.map((day, i) => {
-            const ds = toDateString(day);
-            const today = isToday(day);
+            const ds = toDateString(day); const today = isToday(day);
             return (
-              <div
-                key={ds}
+              <div key={ds} style={{ gridRow: 1, gridColumn: i + 2 }}
                 className={`wg-day-header ${today ? 'wg-day-header--today' : ''}`}
-                onClick={() => onDayClick(ds)}
-              >
+                onClick={() => onDayClick(ds)}>
                 <span className="wg-day-name">{DAY_NAMES_WEEK[i]}</span>
                 <span className={`wg-day-num ${today ? 'today-num' : ''}`}>{day.getDate()}</span>
               </div>
@@ -149,24 +173,28 @@ export default function WeeklyView({ currentWeek, setCurrentWeek, getItemsForCel
           })}
 
           {/* 전체 행 (할일) */}
-          <div className="wg-slot-label wg-slot-label--all">
+          <div className="wg-slot-label wg-slot-label--all" style={{ gridRow: 2, gridColumn: 1 }}>
             <span className="slot-emoji">📋</span>
             <span className="slot-name">전체</span>
             <span className="slot-range">할일</span>
           </div>
-          {days.map(day => renderCell(toDateString(day), 'all'))}
+          {days.map((day, i) => renderCell(toDateString(day), 'all', 2, i + 2))}
 
-          {/* 시간대 행 (교육/일정) */}
-          {TIME_SLOTS.map(slot => (
-            <>
-              <div key={`label-${slot.key}`} className="wg-slot-label">
-                <span className="slot-emoji">{slot.emoji}</span>
-                <span className="slot-name">{slot.label}</span>
-                <span className="slot-range">{slot.range}</span>
-              </div>
-              {days.map(day => renderCell(toDateString(day), slot.key))}
-            </>
-          ))}
+          {/* 시간대 행 */}
+          {TIME_SLOTS.map((slot) => {
+            const rowNum = SLOT_ROW[slot.key];
+            return (
+              <>
+                <div key={`lbl-${slot.key}`} className="wg-slot-label"
+                  style={{ gridRow: rowNum, gridColumn: 1 }}>
+                  <span className="slot-emoji">{slot.emoji}</span>
+                  <span className="slot-name">{slot.label}</span>
+                  <span className="slot-range">{slot.range}</span>
+                </div>
+                {days.map((day, i) => renderCell(toDateString(day), slot.key, rowNum, i + 2))}
+              </>
+            );
+          })}
         </div>
       </div>
     </div>

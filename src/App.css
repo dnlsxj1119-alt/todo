@@ -378,9 +378,8 @@ input, textarea, select { font-family: inherit; }
 .week-grid {
   display: grid;
   grid-template-columns: 100px repeat(7, 1fr);
-  grid-template-rows: auto repeat(4, minmax(120px, 1fr));
+  grid-template-rows: auto auto repeat(4, minmax(110px, auto));
   min-width: 720px;
-  height: 100%;
 }
 
 .wg-corner {
@@ -471,6 +470,7 @@ input, textarea, select { font-family: inherit; }
 .week-card--purple { background: var(--purple-light); color: var(--purple-dark); border-left: 3px solid var(--purple-mid); }
 .week-card--blue   { background: var(--blue-light);   color: var(--blue-dark);   border-left: 3px solid var(--blue-mid); }
 .week-card--green  { background: var(--green-light);  color: var(--green-dark);  border-left: 3px solid var(--green-mid); }
+.week-card--spanning { flex: 1; border-left-width: 4px; }
 .week-card--done {
   background: #F3F4F6 !important;
   border-left-color: #D1D5DB !important;
@@ -560,6 +560,7 @@ input, textarea, select { font-family: inherit; }
 .field-textarea { resize: vertical; min-height: 60px; }
 .field-row { display: flex; gap: 10px; }
 .field-group--half { flex: 1; }
+.field-group--third { flex: 1; min-width: 0; }
 
 /* Type tabs */
 .type-tabs { display: flex; gap: 6px; }
@@ -611,6 +612,12 @@ input, textarea, select { font-family: inherit; }
   background: var(--purple-light);
   color: var(--purple-dark);
   border-color: var(--purple-mid);
+}
+.slot-hint--span {
+  background: var(--green-light);
+  color: var(--green-dark);
+  border-color: var(--green-mid);
+  font-weight: 600;
 }
 
 /* Priority row */

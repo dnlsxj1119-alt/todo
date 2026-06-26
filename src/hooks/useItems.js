@@ -10,6 +10,7 @@ function toLocal(row) {
     description: row.description ?? '',
     date: row.date,
     time: row.time ?? '',
+    endTime: row.end_time ?? '',
     timeSlot: row.time_slot ?? 'morning',
     completed: row.completed ?? false,
   };
@@ -22,6 +23,7 @@ function toRow(data) {
     description: data.description ?? '',
     date: data.date,
     time: data.time ?? '',
+    end_time: data.endTime ?? '',
     time_slot: data.timeSlot ?? 'morning',
     completed: data.completed ?? false,
   };
