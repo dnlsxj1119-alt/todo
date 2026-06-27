@@ -41,19 +41,18 @@ export default function ItemModal({ item, defaultDate, onSave, onDelete, onClose
     setForm(f => ({ ...f, time: val, endTime: '', endDate: '', timeSlot: slot }));
   };
 
-  // 종료시간이 시작시간보다 이르면 자동으로 다음날 설정
   const handleEndTimeChange = (val) => {
-    if (val && form.time && val <= form.time) {
-      const next = new Date(form.date);
-      next.setDate(next.getDate() + 1);
-      const y = next.getFullYear();
-      const m = String(next.getMonth() + 1).padStart(2, '0');
-      const d = String(next.getDate()).padStart(2, '0');
-      set('endDate', `${y}-${m}-${d}`);
-    } else {
-      set('endDate', '');
-    }
-    set('endTime', val);
+    setForm(f => {
+      // 종료시간이 시작시간보다 이르고 종료날짜 미설정 → 자동으로 다음날
+      let endDate = f.endDate;
+      if (val && f.time && val <= f.time && !f.endDate) {
+        const next = new Date(f.date);
+        next.setDate(next.getDate() + 1);
+        endDate = next.toISOString().slice(0, 10);
+      }
+      if (!val) endDate = '';
+      return { ...f, endTime: val, endDate };
+    });
   };
 
   const handleSubmit = (e) => {
@@ -130,13 +129,26 @@ export default function ItemModal({ item, defaultDate, onSave, onDelete, onClose
             )}
             {needsTime && form.time && (
               <div className="field-group field-group--third">
-                <label className="field-label">
-                  종료 시간{form.endDate ? ' (다음날)' : ''}
-                </label>
+                <label className="field-label">종료 시간</label>
                 <TimePicker value={form.endTime} onChange={handleEndTimeChange} />
               </div>
             )}
           </div>
+
+          {/* 종료 날짜 (다일 일정) */}
+          {needsTime && form.endTime && (
+            <div className="field-group">
+              <label className="field-label">
+                종료 날짜 <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 400 }}>
+                  (당일이면 비워두세요)
+                </span>
+              </label>
+              <input className="field-input" type="date"
+                min={form.date}
+                value={form.endDate}
+                onChange={(e) => set('endDate', e.target.value)} />
+            </div>
+          )}
 
           {/* 슬롯 힌트 */}
           {form.type === 'todo' ? (
