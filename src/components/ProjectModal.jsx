@@ -139,8 +139,10 @@ export default function ProjectModal({ project, onSave, onDelete, onClose }) {
                 </div>
               ))}
 
+              <button type="button" className="btn btn--ghost" style={{ fontSize: 12 }} onClick={addTask}>+ 개별 추가</button>
+
               {/* 일괄 추가 */}
-              <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginTop: 2,
+              <div style={{ display: 'flex', gap: 6, alignItems: 'center',
                 padding: '8px 10px', background: 'var(--bg)', borderRadius: 8, border: '1px dashed var(--border)' }}>
                 <input
                   className="field-input"
@@ -161,7 +163,6 @@ export default function ProjectModal({ project, onSave, onDelete, onClose }) {
                 <button type="button" className="btn btn--ghost" style={{ fontSize: 12, whiteSpace: 'nowrap' }}
                   onClick={addBatch}>일괄 추가</button>
               </div>
-              <button type="button" className="btn btn--ghost" style={{ fontSize: 12 }} onClick={addTask}>+ 개별 추가</button>
             </div>
           </div>
 

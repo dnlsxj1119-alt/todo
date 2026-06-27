@@ -72,7 +72,7 @@ function TaskRow({ task, projectId, onToggleTask }) {
   );
 }
 
-function ProjectCard({ project, onToggleTask, onEdit }) {
+function ProjectCard({ project, onToggleTask, onEdit, onDragStart, onDragOver, onDrop, onDragEnd, isDragOver }) {
   const [collapsed, setCollapsed] = useState(false);
   const isEducation = project.type === 'education';
 
@@ -83,10 +83,21 @@ function ProjectCard({ project, onToggleTask, onEdit }) {
     : 0;
 
   return (
-    <div className={`proj-card ${isEducation ? 'proj-card--edu' : 'proj-card--sponsor'}`}>
+    <div
+      className={`proj-card ${isEducation ? 'proj-card--edu' : 'proj-card--sponsor'}`}
+      style={{ opacity: isDragOver ? 0.6 : 1, outline: isDragOver ? '2px dashed var(--accent)' : 'none', transition: 'opacity 0.15s' }}
+      draggable
+      onDragStart={onDragStart}
+      onDragOver={onDragOver}
+      onDrop={onDrop}
+      onDragEnd={onDragEnd}
+    >
       {/* Header */}
       <div className="proj-card-header">
-        <div className="proj-type-badge">{isEducation ? '🎓 교육 프로젝트' : '📁 프로젝트'}</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ cursor: 'grab', color: 'var(--text-muted)', fontSize: 16, lineHeight: 1 }} title="드래그로 순서 변경">⠿</span>
+          <div className="proj-type-badge">{isEducation ? '🎓 교육 프로젝트' : '📁 프로젝트'}</div>
+        </div>
         <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
           <button
             style={{ fontSize: 14, padding: '0 6px', color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer' }}
@@ -191,9 +202,11 @@ function ProjectCard({ project, onToggleTask, onEdit }) {
   );
 }
 
-export default function ProjectsView({ projects, onToggleTask, onCycleEmail, onAdd, onEdit, onDelete }) {
+export default function ProjectsView({ projects, onToggleTask, onCycleEmail, onAdd, onEdit, onDelete, onReorder }) {
   const [showModal, setShowModal] = useState(false);
   const [editProject, setEditProject] = useState(null);
+  const [dragId, setDragId] = useState(null);
+  const [dragOverId, setDragOverId] = useState(null);
 
   const handleEdit = (p) => {
     setEditProject(p);
@@ -215,6 +228,21 @@ export default function ProjectsView({ projects, onToggleTask, onCycleEmail, onA
     onDelete(id);
     setShowModal(false);
   };
+
+  const handleDragStart = (id) => setDragId(id);
+  const handleDragOver = (e, id) => { e.preventDefault(); if (id !== dragId) setDragOverId(id); };
+  const handleDrop = (e, id) => {
+    e.preventDefault();
+    if (!dragId || dragId === id) { setDragId(null); setDragOverId(null); return; }
+    const reordered = [...projects];
+    const from = reordered.findIndex(p => p.id === dragId);
+    const to   = reordered.findIndex(p => p.id === id);
+    const [moved] = reordered.splice(from, 1);
+    reordered.splice(to, 0, moved);
+    onReorder(reordered.map((p, i) => ({ ...p, sortOrder: i })));
+    setDragId(null); setDragOverId(null);
+  };
+  const handleDragEnd = () => { setDragId(null); setDragOverId(null); };
 
   return (
     <div className="projects-view">
@@ -242,6 +270,11 @@ export default function ProjectsView({ projects, onToggleTask, onCycleEmail, onA
               project={p}
               onToggleTask={onToggleTask}
               onEdit={handleEdit}
+              onDragStart={() => handleDragStart(p.id)}
+              onDragOver={(e) => handleDragOver(e, p.id)}
+              onDrop={(e) => handleDrop(e, p.id)}
+              onDragEnd={handleDragEnd}
+              isDragOver={dragOverId === p.id}
             />
           ))}
         </div>

@@ -10,6 +10,7 @@ function toLocal(row) {
     tasks: row.tasks ?? [],
     goals: row.goals ?? [],
     notes: row.notes ?? '',
+    sortOrder: row.sort_order ?? 0,
   };
 }
 
@@ -21,6 +22,7 @@ function toRow(data) {
     tasks: data.tasks ?? [],
     goals: data.goals ?? [],
     notes: data.notes ?? '',
+    sort_order: data.sortOrder ?? 0,
   };
 }
 
@@ -35,7 +37,7 @@ export function useProjects() {
       .select('*')
       .order('created_at', { ascending: true })
       .then(({ data }) => {
-        if (data) setProjects(data.map(toLocal));
+        if (data) setProjects(data.map(toLocal).sort((a, b) => a.sortOrder - b.sortOrder));
         setLoading(false);
       });
   }, []);
@@ -98,5 +100,12 @@ export function useProjects() {
     await supabase.from('projects').update({ emails }).eq('id', projectId);
   }, [projects]);
 
-  return { projects, loading, addProject, updateProject, deleteProject, toggleTask, cycleEmailStatus };
+  const reorderProjects = useCallback(async (reordered) => {
+    setProjects(reordered);
+    await Promise.all(
+      reordered.map((p, i) => supabase.from('projects').update({ sort_order: i }).eq('id', p.id))
+    );
+  }, []);
+
+  return { projects, loading, addProject, updateProject, deleteProject, toggleTask, cycleEmailStatus, reorderProjects };
 }
