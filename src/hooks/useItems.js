@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
-import { getTimeSlotFromTime, TIME_SLOT_ORDER } from '../utils/dateUtils';
+import { getTimeSlotFromTime, TIME_SLOT_ORDER, timeToSlotPx } from '../utils/dateUtils';
 
 function toLocal(row) {
   const type = row.type;
@@ -109,24 +109,29 @@ export function useItems() {
   }, []);
 
   const getItemsForDate = useCallback((dateStr) =>
-    items.filter(i => i.date === dateStr), [items]);
+    items.filter(i =>
+      i.date === dateStr ||
+      (i.type !== 'todo' && i.endDate && i.date < dateStr && i.endDate >= dateStr)
+    ), [items]);
 
   const getItemsForCell = useCallback((dateStr, slot) => {
     if (slot === 'all') {
-      const todos = items.filter(i => i.date === dateStr && i.type === 'todo');
-      const continuations = items.filter(i =>
-        i.type !== 'todo' && i.endDate && i.date < dateStr && i.endDate >= dateStr
-      );
-      return [...todos, ...continuations];
+      return items.filter(i => i.date === dateStr && i.type === 'todo');
     }
     return items.filter(i => {
-      if (i.date !== dateStr || i.type === 'todo') return false;
-      if (i.timeSlot === slot) return true;
-      // 다일 이벤트: 시작 슬롯 이후 슬롯에도 표시
-      if (i.endDate && i.endDate > i.date) {
-        const startIdx = TIME_SLOT_ORDER.indexOf(i.timeSlot);
-        const slotIdx  = TIME_SLOT_ORDER.indexOf(slot);
-        return slotIdx > startIdx;
+      if (i.type === 'todo') return false;
+      // 시작일: 해당 슬롯만 (spanning이 시각적 연결 담당)
+      if (i.date === dateStr) return i.timeSlot === slot;
+      // 중간일 (date < dateStr < endDate): 모든 슬롯에 표시
+      if (i.endDate && i.date < dateStr && i.endDate > dateStr) return true;
+      // 종료일: 아침부터 endTime 슬롯까지
+      if (i.endDate === dateStr && i.date < dateStr) {
+        const endSlotKey = i.endTime ? getTimeSlotFromTime(i.endTime) : TIME_SLOT_ORDER[TIME_SLOT_ORDER.length - 1];
+        const endIdx = TIME_SLOT_ORDER.indexOf(endSlotKey);
+        const slotIdx = TIME_SLOT_ORDER.indexOf(slot);
+        if (slotIdx < endIdx) return true;
+        if (slotIdx === endIdx) return timeToSlotPx(i.endTime, endSlotKey) > 0;
+        return false;
       }
       return false;
     });

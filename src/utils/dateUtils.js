@@ -78,7 +78,7 @@ export function getSpanCount(startSlot, endSlot) {
 }
 
 // 시간대 행 높이 (px) — 시간당 20px 비율
-export const SLOT_HEIGHTS = { morning: 120, lunch: 100, evening: 80, night: 180 };
+export const SLOT_HEIGHTS = { morning: 120, lunch: 120, evening: 120, night: 120 };
 export const SLOT_START_H  = { morning: 6,   lunch: 12,  evening: 17, night: 21  };
 const PX_PER_HOUR = 20;
 const GRID_GAP = 1;
@@ -91,19 +91,36 @@ export function timeToSlotPx(timeStr, slotKey) {
   return Math.max(0, Math.min(hours * PX_PER_HOUR, SLOT_HEIGHTS[slotKey]));
 }
 
+// 다일 이벤트 시작일: 시작 시간부터 밤 끝까지 채우는 높이
+function getMultiDayStartStyle(item) {
+  const top = timeToSlotPx(item.time, item.timeSlot);
+  const startIdx = TIME_SLOT_ORDER.indexOf(item.timeSlot);
+  const endIdx = TIME_SLOT_ORDER.indexOf('night');
+  let height = SLOT_HEIGHTS[item.timeSlot] - top;
+  for (let i = startIdx + 1; i <= endIdx; i++) {
+    height += GRID_GAP + SLOT_HEIGHTS[TIME_SLOT_ORDER[i]];
+  }
+  return { position: 'absolute', top, left: 4, right: 4, height: Math.max(36, height) };
+}
+
+export function getEndDayCardStyle(item, slot) {
+  const endSlotKey = item.endTime ? getTimeSlotFromTime(item.endTime) : TIME_SLOT_ORDER[TIME_SLOT_ORDER.length - 1];
+  const endIdx = TIME_SLOT_ORDER.indexOf(endSlotKey);
+  const slotIdx = TIME_SLOT_ORDER.indexOf(slot);
+  if (slotIdx < endIdx) {
+    return { position: 'absolute', top: 0, left: 4, right: 4, bottom: 0, opacity: 0.75 };
+  }
+  const endPx = timeToSlotPx(item.endTime, endSlotKey);
+  return { position: 'absolute', top: 0, left: 4, right: 4, height: Math.max(16, endPx), opacity: 0.75 };
+}
+
 export function getCardStyle(item, span, spanStartSlot = null) {
   if (item.type === 'todo' || !item.time) return {};
-  // 다일 일정: 시작일에서 밤 끝까지 채우는 높이 계산
-  if (item.endDate && item.endDate > item.date && !spanStartSlot) {
-    const top = timeToSlotPx(item.time, item.timeSlot);
-    const endSlot = 'night';
-    const startIdx = TIME_SLOT_ORDER.indexOf(item.timeSlot);
-    const endIdx = TIME_SLOT_ORDER.indexOf(endSlot);
-    let height = SLOT_HEIGHTS[item.timeSlot] - top;
-    for (let i = startIdx + 1; i <= endIdx; i++) {
-      height += GRID_GAP + SLOT_HEIGHTS[TIME_SLOT_ORDER[i]];
-    }
-    return { position: 'absolute', top, left: 4, right: 4, height: Math.max(36, height) };
+
+  // 다일 이벤트 시작일(자기 슬롯 셀): 밤 끝까지 채우는 스타일
+  // spanStartSlot이 없거나 자기 슬롯과 같으면 primary 셀임
+  if (item.endDate && item.endDate > item.date && (!spanStartSlot || spanStartSlot === item.timeSlot)) {
+    return getMultiDayStartStyle(item);
   }
 
   // 스패닝 셀 안에 있는 다른 슬롯 항목은 위 슬롯 높이만큼 top 오프셋 추가

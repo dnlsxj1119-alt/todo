@@ -23,7 +23,7 @@ function ItemChip({ item, onClick, onToggle }) {
       >
         {item.completed ? '✓' : '○'}
       </span>
-      <span className="chip-title">{item.title}</span>
+      <span className="chip-title">{item._isCont ? `↩ ${item.title}` : item.title}</span>
     </div>
   );
 }
@@ -66,7 +66,9 @@ export default function CalendarView({ currentMonth, setCurrentMonth, getItemsFo
       <div className="cal-grid cal-grid--body">
         {grid.map(({ date, isCurrentMonth }) => {
           const ds = toDateString(date);
-          const allItems = getItemsForDate(ds).filter(item => !filterType || item.type === filterType);
+          const allItems = getItemsForDate(ds)
+            .filter(item => !filterType || item.type === filterType)
+            .map(item => ({ ...item, _isCont: item.date !== ds }));
           const today = isToday(date);
           const isExpanded = expanded[ds];
           const visible = isExpanded ? allItems : allItems.slice(0, VISIBLE_MAX);
@@ -83,7 +85,7 @@ export default function CalendarView({ currentMonth, setCurrentMonth, getItemsFo
               <div className="chip-stack">
                 {visible.map(item => (
                   <ItemChip
-                    key={item.id}
+                    key={`${item.id}-${ds}`}
                     item={item}
                     onClick={onItemClick}
                     onToggle={onToggle}

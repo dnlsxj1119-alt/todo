@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import {
   getWeekDays, toDateString, isToday, formatWeekRange,
   TIME_SLOTS, TIME_SLOT_ORDER, DAY_NAMES_WEEK,
-  getTimeSlotFromTime, getSpanCount, getCardStyle,
+  getTimeSlotFromTime, getSpanCount, getCardStyle, getEndDayCardStyle,
 } from '../utils/dateUtils';
 
 const TYPE_COLOR = {
@@ -49,7 +49,7 @@ function useSpanData(items) {
 
     items.forEach(item => {
       if (!item.time || item.type === 'todo') return;
-      // 다일 일정은 시작일에서 밤(night)까지 꽉 채움
+      // 다일 이벤트: 시작일에서 밤(night)까지 span
       const endSlot = (item.endDate && item.endDate > item.date)
         ? 'night'
         : item.endTime ? getTimeSlotFromTime(item.endTime) : null;
@@ -148,17 +148,25 @@ export default function WeeklyView({
         {allItems.length === 0
           ? <div className="wg-cell-empty" title="더블클릭으로 추가" />
           : allItems.map(item => {
-              const isAllDayCont = slotKey === 'all' && item.date !== ds;
-              // 다일 이벤트가 시작 슬롯이 아닌 슬롯에 표시될 때 셀 전체 채우기
-              const isSlotCont = slotKey !== 'all' && item.endDate && item.endDate > item.date && item.timeSlot !== slotKey;
-              const cardStyle = isSlotCont
-                ? { position: 'absolute', top: 0, left: 4, right: 4, bottom: 0, opacity: 0.75 }
-                : slotKey !== 'all' ? getCardStyle(item, span, slotKey) : {};
+              // 종료일 (item.date < ds, item.endDate === ds)
+              const isEndDayCont = slotKey !== 'all' && item.endDate === ds && item.date < ds;
+              // 중간일 (item.date < ds < item.endDate)
+              const isContSlot = !isEndDayCont && slotKey !== 'all'
+                && item.endDate && item.date < ds && item.endDate > ds;
+              const isContinuation = isEndDayCont || isContSlot;
+              let cardStyle;
+              if (isEndDayCont) {
+                cardStyle = getEndDayCardStyle(item, slotKey);
+              } else if (isContSlot) {
+                cardStyle = { position: 'absolute', top: 0, left: 4, right: 4, bottom: 0, opacity: 0.75 };
+              } else {
+                cardStyle = slotKey !== 'all' ? getCardStyle(item, span, slotKey) : {};
+              }
               return (
                 <WeekCard key={`${item.id}-${slotKey}`} item={item}
                   onItemClick={onItemClick} onToggle={onToggle}
                   onDragStart={handleDragStart}
-                  isContinuation={isAllDayCont || isSlotCont}
+                  isContinuation={isContinuation}
                   cardStyle={cardStyle} />
               );
             })
