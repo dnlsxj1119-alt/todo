@@ -6,9 +6,9 @@ import {
 } from '../utils/dateUtils';
 
 const TYPE_COLOR = {
-  todo:      'card--purple',
-  education: 'card--blue',
-  schedule:  'card--green',
+  todo:      'week-card--purple',
+  education: 'week-card--blue',
+  schedule:  'week-card--green',
 };
 
 function WeekCard({ item, onItemClick, onToggle, onDragStart, cardStyle }) {
@@ -43,8 +43,8 @@ function WeekCard({ item, onItemClick, onToggle, onDragStart, cardStyle }) {
 // 각 날짜×슬롯의 span 수와 covered 여부를 미리 계산
 function useSpanData(items) {
   return useMemo(() => {
-    const spanMap = {};   // `${date}-${slot}` → span count
-    const covered = new Set(); // 위 셀의 span에 가려진 셀들
+    const spanMap = {};
+    const covered = new Set();
 
     items.forEach(item => {
       if (!item.endTime || !item.time || item.type === 'todo') return;
@@ -116,7 +116,18 @@ export default function WeeklyView({
     if (covered.has(cellKey)) return null;
 
     const span = spanMap[cellKey] || 1;
-    const cellItems = getItemsForCell(ds, slotKey).filter(i => !filterType || i.type === filterType);
+
+    // 기본 항목 + 스패닝으로 가려진 슬롯의 항목도 포함
+    let allItems = getItemsForCell(ds, slotKey).filter(i => !filterType || i.type === filterType);
+    if (span > 1) {
+      const startIdx = TIME_SLOT_ORDER.indexOf(slotKey);
+      for (let i = 1; i < span; i++) {
+        const nextSlot = TIME_SLOT_ORDER[startIdx + i];
+        const extra = getItemsForCell(ds, nextSlot).filter(i => !filterType || i.type === filterType);
+        allItems = [...allItems, ...extra];
+      }
+    }
+
     const isDragOver = dragOverCell === cellKey;
 
     return (
@@ -129,13 +140,13 @@ export default function WeeklyView({
         onDragLeave={() => setDragOverCell(null)}
         onDoubleClick={() => onDayClick(ds, slotKey)}
       >
-        {cellItems.length === 0
+        {allItems.length === 0
           ? <div className="wg-cell-empty" title="더블클릭으로 추가" />
-          : cellItems.map(item => (
+          : allItems.map(item => (
               <WeekCard key={item.id} item={item}
                 onItemClick={onItemClick} onToggle={onToggle}
                 onDragStart={handleDragStart}
-                cardStyle={slotKey !== 'all' ? getCardStyle(item, span) : {}} />
+                cardStyle={slotKey !== 'all' ? getCardStyle(item, span, slotKey) : {}} />
             ))
         }
       </div>

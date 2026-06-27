@@ -71,7 +71,7 @@ export default function ProjectModal({ project, onSave, onDelete, onClose }) {
             <div className="type-tabs">
               {[
                 { key: 'education',   label: '🎓 교육 프로젝트' },
-                { key: 'sponsorship', label: '🤝 협찬 관리' },
+                { key: 'sponsorship', label: '📁 프로젝트' },
               ].map(t => (
                 <button
                   key={t.key}
@@ -105,7 +105,22 @@ export default function ProjectModal({ project, onSave, onDelete, onClose }) {
               <div className="field-group field-group--half">
                 <label className="field-label">전체 주차</label>
                 <input className="field-input" type="number" min={1} max={52}
-                  value={form.totalWeeks} onChange={e => set('totalWeeks', Number(e.target.value))} />
+                  value={form.totalWeeks}
+                  onChange={e => {
+                    const weeks = Number(e.target.value);
+                    setForm(f => {
+                      const cur = f.tasks;
+                      let tasks;
+                      if (weeks > cur.length) {
+                        tasks = [...cur, ...Array.from({ length: weeks - cur.length }, (_, i) => ({
+                          id: Date.now() + i, label: `강의듣기${cur.length + i + 1}`, status: 'upcoming',
+                        }))];
+                      } else {
+                        tasks = cur.slice(0, weeks);
+                      }
+                      return { ...f, totalWeeks: weeks, tasks };
+                    });
+                  }} />
               </div>
               <div className="field-group field-group--half">
                 <label className="field-label">현재 주차</label>

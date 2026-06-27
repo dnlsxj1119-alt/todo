@@ -13,8 +13,10 @@ const EMAIL_STATUS = {
   planned: { label: '작성예정', cls: 'email--planned' },
 };
 
-function ProjectProgress({ current, total }) {
-  const pct = Math.round((current / total) * 100);
+function ProjectProgress({ current, total, tasks }) {
+  const done = tasks.filter(t => t.status === 'done').length;
+  const taskTotal = tasks.length || 1;
+  const pct = Math.round((done / taskTotal) * 100);
   return (
     <div className="proj-progress">
       <div className="proj-progress-header">
@@ -53,7 +55,7 @@ function ProjectCard({ project, onToggleTask, onCycleEmail, onEdit }) {
       {/* Card Header */}
       <div className="proj-card-header">
         <div className="proj-type-badge">
-          {isEducation ? '🎓 교육 프로젝트' : '🤝 협찬 관리'}
+          {isEducation ? '🎓 교육 프로젝트' : '📁 프로젝트'}
         </div>
         <button className="proj-edit-btn" onClick={() => onEdit(project)} title="수정">⋯</button>
       </div>
@@ -62,7 +64,7 @@ function ProjectCard({ project, onToggleTask, onCycleEmail, onEdit }) {
 
       {/* Progress */}
       {isEducation && project.totalWeeks ? (
-        <ProjectProgress current={project.currentWeek} total={project.totalWeeks} />
+        <ProjectProgress current={project.currentWeek} total={project.totalWeeks} tasks={project.tasks} />
       ) : (
         <SponsorshipProgress tasks={project.tasks} />
       )}

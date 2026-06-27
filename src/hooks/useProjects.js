@@ -65,24 +65,31 @@ export function useProjects() {
   }, []);
 
   const addProject = useCallback(async (data) => {
-    await supabase.from('projects').insert(toRow(data));
+    const { data: inserted } = await supabase
+      .from('projects').insert(toRow(data)).select().single();
+    if (inserted) {
+      setProjects(prev => prev.some(p => p.id === inserted.id) ? prev : [...prev, toLocal(inserted)]);
+    }
   }, []);
 
   const updateProject = useCallback(async (id, data) => {
+    setProjects(prev => prev.map(p => p.id === id ? { ...p, ...data } : p));
     await supabase.from('projects').update(toRow(data)).eq('id', id);
   }, []);
 
   const deleteProject = useCallback(async (id) => {
+    setProjects(prev => prev.filter(p => p.id !== id));
     await supabase.from('projects').delete().eq('id', id);
   }, []);
 
   const toggleTask = useCallback(async (projectId, taskId) => {
     const project = projects.find(p => p.id === projectId);
     if (!project) return;
-    const tasks = project.tasks.map(t => {
-      if (t.id !== taskId) return t;
-      return { ...t, status: t.status === 'done' ? 'upcoming' : 'done' };
-    });
+    const cycle = { upcoming: 'in_progress', in_progress: 'done', done: 'upcoming' };
+    const tasks = project.tasks.map(t =>
+      t.id !== taskId ? t : { ...t, status: cycle[t.status] ?? 'in_progress' }
+    );
+    setProjects(prev => prev.map(p => p.id === projectId ? { ...p, tasks } : p));
     await supabase.from('projects').update({ tasks }).eq('id', projectId);
   }, [projects]);
 
@@ -93,6 +100,7 @@ export function useProjects() {
     const emails = project.emails.map(e =>
       e.id === emailId ? { ...e, status: cycle[e.status] } : e
     );
+    setProjects(prev => prev.map(p => p.id === projectId ? { ...p, emails } : p));
     await supabase.from('projects').update({ emails }).eq('id', projectId);
   }, [projects]);
 

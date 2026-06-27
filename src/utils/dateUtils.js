@@ -91,25 +91,39 @@ export function timeToSlotPx(timeStr, slotKey) {
   return Math.max(0, Math.min(hours * PX_PER_HOUR, SLOT_HEIGHTS[slotKey]));
 }
 
-export function getCardStyle(item, span) {
+export function getCardStyle(item, span, spanStartSlot = null) {
   if (item.type === 'todo' || !item.time) return {};
 
-  const top = timeToSlotPx(item.time, item.timeSlot);
-
-  if (!item.endTime || span <= 1) {
-    return { position: 'absolute', top, left: 4, right: 4, minHeight: 36 };
+  // 스패닝 셀 안에 있는 다른 슬롯 항목은 위 슬롯 높이만큼 top 오프셋 추가
+  const cellStartSlot = spanStartSlot || item.timeSlot;
+  const cellStartIdx = TIME_SLOT_ORDER.indexOf(cellStartSlot);
+  const itemSlotIdx  = TIME_SLOT_ORDER.indexOf(item.timeSlot);
+  let topOffset = 0;
+  for (let i = cellStartIdx; i < itemSlotIdx; i++) {
+    topOffset += SLOT_HEIGHTS[TIME_SLOT_ORDER[i]] + GRID_GAP;
   }
 
-  const endSlot = getTimeSlotFromTime(item.endTime);
-  const startIdx = TIME_SLOT_ORDER.indexOf(item.timeSlot);
-  const endIdx   = TIME_SLOT_ORDER.indexOf(endSlot);
+  const startPx = timeToSlotPx(item.time, item.timeSlot);
+  const top = topOffset + startPx;
 
-  let height = SLOT_HEIGHTS[item.timeSlot] - top;
-  for (let i = startIdx + 1; i <= endIdx; i++) {
-    height += GRID_GAP;
-    height += i < endIdx
-      ? SLOT_HEIGHTS[TIME_SLOT_ORDER[i]]
-      : timeToSlotPx(item.endTime, TIME_SLOT_ORDER[i]);
+  if (!item.endTime) {
+    const maxH = SLOT_HEIGHTS[item.timeSlot] - startPx;
+    return { position: 'absolute', top, left: 4, right: 4, height: Math.max(36, maxH) };
+  }
+
+  const endSlot  = getTimeSlotFromTime(item.endTime);
+  const endSlotIdx = TIME_SLOT_ORDER.indexOf(endSlot);
+  const endPx   = timeToSlotPx(item.endTime, endSlot);
+
+  let height;
+  if (endSlotIdx === itemSlotIdx) {
+    height = endPx - startPx;
+  } else {
+    height = SLOT_HEIGHTS[item.timeSlot] - startPx;
+    for (let i = itemSlotIdx + 1; i <= endSlotIdx; i++) {
+      height += GRID_GAP;
+      height += i < endSlotIdx ? SLOT_HEIGHTS[TIME_SLOT_ORDER[i]] : endPx;
+    }
   }
 
   return { position: 'absolute', top, left: 4, right: 4, height: Math.max(36, height) };

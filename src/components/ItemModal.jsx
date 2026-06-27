@@ -19,6 +19,7 @@ export default function ItemModal({ item, defaultDate, onSave, onDelete, onClose
     date: item?.date ?? defaultDate ?? '',
     time: item?.time ?? '',
     endTime: item?.endTime ?? '',
+    endDate: item?.endDate ?? '',
     timeSlot: item?.timeSlot ?? 'morning',
     completed: item?.completed ?? false,
   });
@@ -37,7 +38,22 @@ export default function ItemModal({ item, defaultDate, onSave, onDelete, onClose
 
   const handleTimeChange = (val) => {
     const slot = val ? getTimeSlotFromTime(val) : 'morning';
-    setForm(f => ({ ...f, time: val, endTime: '', timeSlot: slot }));
+    setForm(f => ({ ...f, time: val, endTime: '', endDate: '', timeSlot: slot }));
+  };
+
+  // 종료시간이 시작시간보다 이르면 자동으로 다음날 설정
+  const handleEndTimeChange = (val) => {
+    if (val && form.time && val <= form.time) {
+      const next = new Date(form.date);
+      next.setDate(next.getDate() + 1);
+      const y = next.getFullYear();
+      const m = String(next.getMonth() + 1).padStart(2, '0');
+      const d = String(next.getDate()).padStart(2, '0');
+      set('endDate', `${y}-${m}-${d}`);
+    } else {
+      set('endDate', '');
+    }
+    set('endTime', val);
   };
 
   const handleSubmit = (e) => {
@@ -114,8 +130,10 @@ export default function ItemModal({ item, defaultDate, onSave, onDelete, onClose
             )}
             {needsTime && form.time && (
               <div className="field-group field-group--third">
-                <label className="field-label">종료 시간</label>
-                <TimePicker value={form.endTime} onChange={(v) => set('endTime', v)} />
+                <label className="field-label">
+                  종료 시간{form.endDate ? ' (다음날)' : ''}
+                </label>
+                <TimePicker value={form.endTime} onChange={handleEndTimeChange} />
               </div>
             )}
           </div>

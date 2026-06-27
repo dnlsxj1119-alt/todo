@@ -3,15 +3,20 @@ import { supabase } from '../lib/supabase';
 import { getTimeSlotFromTime } from '../utils/dateUtils';
 
 function toLocal(row) {
+  const type = row.type;
+  const rawSlot = row.time_slot ?? 'morning';
+  // 교육/일정이 실수로 'all'로 저장된 경우 morning으로 보정
+  const timeSlot = (type !== 'todo' && rawSlot === 'all') ? 'morning' : rawSlot;
   return {
     id: row.id,
-    type: row.type,
+    type,
     title: row.title,
     description: row.description ?? '',
     date: row.date,
     time: row.time ?? '',
     endTime: row.end_time ?? '',
-    timeSlot: row.time_slot ?? 'morning',
+    endDate: row.end_date ?? '',
+    timeSlot,
     completed: row.completed ?? false,
   };
 }
@@ -24,6 +29,7 @@ function toRow(data) {
     date: data.date,
     time: data.time ?? '',
     end_time: data.endTime ?? '',
+    end_date: data.endDate ?? '',
     time_slot: data.timeSlot ?? 'morning',
     completed: data.completed ?? false,
   };
