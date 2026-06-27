@@ -13,18 +13,16 @@ function ItemChip({ item, onClick, onToggle }) {
       className={`chip ${TYPE_COLOR[item.type]} ${item.completed ? 'chip--done' : ''}`}
       onClick={(e) => { e.stopPropagation(); onClick(item); }}
     >
-      {item.type === 'todo' && (
-        <span
-          className="chip-check"
-          onClick={(e) => { e.stopPropagation(); onToggle(item.id); }}
-          role="checkbox"
-          aria-checked={item.completed}
-          tabIndex={0}
-          onKeyDown={(e) => e.key === ' ' && (e.preventDefault(), onToggle(item.id))}
-        >
-          {item.completed ? '✓' : '○'}
-        </span>
-      )}
+      <span
+        className="chip-check"
+        onClick={(e) => { e.stopPropagation(); onToggle(item.id); }}
+        role="checkbox"
+        aria-checked={item.completed}
+        tabIndex={0}
+        onKeyDown={(e) => e.key === ' ' && (e.preventDefault(), onToggle(item.id))}
+      >
+        {item.completed ? '✓' : '○'}
+      </span>
       <span className="chip-title">{item.title}</span>
     </div>
   );
