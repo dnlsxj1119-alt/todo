@@ -46,6 +46,12 @@ function SponsorshipProgress({ tasks }) {
   );
 }
 
+function isDeadlineSoon(deadline) {
+  if (!deadline) return false;
+  const diff = (new Date(deadline) - new Date()) / (1000 * 60 * 60 * 24);
+  return diff <= 7;
+}
+
 function ProjectCard({ project, onToggleTask, onCycleEmail, onEdit }) {
   const isEducation = project.type === 'education';
   const doneTasks = project.tasks.filter(t => t.status === 'done').length;
@@ -60,7 +66,18 @@ function ProjectCard({ project, onToggleTask, onCycleEmail, onEdit }) {
         <button className="proj-edit-btn" onClick={() => onEdit(project)} title="수정">⋯</button>
       </div>
 
-      <h3 className="proj-title">{project.title}</h3>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
+        <h3 className="proj-title">{project.title}</h3>
+        {project.deadline && (
+          <span style={{
+            fontSize: 11, fontWeight: 600, padding: '2px 7px', borderRadius: 20,
+            background: isDeadlineSoon(project.deadline) ? '#FEE2E2' : 'var(--border-light)',
+            color: isDeadlineSoon(project.deadline) ? '#B91C1C' : 'var(--text-muted)',
+          }}>
+            📅 {project.deadline}
+          </span>
+        )}
+      </div>
 
       {/* Progress */}
       {isEducation && project.totalWeeks ? (
