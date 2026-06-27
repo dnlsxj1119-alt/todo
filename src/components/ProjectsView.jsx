@@ -101,11 +101,11 @@ function ProjectCard({ project, onToggleTask, onEdit, onTogglePin, onDragStart, 
         <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
           <button
             style={{ fontSize: 15, padding: '0 4px', background: 'none', border: 'none', cursor: 'pointer',
-              color: project.pinned ? '#F59E0B' : 'var(--text-muted)' }}
+              filter: project.pinned ? 'none' : 'grayscale(1) opacity(0.4)' }}
             onClick={() => onTogglePin(project.id)}
             title={project.pinned ? '고정 해제' : '고정'}
           >
-            {project.pinned ? '📌' : '📍'}
+            📌
           </button>
           <button
             style={{ fontSize: 14, padding: '0 6px', color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer' }}
