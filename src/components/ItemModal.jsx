@@ -115,38 +115,35 @@ export default function ItemModal({ item, defaultDate, onSave, onDelete, onClose
           </div>
 
           {/* Date + 시작/종료 시간 */}
+          {/* 날짜 행: 시작날짜 + 종료날짜 */}
           <div className="field-row">
-            <div className="field-group field-group--third">
-              <label className="field-label" htmlFor="date">날짜</label>
+            <div className="field-group field-group--half">
+              <label className="field-label" htmlFor="date">시작 날짜</label>
               <input id="date" className="field-input" type="date"
                 value={form.date} onChange={(e) => set('date', e.target.value)} required />
             </div>
-            {needsTime && (
-              <div className="field-group field-group--third">
-                <label className="field-label">시작 시간</label>
-                <TimePicker value={form.time} onChange={handleTimeChange} />
-              </div>
-            )}
-            {needsTime && form.time && (
-              <div className="field-group field-group--third">
-                <label className="field-label">종료 시간</label>
-                <TimePicker value={form.endTime} onChange={handleEndTimeChange} />
-              </div>
-            )}
-          </div>
-
-          {/* 종료 날짜 (다일 일정) */}
-          {needsTime && form.endTime && (
-            <div className="field-group">
+            <div className="field-group field-group--half">
               <label className="field-label">
-                종료 날짜 <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 400 }}>
-                  (당일이면 비워두세요)
-                </span>
+                종료 날짜 <span style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 400 }}>(당일이면 비워두세요)</span>
               </label>
               <input className="field-input" type="date"
                 min={form.date}
                 value={form.endDate}
                 onChange={(e) => set('endDate', e.target.value)} />
+            </div>
+          </div>
+
+          {/* 시간 행: 시작시간 + 종료시간 */}
+          {needsTime && (
+            <div className="field-row">
+              <div className="field-group field-group--half">
+                <label className="field-label">시작 시간</label>
+                <TimePicker value={form.time} onChange={handleTimeChange} />
+              </div>
+              <div className="field-group field-group--half">
+                <label className="field-label">종료 시간</label>
+                <TimePicker value={form.endTime} onChange={handleEndTimeChange} />
+              </div>
             </div>
           )}
 

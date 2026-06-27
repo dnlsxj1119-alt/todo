@@ -112,7 +112,14 @@ export function useItems() {
     items.filter(i => i.date === dateStr), [items]);
 
   const getItemsForCell = useCallback((dateStr, slot) => {
-    if (slot === 'all') return items.filter(i => i.date === dateStr && i.type === 'todo');
+    if (slot === 'all') {
+      const todos = items.filter(i => i.date === dateStr && i.type === 'todo');
+      // 다일 일정: 이날을 지나는 항목(시작일 이후, 종료일 이전)
+      const continuations = items.filter(i =>
+        i.type !== 'todo' && i.endDate && i.date < dateStr && i.endDate >= dateStr
+      );
+      return [...todos, ...continuations];
+    }
     return items.filter(i => i.date === dateStr && i.timeSlot === slot && i.type !== 'todo');
   }, [items]);
 

@@ -11,10 +11,10 @@ const TYPE_COLOR = {
   schedule:  'week-card--green',
 };
 
-function WeekCard({ item, onItemClick, onToggle, onDragStart, cardStyle }) {
+function WeekCard({ item, onItemClick, onToggle, onDragStart, cardStyle, isContinuation }) {
   return (
     <div
-      className={`week-card ${TYPE_COLOR[item.type]} ${item.completed ? 'week-card--done' : ''}`}
+      className={`week-card ${TYPE_COLOR[item.type]} ${item.completed ? 'week-card--done' : ''} ${isContinuation ? 'week-card--continuation' : ''}`}
       style={cardStyle}
       draggable
       onDragStart={(e) => onDragStart(e, item.id, item.type)}
@@ -28,14 +28,15 @@ function WeekCard({ item, onItemClick, onToggle, onDragStart, cardStyle }) {
             {item.completed ? '✓' : '○'}
           </button>
         )}
-        <span className="card-title">{item.title}</span>
+        <span className="card-title">{isContinuation ? `↩ ${item.title}` : item.title}</span>
       </div>
-      {(item.time || item.endTime) && (
+      {!isContinuation && (item.time || item.endTime) && (
         <div className="card-time">
           ⏰ {item.time}{item.endTime ? ` – ${item.endTime}` : ''}
+          {item.endDate ? ` (~ ${item.endDate})` : ''}
         </div>
       )}
-      {item.description && <div className="card-desc">{item.description}</div>}
+      {item.description && !isContinuation && <div className="card-desc">{item.description}</div>}
     </div>
   );
 }
@@ -146,6 +147,7 @@ export default function WeeklyView({
               <WeekCard key={item.id} item={item}
                 onItemClick={onItemClick} onToggle={onToggle}
                 onDragStart={handleDragStart}
+                isContinuation={slotKey === 'all' && item.date !== ds}
                 cardStyle={slotKey !== 'all' ? getCardStyle(item, span, slotKey) : {}} />
             ))
         }
