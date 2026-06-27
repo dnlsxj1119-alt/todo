@@ -24,7 +24,7 @@ export default function App() {
   const [modal, setModal] = useState(null);
 
   const { items, loading, addItem, updateItem, deleteItem, toggleComplete, moveItem, getItemsForDate, getItemsForCell } = useItems();
-  const { projects, addProject, updateProject, deleteProject, toggleTask, cycleEmailStatus, reorderProjects } = useProjects();
+  const { projects, addProject, updateProject, deleteProject, toggleTask, cycleEmailStatus, reorderProjects, togglePin } = useProjects();
 
   const openAdd = useCallback((defaultDate, defaultSlot) => {
     setModal({ mode: 'add', defaultDate, defaultSlot });
@@ -184,6 +184,7 @@ export default function App() {
             onEdit={updateProject}
             onDelete={deleteProject}
             onReorder={reorderProjects}
+            onTogglePin={togglePin}
           />
         )}
       </main>

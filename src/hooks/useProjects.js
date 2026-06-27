@@ -11,6 +11,7 @@ function toLocal(row) {
     goals: row.goals ?? [],
     notes: row.notes ?? '',
     sortOrder: row.sort_order ?? 0,
+    pinned: row.pinned ?? false,
   };
 }
 
@@ -23,6 +24,7 @@ function toRow(data) {
     goals: data.goals ?? [],
     notes: data.notes ?? '',
     sort_order: data.sortOrder ?? 0,
+    pinned: data.pinned ?? false,
   };
 }
 
@@ -100,6 +102,14 @@ export function useProjects() {
     await supabase.from('projects').update({ emails }).eq('id', projectId);
   }, [projects]);
 
+  const togglePin = useCallback(async (id) => {
+    const project = projects.find(p => p.id === id);
+    if (!project) return;
+    const pinned = !project.pinned;
+    setProjects(prev => prev.map(p => p.id === id ? { ...p, pinned } : p));
+    await supabase.from('projects').update({ pinned }).eq('id', id);
+  }, [projects]);
+
   const reorderProjects = useCallback(async (reordered) => {
     setProjects(reordered);
     await Promise.all(
@@ -107,5 +117,5 @@ export function useProjects() {
     );
   }, []);
 
-  return { projects, loading, addProject, updateProject, deleteProject, toggleTask, cycleEmailStatus, reorderProjects };
+  return { projects, loading, addProject, updateProject, deleteProject, toggleTask, cycleEmailStatus, reorderProjects, togglePin };
 }

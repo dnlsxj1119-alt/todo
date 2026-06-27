@@ -72,7 +72,7 @@ function TaskRow({ task, projectId, onToggleTask }) {
   );
 }
 
-function ProjectCard({ project, onToggleTask, onEdit, onDragStart, onDragOver, onDrop, onDragEnd, isDragOver }) {
+function ProjectCard({ project, onToggleTask, onEdit, onTogglePin, onDragStart, onDragOver, onDrop, onDragEnd, isDragOver }) {
   const [collapsed, setCollapsed] = useState(false);
   const isEducation = project.type === 'education';
 
@@ -99,6 +99,14 @@ function ProjectCard({ project, onToggleTask, onEdit, onDragStart, onDragOver, o
           <div className="proj-type-badge">{isEducation ? '🎓 교육 프로젝트' : '📁 프로젝트'}</div>
         </div>
         <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+          <button
+            style={{ fontSize: 15, padding: '0 4px', background: 'none', border: 'none', cursor: 'pointer',
+              color: project.pinned ? '#F59E0B' : 'var(--text-muted)' }}
+            onClick={() => onTogglePin(project.id)}
+            title={project.pinned ? '고정 해제' : '고정'}
+          >
+            {project.pinned ? '📌' : '📍'}
+          </button>
           <button
             style={{ fontSize: 14, padding: '0 6px', color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer' }}
             onClick={() => setCollapsed(c => !c)}
@@ -202,7 +210,7 @@ function ProjectCard({ project, onToggleTask, onEdit, onDragStart, onDragOver, o
   );
 }
 
-export default function ProjectsView({ projects, onToggleTask, onCycleEmail, onAdd, onEdit, onDelete, onReorder }) {
+export default function ProjectsView({ projects, onToggleTask, onCycleEmail, onAdd, onEdit, onDelete, onReorder, onTogglePin }) {
   const [showModal, setShowModal] = useState(false);
   const [editProject, setEditProject] = useState(null);
   const [dragId, setDragId] = useState(null);
@@ -264,12 +272,13 @@ export default function ProjectsView({ projects, onToggleTask, onCycleEmail, onA
         </div>
       ) : (
         <div className="proj-grid">
-          {projects.map(p => (
+          {[...projects].sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0)).map(p => (
             <ProjectCard
               key={p.id}
               project={p}
               onToggleTask={onToggleTask}
               onEdit={handleEdit}
+              onTogglePin={onTogglePin}
               onDragStart={() => handleDragStart(p.id)}
               onDragOver={(e) => handleDragOver(e, p.id)}
               onDrop={(e) => handleDrop(e, p.id)}
