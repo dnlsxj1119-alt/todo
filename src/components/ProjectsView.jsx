@@ -74,7 +74,7 @@ function TaskRow({ task, projectId, onToggleTask }) {
 }
 
 function ProjectCard({ project, onToggleTask, onEdit, onTogglePin, onDragStart, onDragOver, onDrop, onDragEnd, isDragOver }) {
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(true);
   const pt = getProjectType(project.type);
 
   const activeTasks = project.tasks.filter(t => t.status !== 'done');
