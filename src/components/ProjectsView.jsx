@@ -123,7 +123,20 @@ function ProjectCard({ project, onToggleTask, onEdit }) {
       </div>
 
       {/* Collapsible body */}
-      {!collapsed && (
+      {collapsed ? (
+        activeTasks.length > 0 && (
+          <div className="proj-tasks">
+            {activeTasks.slice(0, 3).map(task => (
+              <TaskRow key={task.id} task={task} projectId={project.id} onToggleTask={onToggleTask} />
+            ))}
+            {activeTasks.length > 3 && (
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', padding: '2px 4px' }}>
+                +{activeTasks.length - 3}개 더 있음
+              </div>
+            )}
+          </div>
+        )
+      ) : (
         <>
           {/* 미완료 태스크 */}
           {activeTasks.length > 0 && (
