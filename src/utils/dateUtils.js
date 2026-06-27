@@ -93,6 +93,18 @@ export function timeToSlotPx(timeStr, slotKey) {
 
 export function getCardStyle(item, span, spanStartSlot = null) {
   if (item.type === 'todo' || !item.time) return {};
+  // 다일 일정: 시작일에서 밤 끝까지 채우는 높이 계산
+  if (item.endDate && item.endDate > item.date && !spanStartSlot) {
+    const top = timeToSlotPx(item.time, item.timeSlot);
+    const endSlot = 'night';
+    const startIdx = TIME_SLOT_ORDER.indexOf(item.timeSlot);
+    const endIdx = TIME_SLOT_ORDER.indexOf(endSlot);
+    let height = SLOT_HEIGHTS[item.timeSlot] - top;
+    for (let i = startIdx + 1; i <= endIdx; i++) {
+      height += GRID_GAP + SLOT_HEIGHTS[TIME_SLOT_ORDER[i]];
+    }
+    return { position: 'absolute', top, left: 4, right: 4, height: Math.max(36, height) };
+  }
 
   // 스패닝 셀 안에 있는 다른 슬롯 항목은 위 슬롯 높이만큼 top 오프셋 추가
   const cellStartSlot = spanStartSlot || item.timeSlot;

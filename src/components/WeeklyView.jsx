@@ -48,8 +48,12 @@ function useSpanData(items) {
     const covered = new Set();
 
     items.forEach(item => {
-      if (!item.endTime || !item.time || item.type === 'todo') return;
-      const endSlot = getTimeSlotFromTime(item.endTime);
+      if (!item.time || item.type === 'todo') return;
+      // 다일 일정은 시작일에서 밤(night)까지 꽉 채움
+      const endSlot = (item.endDate && item.endDate > item.date)
+        ? 'night'
+        : item.endTime ? getTimeSlotFromTime(item.endTime) : null;
+      if (!endSlot) return;
       const span = getSpanCount(item.timeSlot, endSlot);
       if (span <= 1) return;
 
