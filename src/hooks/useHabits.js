@@ -29,7 +29,8 @@ export function useHabits() {
       .from('habits')
       .select('*')
       .order('created_at', { ascending: true })
-      .then(({ data }) => {
+      .then(({ data, error }) => {
+        if (error) console.error('[habits load]', error);
         if (data) setHabits(data.map(toLocal));
         setLoading(false);
       });
@@ -52,11 +53,12 @@ export function useHabits() {
   }, []);
 
   const addHabit = useCallback(async (data) => {
-    const { data: inserted } = await supabase
+    const { data: inserted, error } = await supabase
       .from('habits')
       .insert({ title: data.title, frequency: data.frequency, color: data.color, completed_dates: [] })
       .select()
       .single();
+    if (error) { console.error('[addHabit]', error); return; }
     if (inserted) {
       setHabits(prev => prev.some(h => h.id === inserted.id) ? prev : [...prev, toLocal(inserted)]);
     }
