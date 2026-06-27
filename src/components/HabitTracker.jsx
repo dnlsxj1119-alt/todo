@@ -74,10 +74,12 @@ function HabitModal({ habit, onSave, onDelete, onClose }) {
   );
 }
 
-export default function HabitTracker({ habits, onAdd, onUpdate, onDelete, onToggle }) {
+export default function HabitTracker({ habits, onAdd, onUpdate, onDelete, onToggle, onReorder }) {
   const [showModal, setShowModal] = useState(false);
   const [editHabit, setEditHabit] = useState(null);
   const [currentWeek, setCurrentWeek] = useState(() => getWeekStart(new Date()));
+  const [dragId, setDragId] = useState(null);
+  const [dragOverId, setDragOverId] = useState(null);
 
   const days = getWeekDays(currentWeek);
 
@@ -90,6 +92,21 @@ export default function HabitTracker({ habits, onAdd, onUpdate, onDelete, onTogg
     else onAdd(data);
     setShowModal(false);
   };
+
+  const handleDragStart = (id) => setDragId(id);
+  const handleDragOver = (e, id) => { e.preventDefault(); if (id !== dragId) setDragOverId(id); };
+  const handleDrop = (e, id) => {
+    e.preventDefault();
+    if (!dragId || dragId === id) { setDragId(null); setDragOverId(null); return; }
+    const reordered = [...habits];
+    const from = reordered.findIndex(h => h.id === dragId);
+    const to   = reordered.findIndex(h => h.id === id);
+    const [moved] = reordered.splice(from, 1);
+    reordered.splice(to, 0, moved);
+    onReorder(reordered.map((h, i) => ({ ...h, sortOrder: i })));
+    setDragId(null); setDragOverId(null);
+  };
+  const handleDragEnd = () => { setDragId(null); setDragOverId(null); };
 
   return (
     <div className="habit-view">
@@ -142,9 +159,22 @@ export default function HabitTracker({ habits, onAdd, onUpdate, onDelete, onTogg
             }).length;
 
             return (
-              <div key={habit.id} className="habit-row">
+              <div key={habit.id}
+                className="habit-row"
+                draggable
+                onDragStart={() => handleDragStart(habit.id)}
+                onDragOver={(e) => handleDragOver(e, habit.id)}
+                onDrop={(e) => handleDrop(e, habit.id)}
+                onDragEnd={handleDragEnd}
+                style={{
+                  opacity: dragId === habit.id ? 0.4 : 1,
+                  outline: dragOverId === habit.id ? '2px dashed var(--accent)' : 'none',
+                  transition: 'opacity 0.15s',
+                }}
+              >
                 <div className="habit-name-col habit-name-cell"
                   onClick={() => { setEditHabit(habit); setShowModal(true); }}>
+                  <span style={{ cursor: 'grab', color: 'var(--text-muted)', fontSize: 15, flexShrink: 0 }}>⠿</span>
                   <span className="habit-dot" style={{ background: habit.color }} />
                   <div className="habit-name-info">
                     <span className="habit-name-text">{habit.title}</span>

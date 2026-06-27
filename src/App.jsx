@@ -53,10 +53,6 @@ export default function App() {
     closeModal();
   }, [deleteItem, closeModal]);
 
-  const total = items.length;
-  const done = items.filter(i => i.completed).length;
-  const progress = total > 0 ? Math.round((done / total) * 100) : 0;
-
   if (loading) {
     return (
       <div className="app-loading">
@@ -75,33 +71,6 @@ export default function App() {
           <div>
             <div className="brand-title">플로우</div>
             <div className="brand-sub">일정 &amp; 할일 관리</div>
-          </div>
-        </div>
-
-        {/* Progress */}
-        <div className="sidebar-progress">
-          <div className="progress-header">
-            <span className="progress-label">전체 진행률</span>
-            <span className="progress-pct">{progress}%</span>
-          </div>
-          <div className="progress-bar-bg">
-            <div className="progress-bar-fill" style={{ width: `${progress}%` }} />
-          </div>
-          <div className="sidebar-stats">
-            <div className="stat-item">
-              <span className="stat-num">{total}</span>
-              <span className="stat-label">전체</span>
-            </div>
-            <div className="stat-divider" />
-            <div className="stat-item">
-              <span className="stat-num stat-num--done">{done}</span>
-              <span className="stat-label">완료</span>
-            </div>
-            <div className="stat-divider" />
-            <div className="stat-item">
-              <span className="stat-num">{total - done}</span>
-              <span className="stat-label">진행 중</span>
-            </div>
           </div>
         </div>
 
@@ -194,6 +163,7 @@ export default function App() {
             onUpdate={updateHabit}
             onDelete={deleteHabit}
             onToggle={toggleHabitDate}
+            onReorder={reorderHabits}
           />
         ) : (
           <ProjectsView

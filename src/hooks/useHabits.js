@@ -8,6 +8,7 @@ function toLocal(row) {
     frequency: row.frequency ?? 'daily',
     color: row.color ?? '#6366F1',
     completedDates: row.completed_dates ?? [],
+    sortOrder: row.sort_order ?? 0,
   };
 }
 
@@ -31,7 +32,7 @@ export function useHabits() {
       .order('created_at', { ascending: true })
       .then(({ data, error }) => {
         if (error) console.error('[habits load]', error);
-        if (data) setHabits(data.map(toLocal));
+        if (data) setHabits(data.map(toLocal).sort((a, b) => a.sortOrder - b.sortOrder));
         setLoading(false);
       });
   }, []);
@@ -85,5 +86,12 @@ export function useHabits() {
     await supabase.from('habits').update({ completed_dates: newDates }).eq('id', id);
   }, [habits]);
 
-  return { habits, loading, addHabit, updateHabit, deleteHabit, toggleHabitDate };
+  const reorderHabits = useCallback(async (reordered) => {
+    setHabits(reordered);
+    await Promise.all(
+      reordered.map((h, i) => supabase.from('habits').update({ sort_order: i }).eq('id', h.id))
+    );
+  }, []);
+
+  return { habits, loading, addHabit, updateHabit, deleteHabit, toggleHabitDate, reorderHabits };
 }
