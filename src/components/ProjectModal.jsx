@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 
 const TASK_STATUSES = ['done', 'in_progress', 'upcoming'];
-const EMAIL_STATUSES = ['draft', 'sent', 'planned'];
 
 export default function ProjectModal({ project, onSave, onDelete, onClose }) {
   const isEdit = !!project;
@@ -13,9 +12,6 @@ export default function ProjectModal({ project, onSave, onDelete, onClose }) {
     deadline: project?.deadline ?? '',
     tasks: project?.tasks ?? [],
     notes: project?.notes ?? '',
-    nextAction: project?.nextAction ?? '',
-    contact: project?.contact ?? '',
-    emails: project?.emails ?? [],
   });
 
   const [batchName, setBatchName] = useState('강의듣기');
@@ -46,16 +42,6 @@ export default function ProjectModal({ project, onSave, onDelete, onClose }) {
   };
   const removeTask = (id) => {
     setForm(f => ({ ...f, tasks: f.tasks.filter(t => t.id !== id) }));
-  };
-
-  const addEmail = () => {
-    setForm(f => ({ ...f, emails: [...f.emails, { id: Date.now(), label: '', status: 'planned' }] }));
-  };
-  const updateEmail = (id, key, val) => {
-    setForm(f => ({ ...f, emails: f.emails.map(e => e.id === id ? { ...e, [key]: val } : e) }));
-  };
-  const removeEmail = (id) => {
-    setForm(f => ({ ...f, emails: f.emails.filter(e => e.id !== id) }));
   };
 
   const handleSubmit = (e) => {
@@ -158,45 +144,6 @@ export default function ProjectModal({ project, onSave, onDelete, onClose }) {
             <label className="field-label">메모</label>
             <textarea className="field-input field-textarea" rows={2}
               value={form.notes} onChange={e => set('notes', e.target.value)} placeholder="학습 내용, 진행 상황 등" />
-          </div>
-
-          {/* Next action */}
-          <div className="field-group">
-            <label className="field-label">다음 할 일</label>
-            <input className="field-input" type="text" value={form.nextAction}
-              onChange={e => set('nextAction', e.target.value)} placeholder="다음 액션 아이템" />
-          </div>
-
-          {/* Contact */}
-          <div className="field-group">
-            <label className="field-label">담당자 / 이메일</label>
-            <input className="field-input" type="text" value={form.contact}
-              onChange={e => set('contact', e.target.value)} placeholder="연락처 또는 이메일" />
-          </div>
-
-          {/* Emails */}
-          <div className="field-group">
-            <label className="field-label">메일 추적</label>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {form.emails.map(email => (
-                <div key={email.id} style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                  <select className="field-input" style={{ width: 100, flex: 'none', fontSize: 12 }}
-                    value={email.status} onChange={e => updateEmail(email.id, 'status', e.target.value)}>
-                    {EMAIL_STATUSES.map(s => (
-                      <option key={s} value={s}>
-                        {s === 'draft' ? '임시저장' : s === 'sent' ? '발송함' : '작성예정'}
-                      </option>
-                    ))}
-                  </select>
-                  <input className="field-input" style={{ flex: 1 }} type="text"
-                    value={email.label} onChange={e => updateEmail(email.id, 'label', e.target.value)}
-                    placeholder="메일 이름" />
-                  <button type="button" style={{ color: '#B91C1C', padding: '0 4px', fontSize: 16 }}
-                    onClick={() => removeEmail(email.id)}>×</button>
-                </div>
-              ))}
-              <button type="button" className="btn btn--ghost" style={{ fontSize: 12 }} onClick={addEmail}>+ 메일 추가</button>
-            </div>
           </div>
 
           {/* Actions */}
