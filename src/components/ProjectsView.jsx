@@ -147,6 +147,19 @@ function ProjectCard({ project, onToggleTask, onEdit }) {
             </div>
           )}
 
+          {/* 완료 태스크 */}
+          {doneTasks.length > 0 && (
+            <div className="proj-tasks" style={{ marginTop: activeTasks.length > 0 ? 6 : 0 }}>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600, padding: '2px 0 4px',
+                borderTop: activeTasks.length > 0 ? '1px solid var(--border)' : 'none', marginTop: activeTasks.length > 0 ? 2 : 0 }}>
+                완료 ({doneTasks.length})
+              </div>
+              {doneTasks.map(task => (
+                <TaskRow key={task.id} task={task} projectId={project.id} onToggleTask={onToggleTask} />
+              ))}
+            </div>
+          )}
+
           {project.tasks.length > 0 && (
             <div className="proj-task-summary">{doneTasks.length}/{project.tasks.length} 완료</div>
           )}
