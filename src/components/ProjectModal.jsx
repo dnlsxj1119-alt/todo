@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { PROJECT_TYPES } from '../utils/projectTypes';
 
 const TASK_STATUSES = ['done', 'in_progress', 'upcoming'];
 
@@ -93,15 +94,17 @@ export default function ProjectModal({ project, onSave, onDelete, onClose }) {
           {/* Type */}
           <div className="field-group">
             <label className="field-label">종류</label>
-            <div className="type-tabs">
-              {[
-                { key: 'education',   label: '🎓 교육 프로젝트' },
-                { key: 'sponsorship', label: '📁 프로젝트' },
-              ].map(t => (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {PROJECT_TYPES.map(t => (
                 <button key={t.key} type="button"
-                  className={`type-tab type-tab--${t.key === 'education' ? 'blue' : 'green'} ${form.type === t.key ? 'active' : ''}`}
+                  style={{
+                    padding: '6px 12px', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                    background: form.type === t.key ? t.bg : 'var(--bg)',
+                    color: form.type === t.key ? t.color : 'var(--text-muted)',
+                    border: form.type === t.key ? `2px solid ${t.border}` : '1px solid var(--border)',
+                  }}
                   onClick={() => set('type', t.key)}>
-                  {t.label}
+                  {t.emoji} {t.label}
                 </button>
               ))}
             </div>

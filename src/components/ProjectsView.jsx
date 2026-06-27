@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import ProjectModal from './ProjectModal';
+import { PROJECT_TYPES, getProjectType } from '../utils/projectTypes';
 
 const TASK_STATUS = {
   done:        { emoji: '✅', label: '완료',   cls: 'task--done' },
@@ -74,7 +75,7 @@ function TaskRow({ task, projectId, onToggleTask }) {
 
 function ProjectCard({ project, onToggleTask, onEdit, onTogglePin, onDragStart, onDragOver, onDrop, onDragEnd, isDragOver }) {
   const [collapsed, setCollapsed] = useState(false);
-  const isEducation = project.type === 'education';
+  const pt = getProjectType(project.type);
 
   const activeTasks = project.tasks.filter(t => t.status !== 'done');
   const doneTasks   = project.tasks.filter(t => t.status === 'done');
@@ -84,8 +85,9 @@ function ProjectCard({ project, onToggleTask, onEdit, onTogglePin, onDragStart, 
 
   return (
     <div
-      className={`proj-card ${isEducation ? 'proj-card--edu' : 'proj-card--sponsor'}`}
-      style={{ opacity: isDragOver ? 0.6 : 1, outline: isDragOver ? '2px dashed var(--accent)' : 'none', transition: 'opacity 0.15s' }}
+      className="proj-card"
+      style={{ opacity: isDragOver ? 0.6 : 1, outline: isDragOver ? `2px dashed ${pt.border}` : 'none',
+        borderTop: `3px solid ${pt.border}`, transition: 'opacity 0.15s' }}
       draggable
       onDragStart={onDragStart}
       onDragOver={onDragOver}
@@ -96,7 +98,12 @@ function ProjectCard({ project, onToggleTask, onEdit, onTogglePin, onDragStart, 
       <div className="proj-card-header">
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <span style={{ cursor: 'grab', color: 'var(--text-muted)', fontSize: 16, lineHeight: 1 }} title="드래그로 순서 변경">⠿</span>
-          <div className="proj-type-badge">{isEducation ? '🎓 교육 프로젝트' : '📁 프로젝트'}</div>
+          {(() => { const t = getProjectType(project.type); return (
+            <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 20,
+              background: t.bg, color: t.color, border: `1px solid ${t.border}` }}>
+              {t.emoji} {t.label}
+            </span>
+          ); })()}
         </div>
         <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
           <button
@@ -137,7 +144,7 @@ function ProjectCard({ project, onToggleTask, onEdit, onTogglePin, onDragStart, 
           <span className="proj-pct">{pct}%</span>
         </div>
         <div className="proj-bar-bg">
-          <div className={`proj-bar-fill ${!isEducation ? 'proj-bar-fill--green' : ''}`} style={{ width: `${pct}%` }} />
+          <div className="proj-bar-fill" style={{ width: `${pct}%`, background: pt.border }} />
         </div>
       </div>
 
@@ -215,6 +222,7 @@ export default function ProjectsView({ projects, onToggleTask, onCycleEmail, onA
   const [editProject, setEditProject] = useState(null);
   const [dragId, setDragId] = useState(null);
   const [dragOverId, setDragOverId] = useState(null);
+  const [filterType, setFilterType] = useState(null);
 
   const handleEdit = (p) => {
     setEditProject(p);
@@ -252,6 +260,9 @@ export default function ProjectsView({ projects, onToggleTask, onCycleEmail, onA
   };
   const handleDragEnd = () => { setDragId(null); setDragOverId(null); };
 
+  const sortedProjects = [...projects].sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0));
+  const filteredProjects = filterType ? sortedProjects.filter(p => p.type === filterType) : sortedProjects;
+
   return (
     <div className="projects-view">
       {/* Header */}
@@ -263,16 +274,38 @@ export default function ProjectsView({ projects, onToggleTask, onCycleEmail, onA
         <button className="btn btn--primary" onClick={handleAdd}>+ 프로젝트 추가</button>
       </div>
 
+      {/* Category filter tabs */}
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 16 }}>
+        <button
+          onClick={() => setFilterType(null)}
+          style={{
+            padding: '5px 14px', borderRadius: 20, fontSize: 13, fontWeight: 600, cursor: 'pointer',
+            background: filterType === null ? 'var(--accent)' : 'var(--bg)',
+            color: filterType === null ? '#fff' : 'var(--text-muted)',
+            border: filterType === null ? '1.5px solid var(--accent)' : '1.5px solid var(--border)',
+          }}>전체</button>
+        {PROJECT_TYPES.map(t => (
+          <button key={t.key}
+            onClick={() => setFilterType(filterType === t.key ? null : t.key)}
+            style={{
+              padding: '5px 14px', borderRadius: 20, fontSize: 13, fontWeight: 600, cursor: 'pointer',
+              background: filterType === t.key ? t.bg : 'var(--bg)',
+              color: filterType === t.key ? t.color : 'var(--text-muted)',
+              border: filterType === t.key ? `1.5px solid ${t.border}` : '1.5px solid var(--border)',
+            }}>{t.emoji} {t.label}</button>
+        ))}
+      </div>
+
       {/* Cards */}
-      {projects.length === 0 ? (
+      {filteredProjects.length === 0 ? (
         <div className="proj-empty">
           <div className="empty-emoji">🗂️</div>
-          <div className="empty-text">프로젝트가 없습니다</div>
-          <button className="btn btn--primary" onClick={handleAdd}>첫 프로젝트 만들기</button>
+          <div className="empty-text">{filterType ? '해당 카테고리의 프로젝트가 없습니다' : '프로젝트가 없습니다'}</div>
+          {!filterType && <button className="btn btn--primary" onClick={handleAdd}>첫 프로젝트 만들기</button>}
         </div>
       ) : (
         <div className="proj-grid">
-          {[...projects].sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0)).map(p => (
+          {filteredProjects.map(p => (
             <ProjectCard
               key={p.id}
               project={p}
