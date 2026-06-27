@@ -915,3 +915,158 @@ input, textarea, select { font-family: inherit; }
   .main-content { overflow-y: auto; }
   .weekly-view { height: auto; }
 }
+
+/* ===================== Habit Chip (WeeklyView) ===================== */
+.habit-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 600;
+  border: 1.5px solid;
+  cursor: pointer;
+  user-select: none;
+  transition: opacity 0.12s;
+  margin: 1px 0;
+}
+.habit-chip:hover { opacity: 0.82; }
+
+/* ===================== Habit Tracker View ===================== */
+.habit-view {
+  padding: 28px 32px;
+  max-width: 900px;
+}
+
+.habit-table {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.habit-row {
+  display: flex;
+  align-items: stretch;
+  border-bottom: 1px solid var(--border);
+}
+.habit-row:last-child { border-bottom: none; }
+.habit-row--header { background: var(--bg); }
+
+.habit-name-col {
+  width: 220px;
+  flex-shrink: 0;
+  padding: 10px 14px;
+  border-right: 1px solid var(--border);
+}
+
+.habit-name-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  min-height: 56px;
+}
+.habit-name-cell:hover { background: var(--bg); }
+
+.habit-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.habit-name-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.habit-name-text {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.habit-freq-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 8px;
+  align-self: flex-start;
+}
+
+.habit-week-count {
+  font-size: 12px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.habit-day-col {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 4px;
+  border-right: 1px solid var(--border);
+  min-height: 56px;
+}
+.habit-day-col:last-child { border-right: none; }
+.habit-day-col--header {
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 4px;
+}
+.habit-day-col--today { background: var(--purple-light); }
+
+.habit-day-name {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.habit-day-num {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
+.habit-check-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 2px solid var(--habit-color, var(--border));
+  background: transparent;
+  color: var(--habit-color, var(--text-muted));
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+.habit-check-btn:hover:not(.habit-check-btn--na) {
+  opacity: 0.75;
+  transform: scale(1.08);
+}
+.habit-check-btn--done {
+  background: var(--habit-color);
+  color: #fff;
+  border-color: var(--habit-color);
+}
+.habit-check-btn--na {
+  border-color: transparent;
+  color: var(--text-muted);
+  cursor: default;
+  font-size: 16px;
+  opacity: 0.4;
+}

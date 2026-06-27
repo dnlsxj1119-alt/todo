@@ -1,10 +1,12 @@
 import { useState, useCallback } from 'react';
 import { useItems } from './hooks/useItems';
 import { useProjects } from './hooks/useProjects';
+import { useHabits } from './hooks/useHabits';
 import { getWeekStart, toDateString } from './utils/dateUtils';
 import CalendarView from './components/CalendarView';
 import WeeklyView from './components/WeeklyView';
 import ProjectsView from './components/ProjectsView';
+import HabitTracker from './components/HabitTracker';
 import ItemModal from './components/ItemModal';
 import './App.css';
 
@@ -25,6 +27,7 @@ export default function App() {
 
   const { items, loading, addItem, updateItem, deleteItem, toggleComplete, moveItem, getItemsForDate, getItemsForCell } = useItems();
   const { projects, addProject, updateProject, deleteProject, toggleTask, cycleEmailStatus, reorderProjects, togglePin } = useProjects();
+  const { habits, addHabit, updateHabit, deleteHabit, toggleHabitDate } = useHabits();
 
   const openAdd = useCallback((defaultDate, defaultSlot) => {
     setModal({ mode: 'add', defaultDate, defaultSlot });
@@ -125,6 +128,13 @@ export default function App() {
             <span className="nav-icon">🗂️</span>
             <span>프로젝트</span>
           </button>
+          <button
+            className={`nav-item ${activeTab === 'habits' ? 'nav-item--active' : ''}`}
+            onClick={() => setActiveTab('habits')}
+          >
+            <span className="nav-icon">🎯</span>
+            <span>습관 트래커</span>
+          </button>
         </nav>
 
         {/* Filter */}
@@ -174,6 +184,16 @@ export default function App() {
             onToggle={toggleComplete}
             moveItem={moveItem}
             filterType={filterType}
+            habits={habits}
+            onToggleHabit={toggleHabitDate}
+          />
+        ) : activeTab === 'habits' ? (
+          <HabitTracker
+            habits={habits}
+            onAdd={addHabit}
+            onUpdate={updateHabit}
+            onDelete={deleteHabit}
+            onToggle={toggleHabitDate}
           />
         ) : (
           <ProjectsView

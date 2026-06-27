@@ -4,6 +4,7 @@ import {
   TIME_SLOTS, TIME_SLOT_ORDER, DAY_NAMES_WEEK,
   getTimeSlotFromTime, getSpanCount, getCardStyle, getEndDayCardStyle,
 } from '../utils/dateUtils';
+import { habitAppliesToDate } from '../hooks/useHabits';
 
 const TYPE_COLOR = {
   todo:      'week-card--purple',
@@ -73,6 +74,7 @@ function useSpanData(items) {
 export default function WeeklyView({
   currentWeek, setCurrentWeek, items, getItemsForCell,
   onItemClick, onDayClick, onToggle, moveItem, filterType,
+  habits, onToggleHabit,
 }) {
   const [dragOverCell, setDragOverCell] = useState(null);
   const [dragItemType, setDragItemType] = useState(null);
@@ -145,6 +147,22 @@ export default function WeeklyView({
         onDragLeave={() => setDragOverCell(null)}
         onDoubleClick={() => onDayClick(ds, slotKey)}
       >
+        {/* 습관 칩 (전체 행만) */}
+        {slotKey === 'all' && habits?.filter(h => habitAppliesToDate(h, ds)).map(habit => {
+          const done = habit.completedDates.includes(ds);
+          return (
+            <div key={`habit-${habit.id}`}
+              className={`habit-chip ${done ? 'habit-chip--done' : ''}`}
+              style={done
+                ? { background: habit.color, borderColor: habit.color, color: '#fff' }
+                : { borderColor: habit.color, color: habit.color, background: habit.color + '14' }
+              }
+              onClick={(e) => { e.stopPropagation(); onToggleHabit?.(habit.id, ds); }}>
+              {done ? '✓' : '○'} {habit.title}
+            </div>
+          );
+        })}
+
         {allItems.length === 0
           ? <div className="wg-cell-empty" title="더블클릭으로 추가" />
           : allItems.map(item => {
