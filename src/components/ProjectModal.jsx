@@ -17,6 +17,8 @@ export default function ProjectModal({ project, onSave, onDelete, onClose }) {
 
   const [batchName, setBatchName] = useState('강의듣기');
   const [batchCount, setBatchCount] = useState(4);
+  const [dragTaskId, setDragTaskId] = useState(null);
+  const [dragOverTaskId, setDragOverTaskId] = useState(null);
 
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape') onClose(); };
@@ -25,6 +27,23 @@ export default function ProjectModal({ project, onSave, onDelete, onClose }) {
   }, [onClose]);
 
   const set = (key, val) => setForm(f => ({ ...f, [key]: val }));
+
+  const handleTaskDragStart = (id) => setDragTaskId(id);
+  const handleTaskDragOver = (e, id) => { e.preventDefault(); if (id !== dragTaskId) setDragOverTaskId(id); };
+  const handleTaskDrop = (e, id) => {
+    e.preventDefault();
+    if (!dragTaskId || dragTaskId === id) { setDragTaskId(null); setDragOverTaskId(null); return; }
+    setForm(f => {
+      const tasks = [...f.tasks];
+      const from = tasks.findIndex(t => t.id === dragTaskId);
+      const to   = tasks.findIndex(t => t.id === id);
+      const [moved] = tasks.splice(from, 1);
+      tasks.splice(to, 0, moved);
+      return { ...f, tasks };
+    });
+    setDragTaskId(null); setDragOverTaskId(null);
+  };
+  const handleTaskDragEnd = () => { setDragTaskId(null); setDragOverTaskId(null); };
 
   const addGoal = () => {
     const nextWeek = form.goals.length > 0 ? Math.max(...form.goals.map(g => g.week)) + 1 : 1;
@@ -108,9 +127,20 @@ export default function ProjectModal({ project, onSave, onDelete, onClose }) {
             <label className="field-label">할일 목록</label>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               {form.tasks.map(task => (
-                <div key={task.id} style={{ display: 'flex', flexDirection: 'column', gap: 4,
-                  padding: '6px 8px', background: 'var(--bg)', borderRadius: 8, border: '1px solid var(--border)' }}>
+                <div key={task.id}
+                  draggable
+                  onDragStart={() => handleTaskDragStart(task.id)}
+                  onDragOver={(e) => handleTaskDragOver(e, task.id)}
+                  onDrop={(e) => handleTaskDrop(e, task.id)}
+                  onDragEnd={handleTaskDragEnd}
+                  style={{ display: 'flex', flexDirection: 'column', gap: 4,
+                    padding: '6px 8px', background: 'var(--bg)', borderRadius: 8,
+                    border: dragOverTaskId === task.id ? '2px dashed var(--accent)' : '1px solid var(--border)',
+                    opacity: dragTaskId === task.id ? 0.4 : 1,
+                    cursor: 'grab',
+                  }}>
                   <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                    <span style={{ color: 'var(--text-muted)', fontSize: 14, cursor: 'grab', flexShrink: 0 }}>⠿</span>
                     <select className="field-input" style={{ width: 100, flex: 'none', fontSize: 12 }}
                       value={task.status} onChange={e => updateTask(task.id, 'status', e.target.value)}>
                       {TASK_STATUSES.map(s => (
