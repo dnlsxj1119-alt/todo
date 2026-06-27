@@ -98,6 +98,16 @@ function ProjectCard({ project, onToggleTask, onCycleEmail, onEdit }) {
             >
               <span className="task-emoji">{s.emoji}</span>
               <span className="task-label">{task.label}</span>
+              {task.deadline && (
+                <span style={{
+                  marginLeft: 'auto', fontSize: 10, fontWeight: 600, padding: '1px 6px',
+                  borderRadius: 10, flexShrink: 0,
+                  background: isDeadlineSoon(task.deadline) ? '#FEE2E2' : 'var(--border-light)',
+                  color: isDeadlineSoon(task.deadline) ? '#B91C1C' : 'var(--text-muted)',
+                }}>
+                  {task.deadline}
+                </span>
+              )}
             </div>
           );
         })}

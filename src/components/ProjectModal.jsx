@@ -96,20 +96,34 @@ export default function ProjectModal({ project, onSave, onDelete, onClose }) {
             <label className="field-label">할일 목록</label>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               {form.tasks.map(task => (
-                <div key={task.id} style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                  <select className="field-input" style={{ width: 100, flex: 'none', fontSize: 12 }}
-                    value={task.status} onChange={e => updateTask(task.id, 'status', e.target.value)}>
-                    {TASK_STATUSES.map(s => (
-                      <option key={s} value={s}>
-                        {s === 'done' ? '✅ 완료' : s === 'in_progress' ? '⏳ 진행중' : '⏱️ 예정'}
-                      </option>
-                    ))}
-                  </select>
-                  <input className="field-input" style={{ flex: 1 }} type="text"
-                    value={task.label} onChange={e => updateTask(task.id, 'label', e.target.value)}
-                    placeholder="할일 내용" />
-                  <button type="button" style={{ color: '#B91C1C', padding: '0 4px', fontSize: 16 }}
-                    onClick={() => removeTask(task.id)}>×</button>
+                <div key={task.id} style={{ display: 'flex', flexDirection: 'column', gap: 4,
+                  padding: '6px 8px', background: 'var(--bg)', borderRadius: 8, border: '1px solid var(--border)' }}>
+                  <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                    <select className="field-input" style={{ width: 100, flex: 'none', fontSize: 12 }}
+                      value={task.status} onChange={e => updateTask(task.id, 'status', e.target.value)}>
+                      {TASK_STATUSES.map(s => (
+                        <option key={s} value={s}>
+                          {s === 'done' ? '✅ 완료' : s === 'in_progress' ? '⏳ 진행중' : '⏱️ 예정'}
+                        </option>
+                      ))}
+                    </select>
+                    <input className="field-input" style={{ flex: 1 }} type="text"
+                      value={task.label} onChange={e => updateTask(task.id, 'label', e.target.value)}
+                      placeholder="할일 내용" />
+                    <button type="button" style={{ color: '#B91C1C', padding: '0 4px', fontSize: 16 }}
+                      onClick={() => removeTask(task.id)}>×</button>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, paddingLeft: 2 }}>
+                    <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>📅 마감</span>
+                    <input className="field-input" type="date"
+                      style={{ fontSize: 12, padding: '2px 6px', width: 'auto', flex: 'none' }}
+                      value={task.deadline ?? ''}
+                      onChange={e => updateTask(task.id, 'deadline', e.target.value)} />
+                    {task.deadline && (
+                      <button type="button" style={{ fontSize: 11, color: 'var(--text-muted)', padding: '0 2px' }}
+                        onClick={() => updateTask(task.id, 'deadline', '')}>지우기</button>
+                    )}
+                  </div>
                 </div>
               ))}
 
