@@ -42,7 +42,7 @@ export default function App() {
 
   const { items, loading, addItem, updateItem, deleteItem, toggleComplete, moveItem, getItemsForDate, getItemsForCell } = useItems();
   const { projects, addProject, updateProject, deleteProject, toggleTask, cycleEmailStatus, reorderProjects, togglePin } = useProjects();
-  const { habits, addHabit, updateHabit, deleteHabit, toggleHabitDate } = useHabits();
+  const { habits, addHabit, updateHabit, deleteHabit, toggleHabitDate, reorderHabits } = useHabits();
 
   const openAdd = useCallback((defaultDate, defaultSlot) => {
     setModal({ mode: 'add', defaultDate, defaultSlot });
