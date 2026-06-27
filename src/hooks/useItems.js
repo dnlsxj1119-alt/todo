@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
-import { getTimeSlotFromTime } from '../utils/dateUtils';
+import { getTimeSlotFromTime, TIME_SLOT_ORDER } from '../utils/dateUtils';
 
 function toLocal(row) {
   const type = row.type;
@@ -114,13 +114,22 @@ export function useItems() {
   const getItemsForCell = useCallback((dateStr, slot) => {
     if (slot === 'all') {
       const todos = items.filter(i => i.date === dateStr && i.type === 'todo');
-      // 다일 일정: 이날을 지나는 항목(시작일 이후, 종료일 이전)
       const continuations = items.filter(i =>
         i.type !== 'todo' && i.endDate && i.date < dateStr && i.endDate >= dateStr
       );
       return [...todos, ...continuations];
     }
-    return items.filter(i => i.date === dateStr && i.timeSlot === slot && i.type !== 'todo');
+    return items.filter(i => {
+      if (i.date !== dateStr || i.type === 'todo') return false;
+      if (i.timeSlot === slot) return true;
+      // 다일 이벤트: 시작 슬롯 이후 슬롯에도 표시
+      if (i.endDate && i.endDate > i.date) {
+        const startIdx = TIME_SLOT_ORDER.indexOf(i.timeSlot);
+        const slotIdx  = TIME_SLOT_ORDER.indexOf(slot);
+        return slotIdx > startIdx;
+      }
+      return false;
+    });
   }, [items]);
 
   return { items, loading, addItem, updateItem, deleteItem, toggleComplete, moveItem, getItemsForDate, getItemsForCell };

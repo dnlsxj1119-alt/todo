@@ -147,13 +147,21 @@ export default function WeeklyView({
       >
         {allItems.length === 0
           ? <div className="wg-cell-empty" title="더블클릭으로 추가" />
-          : allItems.map(item => (
-              <WeekCard key={item.id} item={item}
-                onItemClick={onItemClick} onToggle={onToggle}
-                onDragStart={handleDragStart}
-                isContinuation={slotKey === 'all' && item.date !== ds}
-                cardStyle={slotKey !== 'all' ? getCardStyle(item, span, slotKey) : {}} />
-            ))
+          : allItems.map(item => {
+              const isAllDayCont = slotKey === 'all' && item.date !== ds;
+              // 다일 이벤트가 시작 슬롯이 아닌 슬롯에 표시될 때 셀 전체 채우기
+              const isSlotCont = slotKey !== 'all' && item.endDate && item.endDate > item.date && item.timeSlot !== slotKey;
+              const cardStyle = isSlotCont
+                ? { position: 'absolute', top: 0, left: 4, right: 4, bottom: 0, opacity: 0.75 }
+                : slotKey !== 'all' ? getCardStyle(item, span, slotKey) : {};
+              return (
+                <WeekCard key={`${item.id}-${slotKey}`} item={item}
+                  onItemClick={onItemClick} onToggle={onToggle}
+                  onDragStart={handleDragStart}
+                  isContinuation={isAllDayCont || isSlotCont}
+                  cardStyle={cardStyle} />
+              );
+            })
         }
       </div>
     );
