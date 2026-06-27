@@ -1,5 +1,20 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, Component } from 'react';
 import { useItems } from './hooks/useItems';
+
+class ErrorBoundary extends Component {
+  constructor(props) { super(props); this.state = { error: null }; }
+  static getDerivedStateFromError(e) { return { error: e }; }
+  render() {
+    if (this.state.error) {
+      return (
+        <div style={{ padding: 32, color: '#B91C1C' }}>
+          <b>오류 발생:</b> {this.state.error.message}
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 import { useProjects } from './hooks/useProjects';
 import { useHabits } from './hooks/useHabits';
 import { getWeekStart, toDateString } from './utils/dateUtils';
@@ -132,6 +147,7 @@ export default function App() {
 
       {/* Main */}
       <main className="main-content">
+        <ErrorBoundary key={activeTab}>
         {activeTab === 'calendar' ? (
           <CalendarView
             currentMonth={currentMonth}
@@ -177,6 +193,7 @@ export default function App() {
             onTogglePin={togglePin}
           />
         )}
+        </ErrorBoundary>
       </main>
 
       {/* Modal */}
