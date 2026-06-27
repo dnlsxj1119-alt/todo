@@ -11,6 +11,7 @@ export default function ProjectModal({ project, onSave, onDelete, onClose }) {
     title: project?.title ?? '',
     deadline: project?.deadline ?? '',
     tasks: project?.tasks ?? [],
+    goals: project?.goals ?? [],
     notes: project?.notes ?? '',
   });
 
@@ -24,6 +25,17 @@ export default function ProjectModal({ project, onSave, onDelete, onClose }) {
   }, [onClose]);
 
   const set = (key, val) => setForm(f => ({ ...f, [key]: val }));
+
+  const addGoal = () => {
+    const nextWeek = form.goals.length > 0 ? Math.max(...form.goals.map(g => g.week)) + 1 : 1;
+    setForm(f => ({ ...f, goals: [...f.goals, { id: Date.now(), week: nextWeek, text: '' }] }));
+  };
+  const updateGoal = (id, key, val) => {
+    setForm(f => ({ ...f, goals: f.goals.map(g => g.id === id ? { ...g, [key]: val } : g) }));
+  };
+  const removeGoal = (id) => {
+    setForm(f => ({ ...f, goals: f.goals.filter(g => g.id !== id) }));
+  };
 
   const addTask = () => {
     setForm(f => ({ ...f, tasks: [...f.tasks, { id: Date.now(), label: '', status: 'upcoming' }] }));
@@ -150,6 +162,34 @@ export default function ProjectModal({ project, onSave, onDelete, onClose }) {
                   onClick={addBatch}>일괄 추가</button>
               </div>
               <button type="button" className="btn btn--ghost" style={{ fontSize: 12 }} onClick={addTask}>+ 개별 추가</button>
+            </div>
+          </div>
+
+          {/* Weekly Goals */}
+          <div className="field-group">
+            <label className="field-label">주차별 목표</label>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {form.goals.map(goal => (
+                <div key={goal.id} style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4, flex: 'none' }}>
+                    <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Week</span>
+                    <input className="field-input"
+                      style={{ width: 44, textAlign: 'center', fontSize: 13, fontWeight: 600, padding: '4px 6px' }}
+                      type="number" min={1}
+                      value={goal.week}
+                      onChange={e => updateGoal(goal.id, 'week', Number(e.target.value))} />
+                  </div>
+                  <input className="field-input" style={{ flex: 1 }} type="text"
+                    value={goal.text}
+                    onChange={e => updateGoal(goal.id, 'text', e.target.value)}
+                    placeholder="이번 주 목표" />
+                  <button type="button" style={{ color: '#B91C1C', padding: '0 4px', fontSize: 16 }}
+                    onClick={() => removeGoal(goal.id)}>×</button>
+                </div>
+              ))}
+              <button type="button" className="btn btn--ghost" style={{ fontSize: 12 }} onClick={addGoal}>
+                + 주차 목표 추가
+              </button>
             </div>
           </div>
 

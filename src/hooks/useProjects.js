@@ -8,10 +8,8 @@ function toLocal(row) {
     title: row.title,
     deadline: row.deadline ?? '',
     tasks: row.tasks ?? [],
-    emails: row.emails ?? [],
+    goals: row.goals ?? [],
     notes: row.notes ?? '',
-    nextAction: row.next_action ?? '',
-    contact: row.contact ?? '',
   };
 }
 
@@ -21,10 +19,8 @@ function toRow(data) {
     title: data.title,
     deadline: data.deadline || null,
     tasks: data.tasks ?? [],
-    emails: data.emails ?? [],
+    goals: data.goals ?? [],
     notes: data.notes ?? '',
-    next_action: data.nextAction ?? '',
-    contact: data.contact ?? '',
   };
 }
 

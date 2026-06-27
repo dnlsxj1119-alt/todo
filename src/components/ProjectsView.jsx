@@ -114,6 +114,26 @@ function ProjectCard({ project, onToggleTask, onCycleEmail, onEdit }) {
         <div className="proj-task-summary">{doneTasks}/{project.tasks.length} 완료</div>
       </div>
 
+      {/* Weekly Goals */}
+      {project.goals && project.goals.length > 0 && (
+        <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.05em' }}>
+            🎯 주차별 목표
+          </div>
+          {[...project.goals].sort((a, b) => a.week - b.week).map(goal => (
+            <div key={goal.id} style={{ display: 'flex', gap: 6, alignItems: 'flex-start', fontSize: 12 }}>
+              <span style={{
+                fontWeight: 700, color: 'var(--blue-dark)', background: 'var(--blue-light)',
+                borderRadius: 4, padding: '1px 6px', fontSize: 11, flexShrink: 0,
+              }}>
+                W{goal.week}
+              </span>
+              <span style={{ color: 'var(--text-secondary)', lineHeight: 1.4 }}>{goal.text}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Notes */}
       {project.notes && (
         <div className="proj-notes">
