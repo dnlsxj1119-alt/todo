@@ -1070,3 +1070,112 @@ input, textarea, select { font-family: inherit; }
   font-size: 16px;
   opacity: 0.4;
 }
+
+/* ===================== Migration Banner ===================== */
+.migration-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 20px;
+  background: linear-gradient(90deg, #fff8e1, #fff3cd);
+  border-bottom: 1px solid #f0d070;
+  font-size: 13px;
+  font-weight: 500;
+  color: #7a5c00;
+  flex-shrink: 0;
+}
+.migration-btn {
+  padding: 7px 16px;
+  border-radius: var(--radius-sm);
+  background: #f5a623;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: opacity var(--transition);
+}
+.migration-btn:disabled { opacity: 0.6; cursor: default; }
+.migration-btn:not(:disabled):hover { opacity: 0.85; }
+
+/* ===================== Login Page ===================== */
+.login-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #f0eeff 0%, #e8f4ff 100%);
+}
+.login-card {
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  padding: 48px 40px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  min-width: 320px;
+}
+.login-icon { font-size: 52px; margin-bottom: 4px; }
+.login-title { font-size: 26px; font-weight: 800; color: var(--text-primary); }
+.login-sub { font-size: 13px; color: var(--text-muted); margin-bottom: 8px; }
+.login-google-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 24px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: box-shadow var(--transition), border-color var(--transition);
+  margin-top: 8px;
+}
+.login-google-btn:hover {
+  box-shadow: var(--shadow-md);
+  border-color: var(--accent);
+}
+
+/* ===================== Sidebar User ===================== */
+.sidebar-user {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 8px;
+  border-top: 1px solid var(--border-light);
+  margin-top: auto;
+}
+.user-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+.user-info { flex: 1; min-width: 0; }
+.user-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.user-signout {
+  font-size: 16px;
+  color: var(--text-muted);
+  padding: 4px;
+  border-radius: var(--radius-sm);
+  transition: color var(--transition), background var(--transition);
+  flex-shrink: 0;
+}
+.user-signout:hover {
+  color: var(--text-primary);
+  background: var(--border-light);
+}

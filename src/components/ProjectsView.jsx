@@ -260,7 +260,14 @@ export default function ProjectsView({ projects, onToggleTask, onCycleEmail, onA
   };
   const handleDragEnd = () => { setDragId(null); setDragOverId(null); };
 
-  const sortedProjects = [...projects].sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0));
+  const getPct = (p) => p.tasks.length ? Math.round(p.tasks.filter(t => t.status === 'done').length / p.tasks.length * 100) : 0;
+
+  const sortedProjects = [...projects].sort((a, b) => {
+    const aDone = getPct(a) === 100;
+    const bDone = getPct(b) === 100;
+    if (aDone !== bDone) return aDone ? 1 : -1;
+    return (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0) || a.sortOrder - b.sortOrder;
+  });
   const filteredProjects = filterType ? sortedProjects.filter(p => p.type === filterType) : sortedProjects;
 
   return (

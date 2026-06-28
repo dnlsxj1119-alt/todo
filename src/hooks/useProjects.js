@@ -15,8 +15,9 @@ function toLocal(row) {
   };
 }
 
-function toRow(data) {
+function toRow(data, userId) {
   return {
+    user_id: userId,
     type: data.type,
     title: data.title,
     deadline: data.deadline || null,
@@ -28,12 +29,12 @@ function toRow(data) {
   };
 }
 
-export function useProjects() {
+export function useProjects(userId) {
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // 초기 로드
   useEffect(() => {
+    if (!userId) return;
     supabase
       .from('projects')
       .select('*')
@@ -42,10 +43,10 @@ export function useProjects() {
         if (data) setProjects(data.map(toLocal).sort((a, b) => a.sortOrder - b.sortOrder));
         setLoading(false);
       });
-  }, []);
+  }, [userId]);
 
-  // 실시간 구독
   useEffect(() => {
+    if (!userId) return;
     const channel = supabase
       .channel('projects-realtime')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'projects' }, (payload) => {
@@ -60,20 +61,20 @@ export function useProjects() {
       .subscribe();
 
     return () => supabase.removeChannel(channel);
-  }, []);
+  }, [userId]);
 
   const addProject = useCallback(async (data) => {
     const { data: inserted } = await supabase
-      .from('projects').insert(toRow(data)).select().single();
+      .from('projects').insert(toRow(data, userId)).select().single();
     if (inserted) {
       setProjects(prev => prev.some(p => p.id === inserted.id) ? prev : [...prev, toLocal(inserted)]);
     }
-  }, []);
+  }, [userId]);
 
   const updateProject = useCallback(async (id, data) => {
     setProjects(prev => prev.map(p => p.id === id ? { ...p, ...data } : p));
-    await supabase.from('projects').update(toRow(data)).eq('id', id);
-  }, []);
+    await supabase.from('projects').update(toRow(data, userId)).eq('id', id);
+  }, [userId]);
 
   const deleteProject = useCallback(async (id) => {
     setProjects(prev => prev.filter(p => p.id !== id));

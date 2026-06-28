@@ -5,7 +5,6 @@ import { getTimeSlotFromTime, TIME_SLOT_ORDER, timeToSlotPx } from '../utils/dat
 function toLocal(row) {
   const type = row.type;
   const rawSlot = row.time_slot ?? 'morning';
-  // 교육/일정이 실수로 'all'로 저장된 경우 morning으로 보정
   const timeSlot = (type !== 'todo' && rawSlot === 'all') ? 'morning' : rawSlot;
   return {
     id: row.id,
@@ -21,8 +20,9 @@ function toLocal(row) {
   };
 }
 
-function toRow(data) {
+function toRow(data, userId) {
   return {
+    user_id: userId,
     type: data.type,
     title: data.title,
     description: data.description ?? '',
@@ -35,11 +35,12 @@ function toRow(data) {
   };
 }
 
-export function useItems() {
+export function useItems(userId) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!userId) return;
     supabase
       .from('items')
       .select('*')
@@ -48,9 +49,10 @@ export function useItems() {
         if (data) setItems(data.map(toLocal));
         setLoading(false);
       });
-  }, []);
+  }, [userId]);
 
   useEffect(() => {
+    if (!userId) return;
     const channel = supabase
       .channel('items-realtime')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'items' }, (payload) => {
@@ -68,35 +70,32 @@ export function useItems() {
       .subscribe();
 
     return () => supabase.removeChannel(channel);
-  }, []);
+  }, [userId]);
 
   const addItem = useCallback(async (data) => {
     const slot = data.timeSlot || (data.time ? getTimeSlotFromTime(data.time) : 'morning');
     const { data: inserted } = await supabase
       .from('items')
-      .insert(toRow({ ...data, timeSlot: slot }))
+      .insert(toRow({ ...data, timeSlot: slot }, userId))
       .select()
       .single();
     if (inserted) {
       setItems(prev => prev.some(i => i.id === inserted.id) ? prev : [...prev, toLocal(inserted)]);
     }
-  }, []);
+  }, [userId]);
 
   const updateItem = useCallback(async (id, data) => {
     const slot = data.timeSlot || (data.time ? getTimeSlotFromTime(data.time) : undefined);
-    // 낙관적 업데이트
     setItems(prev => prev.map(i => i.id === id ? { ...i, ...data, timeSlot: slot ?? data.timeSlot } : i));
-    await supabase.from('items').update(toRow({ ...data, timeSlot: slot ?? data.timeSlot })).eq('id', id);
-  }, []);
+    await supabase.from('items').update(toRow({ ...data, timeSlot: slot ?? data.timeSlot }, userId)).eq('id', id);
+  }, [userId]);
 
   const deleteItem = useCallback(async (id) => {
-    // 낙관적 업데이트: UI 즉시 반영 후 DB 삭제
     setItems(prev => prev.filter(i => i.id !== id));
     await supabase.from('items').delete().eq('id', id);
   }, []);
 
   const toggleComplete = useCallback(async (id) => {
-    // 낙관적 업데이트
     setItems(prev => prev.map(i => i.id === id ? { ...i, completed: !i.completed } : i));
     const item = items.find(i => i.id === id);
     if (!item) return;
@@ -120,11 +119,8 @@ export function useItems() {
     }
     return items.filter(i => {
       if (i.type === 'todo') return false;
-      // 시작일: 해당 슬롯만 (spanning이 시각적 연결 담당)
       if (i.date === dateStr) return i.timeSlot === slot;
-      // 중간일 (date < dateStr < endDate): 모든 슬롯에 표시
       if (i.endDate && i.date < dateStr && i.endDate > dateStr) return true;
-      // 종료일: 아침부터 endTime 슬롯까지
       if (i.endDate === dateStr && i.date < dateStr) {
         const endSlotKey = i.endTime ? getTimeSlotFromTime(i.endTime) : TIME_SLOT_ORDER[TIME_SLOT_ORDER.length - 1];
         const endIdx = TIME_SLOT_ORDER.indexOf(endSlotKey);

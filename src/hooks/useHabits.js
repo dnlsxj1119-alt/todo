@@ -21,11 +21,12 @@ export function habitAppliesToDate(habit, dateStr) {
   return false;
 }
 
-export function useHabits() {
+export function useHabits(userId) {
   const [habits, setHabits] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!userId) return;
     supabase
       .from('habits')
       .select('*')
@@ -35,9 +36,10 @@ export function useHabits() {
         if (data) setHabits(data.map(toLocal).sort((a, b) => a.sortOrder - b.sortOrder));
         setLoading(false);
       });
-  }, []);
+  }, [userId]);
 
   useEffect(() => {
+    if (!userId) return;
     const channel = supabase
       .channel('habits-realtime')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'habits' }, (payload) => {
@@ -51,19 +53,19 @@ export function useHabits() {
       })
       .subscribe();
     return () => supabase.removeChannel(channel);
-  }, []);
+  }, [userId]);
 
   const addHabit = useCallback(async (data) => {
     const { data: inserted, error } = await supabase
       .from('habits')
-      .insert({ title: data.title, frequency: data.frequency, color: data.color, completed_dates: [] })
+      .insert({ user_id: userId, title: data.title, frequency: data.frequency, color: data.color, completed_dates: [] })
       .select()
       .single();
     if (error) { console.error('[addHabit]', error); return; }
     if (inserted) {
       setHabits(prev => prev.some(h => h.id === inserted.id) ? prev : [...prev, toLocal(inserted)]);
     }
-  }, []);
+  }, [userId]);
 
   const updateHabit = useCallback(async (id, data) => {
     setHabits(prev => prev.map(h => h.id === id ? { ...h, ...data } : h));

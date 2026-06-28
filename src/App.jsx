@@ -1,5 +1,7 @@
-import { useState, useCallback, Component } from 'react';
+import { useState, useCallback, useEffect, Component } from 'react';
+import { useAuth } from './hooks/useAuth';
 import { useItems } from './hooks/useItems';
+import LoginPage from './components/LoginPage';
 
 class ErrorBoundary extends Component {
   constructor(props) { super(props); this.state = { error: null }; }
@@ -17,6 +19,7 @@ class ErrorBoundary extends Component {
 }
 import { useProjects } from './hooks/useProjects';
 import { useHabits } from './hooks/useHabits';
+import { supabase } from './lib/supabase';
 import { getWeekStart, toDateString } from './utils/dateUtils';
 import CalendarView from './components/CalendarView';
 import WeeklyView from './components/WeeklyView';
@@ -33,16 +36,38 @@ const FILTER_OPTIONS = [
 ];
 
 export default function App() {
+  const { user, loading: authLoading, signInWithGoogle, signOut } = useAuth();
   const [activeTab, setActiveTab] = useState('calendar');
   const [currentMonth, setCurrentMonth] = useState(() => new Date(2026, 5, 1));
   const [currentWeek, setCurrentWeek] = useState(() => getWeekStart(new Date(2026, 5, 23)));
   const [filterType, setFilterType] = useState(null);
+  const [needsMigration, setNeedsMigration] = useState(false);
+  const [migrating, setMigrating] = useState(false);
 
   const [modal, setModal] = useState(null);
 
-  const { items, loading, addItem, updateItem, deleteItem, toggleComplete, moveItem, getItemsForDate, getItemsForCell } = useItems();
-  const { projects, addProject, updateProject, deleteProject, toggleTask, cycleEmailStatus, reorderProjects, togglePin } = useProjects();
-  const { habits, addHabit, updateHabit, deleteHabit, toggleHabitDate, reorderHabits } = useHabits();
+  const userId = user?.id;
+  const { items, loading, addItem, updateItem, deleteItem, toggleComplete, moveItem, getItemsForDate, getItemsForCell } = useItems(userId);
+  const { projects, addProject, updateProject, deleteProject, toggleTask, cycleEmailStatus, reorderProjects, togglePin } = useProjects(userId);
+  const { habits, addHabit, updateHabit, deleteHabit, toggleHabitDate, reorderHabits } = useHabits(userId);
+
+  // 로그인 후 기존 데이터(user_id 없는 것) 있는지 확인
+  useEffect(() => {
+    if (!userId) return;
+    supabase.from('items').select('id', { count: 'exact', head: true }).is('user_id', null)
+      .then(({ count }) => setNeedsMigration((count ?? 0) > 0));
+  }, [userId]);
+
+  const handleMigrate = useCallback(async () => {
+    setMigrating(true);
+    await Promise.all([
+      supabase.from('items').update({ user_id: userId }).is('user_id', null),
+      supabase.from('habits').update({ user_id: userId }).is('user_id', null),
+      supabase.from('projects').update({ user_id: userId }).is('user_id', null),
+    ]);
+    setNeedsMigration(false);
+    setMigrating(false);
+  }, [userId]);
 
   const openAdd = useCallback((defaultDate, defaultSlot) => {
     setModal({ mode: 'add', defaultDate, defaultSlot });
@@ -67,6 +92,19 @@ export default function App() {
     deleteItem(id);
     closeModal();
   }, [deleteItem, closeModal]);
+
+  if (authLoading) {
+    return (
+      <div className="app-loading">
+        <div className="loading-spinner" />
+        <span>불러오는 중...</span>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <LoginPage onGoogleLogin={signInWithGoogle} />;
+  }
 
   if (loading) {
     return (
@@ -143,10 +181,31 @@ export default function App() {
         >
           + 새 항목 추가
         </button>
+
+        {/* User profile */}
+        <div className="sidebar-user">
+          {user.user_metadata?.avatar_url && (
+            <img className="user-avatar" src={user.user_metadata.avatar_url} alt="프로필" />
+          )}
+          <div className="user-info">
+            <div className="user-name">{user.user_metadata?.name ?? user.email}</div>
+          </div>
+          <button className="user-signout" onClick={signOut} title="로그아웃">↩</button>
+        </div>
       </aside>
 
       {/* Main */}
       <main className="main-content">
+        {/* 데이터 이전 배너 */}
+        {needsMigration && (
+          <div className="migration-banner">
+            <span>기존 데이터를 내 계정으로 이전하시겠어요?</span>
+            <button className="migration-btn" onClick={handleMigrate} disabled={migrating}>
+              {migrating ? '이전 중...' : '내 계정으로 이전'}
+            </button>
+          </div>
+        )}
+
         <ErrorBoundary key={activeTab}>
         {activeTab === 'calendar' ? (
           <CalendarView
