@@ -2,7 +2,7 @@ import { useState } from 'react';
 
 export default function LoginPage({ onGoogleLogin, onEmailLogin, onEmailSignup }) {
   const [tab, setTab] = useState('login'); // 'login' | 'signup'
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -13,9 +13,9 @@ export default function LoginPage({ onGoogleLogin, onEmailLogin, onEmailSignup }
     setLoading(true);
     try {
       if (tab === 'login') {
-        await onEmailLogin(email, password);
+        await onEmailLogin(username, password);
       } else {
-        await onEmailSignup(email, password);
+        await onEmailSignup(username, password);
       }
     } catch (err) {
       setError(err.message ?? '오류가 발생했습니다.');
@@ -41,11 +41,12 @@ export default function LoginPage({ onGoogleLogin, onEmailLogin, onEmailSignup }
         <form className="login-form" onSubmit={handleSubmit}>
           <input
             className="login-input"
-            type="email"
-            placeholder="이메일"
-            value={email}
-            onChange={e => setEmail(e.target.value)}
+            type="text"
+            placeholder="아이디"
+            value={username}
+            onChange={e => setUsername(e.target.value)}
             required
+            autoComplete="username"
           />
           <input
             className="login-input"

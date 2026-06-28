@@ -166,7 +166,7 @@ export default function App() {
             <img className="user-avatar" src={user.user_metadata.avatar_url} alt="프로필" />
           )}
           <div className="user-info">
-            <div className="user-name">{user.user_metadata?.name ?? user.email}</div>
+            <div className="user-name">{user.user_metadata?.name ?? user.email?.replace('@todo-app.local', '')}</div>
           </div>
           <button className="user-signout" onClick={signOut} title="로그아웃">↩</button>
         </div>

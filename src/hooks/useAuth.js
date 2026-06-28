@@ -31,13 +31,19 @@ export function useAuth() {
     });
   };
 
-  const signInWithEmail = async (email, password) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+  const toFakeEmail = (username) => `${username.trim()}@todo-app.local`;
+
+  const signInWithEmail = async (username, password) => {
+    const { error } = await supabase.auth.signInWithPassword({ email: toFakeEmail(username), password });
     if (error) throw error;
   };
 
-  const signUpWithEmail = async (email, password) => {
-    const { error } = await supabase.auth.signUp({ email, password });
+  const signUpWithEmail = async (username, password) => {
+    const { error } = await supabase.auth.signUp({
+      email: toFakeEmail(username),
+      password,
+      options: { data: { name: username } },
+    });
     if (error) throw error;
   };
 
