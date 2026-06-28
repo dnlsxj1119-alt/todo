@@ -1,10 +1,69 @@
-export default function LoginPage({ onGoogleLogin }) {
+import { useState } from 'react';
+
+export default function LoginPage({ onGoogleLogin, onEmailLogin, onEmailSignup }) {
+  const [tab, setTab] = useState('login'); // 'login' | 'signup'
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    try {
+      if (tab === 'login') {
+        await onEmailLogin(email, password);
+      } else {
+        await onEmailSignup(email, password);
+      }
+    } catch (err) {
+      setError(err.message ?? '오류가 발생했습니다.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="login-page">
       <div className="login-card">
         <div className="login-icon">📅</div>
         <h1 className="login-title">플로우</h1>
         <p className="login-sub">일정 &amp; 할일 관리</p>
+
+        {/* 탭 */}
+        <div className="login-tabs">
+          <button className={`login-tab ${tab === 'login' ? 'login-tab--active' : ''}`} onClick={() => { setTab('login'); setError(''); }}>로그인</button>
+          <button className={`login-tab ${tab === 'signup' ? 'login-tab--active' : ''}`} onClick={() => { setTab('signup'); setError(''); }}>회원가입</button>
+        </div>
+
+        {/* 이메일 폼 */}
+        <form className="login-form" onSubmit={handleSubmit}>
+          <input
+            className="login-input"
+            type="email"
+            placeholder="이메일"
+            value={email}
+            onChange={e => setEmail(e.target.value)}
+            required
+          />
+          <input
+            className="login-input"
+            type="password"
+            placeholder="비밀번호"
+            value={password}
+            onChange={e => setPassword(e.target.value)}
+            required
+            minLength={6}
+          />
+          {error && <div className="login-error">{error}</div>}
+          <button className="login-submit-btn" type="submit" disabled={loading}>
+            {loading ? '처리 중...' : tab === 'login' ? '로그인' : '가입하기'}
+          </button>
+        </form>
+
+        <div className="login-divider"><span>또는</span></div>
+
         <button className="login-google-btn" onClick={onGoogleLogin}>
           <svg width="20" height="20" viewBox="0 0 24 24">
             <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
