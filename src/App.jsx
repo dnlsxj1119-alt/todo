@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, Component } from 'react';
+import { useState, useCallback, Component } from 'react';
 import { useAuth } from './hooks/useAuth';
 import { useItems } from './hooks/useItems';
 import LoginPage from './components/LoginPage';
@@ -19,7 +19,6 @@ class ErrorBoundary extends Component {
 }
 import { useProjects } from './hooks/useProjects';
 import { useHabits } from './hooks/useHabits';
-import { supabase } from './lib/supabase';
 import { getWeekStart, toDateString } from './utils/dateUtils';
 import CalendarView from './components/CalendarView';
 import WeeklyView from './components/WeeklyView';
@@ -41,33 +40,12 @@ export default function App() {
   const [currentMonth, setCurrentMonth] = useState(() => new Date(2026, 5, 1));
   const [currentWeek, setCurrentWeek] = useState(() => getWeekStart(new Date(2026, 5, 23)));
   const [filterType, setFilterType] = useState(null);
-  const [needsMigration, setNeedsMigration] = useState(false);
-  const [migrating, setMigrating] = useState(false);
-
   const [modal, setModal] = useState(null);
 
   const userId = user?.id;
   const { items, loading, addItem, updateItem, deleteItem, toggleComplete, moveItem, getItemsForDate, getItemsForCell } = useItems(userId);
   const { projects, addProject, updateProject, deleteProject, toggleTask, cycleEmailStatus, reorderProjects, togglePin } = useProjects(userId);
   const { habits, addHabit, updateHabit, deleteHabit, toggleHabitDate, reorderHabits } = useHabits(userId);
-
-  // 로그인 후 기존 데이터(user_id 없는 것) 있는지 확인
-  useEffect(() => {
-    if (!userId) return;
-    supabase.from('items').select('id', { count: 'exact', head: true }).is('user_id', null)
-      .then(({ count }) => setNeedsMigration((count ?? 0) > 0));
-  }, [userId]);
-
-  const handleMigrate = useCallback(async () => {
-    setMigrating(true);
-    await Promise.all([
-      supabase.from('items').update({ user_id: userId }).is('user_id', null),
-      supabase.from('habits').update({ user_id: userId }).is('user_id', null),
-      supabase.from('projects').update({ user_id: userId }).is('user_id', null),
-    ]);
-    setNeedsMigration(false);
-    setMigrating(false);
-  }, [userId]);
 
   const openAdd = useCallback((defaultDate, defaultSlot) => {
     setModal({ mode: 'add', defaultDate, defaultSlot });
@@ -196,16 +174,6 @@ export default function App() {
 
       {/* Main */}
       <main className="main-content">
-        {/* 데이터 이전 배너 */}
-        {needsMigration && (
-          <div className="migration-banner">
-            <span>기존 데이터를 내 계정으로 이전하시겠어요?</span>
-            <button className="migration-btn" onClick={handleMigrate} disabled={migrating}>
-              {migrating ? '이전 중...' : '내 계정으로 이전'}
-            </button>
-          </div>
-        )}
-
         <ErrorBoundary key={activeTab}>
         {activeTab === 'calendar' ? (
           <CalendarView
