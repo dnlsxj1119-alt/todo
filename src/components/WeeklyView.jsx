@@ -22,13 +22,11 @@ function WeekCard({ item, onItemClick, onToggle, onDragStart, cardStyle, isConti
       onClick={() => onItemClick(item)}
     >
       <div className="week-card-top">
-        {item.type === 'todo' && (
-          <button className="card-check"
-            onClick={(e) => { e.stopPropagation(); onToggle(item.id); }}
-            aria-label={item.completed ? '완료 취소' : '완료'}>
-            {item.completed ? '✓' : '○'}
-          </button>
-        )}
+        <button className="card-check"
+          onClick={(e) => { e.stopPropagation(); onToggle(item.id); }}
+          aria-label={item.completed ? '완료 취소' : '완료'}>
+          {item.completed ? '✓' : '○'}
+        </button>
         <span className="card-title">{isContinuation ? `↩ ${item.title}` : item.title}</span>
       </div>
       {!isContinuation && (item.time || item.endTime) && (
