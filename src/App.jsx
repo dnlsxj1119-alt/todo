@@ -184,6 +184,8 @@ export default function App() {
             onDayClick={(ds) => openAdd(ds)}
             onToggle={toggleComplete}
             filterType={filterType}
+            projects={projects}
+            onProjectClick={() => setActiveTab('projects')}
           />
         ) : activeTab === 'week' ? (
           <WeeklyView

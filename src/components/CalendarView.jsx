@@ -28,7 +28,20 @@ function ItemChip({ item, onClick, onToggle }) {
   );
 }
 
-export default function CalendarView({ currentMonth, setCurrentMonth, getItemsForDate, onItemClick, onDayClick, onToggle, filterType }) {
+function DeadlineChip({ project, onClick }) {
+  return (
+    <div
+      className="chip chip--deadline"
+      onClick={(e) => { e.stopPropagation(); onClick(project); }}
+      title={`마감: ${project.title}`}
+    >
+      <span className="chip-check" style={{ opacity: 1 }}>🏁</span>
+      <span className="chip-title">{project.title}</span>
+    </div>
+  );
+}
+
+export default function CalendarView({ currentMonth, setCurrentMonth, getItemsForDate, onItemClick, onDayClick, onToggle, filterType, projects = [], onProjectClick }) {
   const [expanded, setExpanded] = useState({});
 
   const year = currentMonth.getFullYear();
@@ -42,6 +55,17 @@ export default function CalendarView({ currentMonth, setCurrentMonth, getItemsFo
   const toggleExpand = (key) => setExpanded(prev => ({ ...prev, [key]: !prev[key] }));
 
   const VISIBLE_MAX = 3;
+
+  const deadlineMap = useMemo(() => {
+    const map = {};
+    projects.forEach(p => {
+      if (p.deadline) {
+        if (!map[p.deadline]) map[p.deadline] = [];
+        map[p.deadline].push(p);
+      }
+    });
+    return map;
+  }, [projects]);
 
   return (
     <div className="calendar-view">
@@ -69,10 +93,13 @@ export default function CalendarView({ currentMonth, setCurrentMonth, getItemsFo
           const allItems = getItemsForDate(ds)
             .filter(item => !filterType || item.type === filterType)
             .map(item => ({ ...item, _isCont: item.date !== ds }));
+          const deadlines = filterType ? [] : (deadlineMap[ds] ?? []);
           const today = isToday(date);
           const isExpanded = expanded[ds];
-          const visible = isExpanded ? allItems : allItems.slice(0, VISIBLE_MAX);
-          const hidden = allItems.length - VISIBLE_MAX;
+          const totalCount = allItems.length + deadlines.length;
+          const visibleItems = isExpanded ? allItems : allItems.slice(0, Math.max(0, VISIBLE_MAX - deadlines.length));
+          const visibleDeadlines = isExpanded ? deadlines : deadlines.slice(0, VISIBLE_MAX);
+          const hidden = totalCount - visibleItems.length - visibleDeadlines.length;
           const dow = date.getDay();
 
           return (
@@ -83,7 +110,14 @@ export default function CalendarView({ currentMonth, setCurrentMonth, getItemsFo
             >
               <span className={`cal-date-num ${today ? 'today-num' : ''}`}>{date.getDate()}</span>
               <div className="chip-stack">
-                {visible.map(item => (
+                {visibleDeadlines.map(p => (
+                  <DeadlineChip
+                    key={`deadline-${p.id}`}
+                    project={p}
+                    onClick={onProjectClick}
+                  />
+                ))}
+                {visibleItems.map(item => (
                   <ItemChip
                     key={`${item.id}-${ds}`}
                     item={item}
@@ -99,7 +133,7 @@ export default function CalendarView({ currentMonth, setCurrentMonth, getItemsFo
                     +{hidden}개 더보기
                   </button>
                 )}
-                {isExpanded && allItems.length > VISIBLE_MAX && (
+                {isExpanded && totalCount > VISIBLE_MAX && (
                   <button
                     className="show-more-btn"
                     onClick={(e) => { e.stopPropagation(); toggleExpand(ds); }}

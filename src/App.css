@@ -321,9 +321,10 @@ input, textarea, select { font-family: inherit; }
   white-space: nowrap;
 }
 .chip:hover { opacity: 0.85; transform: translateX(1px); }
-.chip--purple { background: var(--purple-light); color: var(--purple-dark); }
-.chip--blue   { background: var(--blue-light);   color: var(--blue-dark); }
-.chip--green  { background: var(--green-light);  color: var(--green-dark); }
+.chip--purple   { background: var(--purple-light); color: var(--purple-dark); }
+.chip--blue     { background: var(--blue-light);   color: var(--blue-dark); }
+.chip--green    { background: var(--green-light);  color: var(--green-dark); }
+.chip--deadline { background: #FFF3E0; color: #B45309; border: 1px solid #FCD34D; font-weight: 600; }
 .chip--done   {
   background: #F0F0F0 !important;
   color: #9CA3AF !important;
