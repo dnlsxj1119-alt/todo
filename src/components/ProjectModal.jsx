@@ -64,7 +64,7 @@ export default function ProjectModal({ project, onSave, onDelete, onClose }) {
     if (!batchName.trim() || batchCount < 1) return;
     const newTasks = Array.from({ length: batchCount }, (_, i) => ({
       id: Date.now() + i,
-      label: `${batchName.trim()} ${i + 1}차`,
+      label: `${batchName.trim()} ${i + 1}`,
       status: 'upcoming',
     }));
     setForm(f => ({ ...f, tasks: [...f.tasks, ...newTasks] }));

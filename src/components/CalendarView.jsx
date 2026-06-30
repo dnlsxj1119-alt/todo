@@ -52,6 +52,9 @@ export default function CalendarView({ currentMonth, setCurrentMonth, getItemsFo
   const nextMonth = () => setCurrentMonth(new Date(year, month + 1, 1));
   const goToday = () => setCurrentMonth(new Date());
 
+  const today = new Date();
+  const isCurrentMonth = year === today.getFullYear() && month === today.getMonth();
+
   const toggleExpand = (key) => setExpanded(prev => ({ ...prev, [key]: !prev[key] }));
 
   const VISIBLE_MAX = 3;
@@ -74,7 +77,7 @@ export default function CalendarView({ currentMonth, setCurrentMonth, getItemsFo
         <button className="nav-btn" onClick={prevMonth} aria-label="이전 달">‹</button>
         <div className="cal-title-group">
           <h2 className="cal-title">{formatMonthYear(currentMonth)}</h2>
-          <button className="today-btn" onClick={goToday}>오늘</button>
+          {!isCurrentMonth && <button className="today-btn" onClick={goToday}>오늘</button>}
         </div>
         <button className="nav-btn" onClick={nextMonth} aria-label="다음 달">›</button>
       </div>

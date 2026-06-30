@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import {
-  getWeekDays, toDateString, isToday, formatWeekRange,
+  getWeekDays, getWeekStart, toDateString, isToday, formatWeekRange,
   TIME_SLOTS, TIME_SLOT_ORDER, DAY_NAMES_WEEK,
   getTimeSlotFromTime, getSpanCount, getCardStyle, getEndDayCardStyle,
 } from '../utils/dateUtils';
@@ -82,10 +82,10 @@ export default function WeeklyView({
 
   const prevWeek = () => { const d = new Date(currentWeek); d.setDate(d.getDate() - 7); setCurrentWeek(d); };
   const nextWeek = () => { const d = new Date(currentWeek); d.setDate(d.getDate() + 7); setCurrentWeek(d); };
-  const goThisWeek = () => {
-    const t = new Date(); const dow = t.getDay();
-    setCurrentWeek(new Date(t.setDate(t.getDate() - dow + (dow === 0 ? -6 : 1))));
-  };
+  const goThisWeek = () => setCurrentWeek(getWeekStart(new Date()));
+
+  const thisWeekStart = getWeekStart(new Date());
+  const isCurrentWeek = toDateString(currentWeek) === toDateString(thisWeekStart);
 
   const handleDragStart = (e, itemId, itemType) => {
     e.dataTransfer.setData('itemId', String(itemId));
@@ -200,7 +200,7 @@ export default function WeeklyView({
         <button className="nav-btn" onClick={prevWeek}>‹</button>
         <div className="cal-title-group">
           <h2 className="cal-title">{formatWeekRange(currentWeek)}</h2>
-          <button className="today-btn" onClick={goThisWeek}>이번 주</button>
+          {!isCurrentWeek && <button className="today-btn" onClick={goThisWeek}>이번 주</button>}
         </div>
         <button className="nav-btn" onClick={nextWeek}>›</button>
       </div>

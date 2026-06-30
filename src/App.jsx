@@ -37,8 +37,8 @@ const FILTER_OPTIONS = [
 export default function App() {
   const { user, loading: authLoading, signInWithGoogle, signInWithEmail, signUpWithEmail, signOut } = useAuth();
   const [activeTab, setActiveTab] = useState('calendar');
-  const [currentMonth, setCurrentMonth] = useState(() => new Date(2026, 5, 1));
-  const [currentWeek, setCurrentWeek] = useState(() => getWeekStart(new Date(2026, 5, 23)));
+  const [currentMonth, setCurrentMonth] = useState(() => new Date());
+  const [currentWeek, setCurrentWeek] = useState(() => getWeekStart(new Date()));
   const [filterType, setFilterType] = useState(null);
   const [modal, setModal] = useState(null);
 
