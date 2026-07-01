@@ -58,14 +58,14 @@ export function useHabits(userId) {
   const addHabit = useCallback(async (data) => {
     const { data: inserted, error } = await supabase
       .from('habits')
-      .insert({ user_id: userId, title: data.title, frequency: data.frequency, color: data.color, completed_dates: [] })
+      .insert({ user_id: userId, title: data.title, frequency: data.frequency, color: data.color, completed_dates: [], sort_order: habits.length })
       .select()
       .single();
     if (error) { console.error('[addHabit]', error); return; }
     if (inserted) {
       setHabits(prev => prev.some(h => h.id === inserted.id) ? prev : [...prev, toLocal(inserted)]);
     }
-  }, [userId]);
+  }, [userId, habits.length]);
 
   const updateHabit = useCallback(async (id, data) => {
     setHabits(prev => prev.map(h => h.id === id ? { ...h, ...data } : h));
