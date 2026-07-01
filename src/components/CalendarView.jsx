@@ -29,9 +29,10 @@ function ItemChip({ item, onClick, onToggle }) {
 }
 
 function DeadlineChip({ project, onClick }) {
+  const isCompleted = project.tasks?.length > 0 && project.tasks.every(t => t.status === 'done');
   return (
     <div
-      className="chip chip--deadline"
+      className={`chip chip--deadline${isCompleted ? ' chip--done' : ''}`}
       onClick={(e) => { e.stopPropagation(); onClick(project); }}
       title={`마감: ${project.title}`}
     >
