@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import ProjectModal from './ProjectModal';
 import { PROJECT_TYPES, getProjectType } from '../utils/projectTypes';
+import { toDateString } from '../utils/dateUtils';
 
 const TASK_STATUS = {
   done:        { emoji: '✅', label: '완료',   cls: 'task--done' },
@@ -125,9 +126,15 @@ function ProjectCard({ project, onToggleTask, onEdit, onTogglePin, onDragStart, 
         </div>
       </div>
 
-      {/* Title + deadline */}
+      {/* Title + start date + deadline */}
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
         <h3 className="proj-title">{project.title}</h3>
+        {project.startDate && (
+          <span style={{
+            fontSize: 11, fontWeight: 600, padding: '2px 7px', borderRadius: 20,
+            background: 'var(--border-light)', color: 'var(--text-muted)',
+          }}>🚩 {project.startDate}</span>
+        )}
         {project.deadline && (
           <span style={{
             fontSize: 11, fontWeight: 600, padding: '2px 7px', borderRadius: 20,
@@ -262,13 +269,36 @@ export default function ProjectsView({ projects, onToggleTask, onCycleEmail, onA
 
   const getPct = (p) => p.tasks.length ? Math.round(p.tasks.filter(t => t.status === 'done').length / p.tasks.length * 100) : 0;
 
-  const sortedProjects = [...projects].sort((a, b) => {
-    const aDone = getPct(a) === 100;
-    const bDone = getPct(b) === 100;
-    if (aDone !== bDone) return aDone ? 1 : -1;
-    return (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0) || a.sortOrder - b.sortOrder;
-  });
-  const filteredProjects = filterType ? sortedProjects.filter(p => p.type === filterType) : sortedProjects;
+  const todayStr = toDateString(new Date());
+  const sortByPin = (a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0) || a.sortOrder - b.sortOrder;
+
+  const typeFiltered = filterType ? projects.filter(p => p.type === filterType) : projects;
+  const completedProjects = typeFiltered.filter(p => getPct(p) === 100).sort(sortByPin);
+  const notStartedProjects = typeFiltered
+    .filter(p => getPct(p) !== 100 && p.startDate && p.startDate > todayStr)
+    .sort(sortByPin);
+  const inProgressProjects = typeFiltered
+    .filter(p => getPct(p) !== 100 && !(p.startDate && p.startDate > todayStr))
+    .sort(sortByPin);
+
+  const renderGrid = (list) => (
+    <div className="proj-grid">
+      {list.map(p => (
+        <ProjectCard
+          key={p.id}
+          project={p}
+          onToggleTask={onToggleTask}
+          onEdit={handleEdit}
+          onTogglePin={onTogglePin}
+          onDragStart={() => handleDragStart(p.id)}
+          onDragOver={(e) => handleDragOver(e, p.id)}
+          onDrop={(e) => handleDrop(e, p.id)}
+          onDragEnd={handleDragEnd}
+          isDragOver={dragOverId === p.id}
+        />
+      ))}
+    </div>
+  );
 
   return (
     <div className="projects-view">
@@ -304,29 +334,33 @@ export default function ProjectsView({ projects, onToggleTask, onCycleEmail, onA
       </div>
 
       {/* Cards */}
-      {filteredProjects.length === 0 ? (
+      {typeFiltered.length === 0 ? (
         <div className="proj-empty">
           <div className="empty-emoji">🗂️</div>
           <div className="empty-text">{filterType ? '해당 카테고리의 프로젝트가 없습니다' : '프로젝트가 없습니다'}</div>
           {!filterType && <button className="btn btn--primary" onClick={handleAdd}>첫 프로젝트 만들기</button>}
         </div>
       ) : (
-        <div className="proj-grid">
-          {filteredProjects.map(p => (
-            <ProjectCard
-              key={p.id}
-              project={p}
-              onToggleTask={onToggleTask}
-              onEdit={handleEdit}
-              onTogglePin={onTogglePin}
-              onDragStart={() => handleDragStart(p.id)}
-              onDragOver={(e) => handleDragOver(e, p.id)}
-              onDrop={(e) => handleDrop(e, p.id)}
-              onDragEnd={handleDragEnd}
-              isDragOver={dragOverId === p.id}
-            />
-          ))}
-        </div>
+        <>
+          {inProgressProjects.length > 0 && (
+            <div className="proj-section">
+              <h3 className="proj-section-title">🚀 진행중 ({inProgressProjects.length})</h3>
+              {renderGrid(inProgressProjects)}
+            </div>
+          )}
+          {notStartedProjects.length > 0 && (
+            <div className="proj-section">
+              <h3 className="proj-section-title">⏱️ 아직 시작 안함 ({notStartedProjects.length})</h3>
+              {renderGrid(notStartedProjects)}
+            </div>
+          )}
+          {completedProjects.length > 0 && (
+            <div className="proj-section">
+              <h3 className="proj-section-title">✅ 완료 ({completedProjects.length})</h3>
+              {renderGrid(completedProjects)}
+            </div>
+          )}
+        </>
       )}
 
       {showModal && (

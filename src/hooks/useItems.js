@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
-import { getTimeSlotFromTime, TIME_SLOT_ORDER, timeToSlotPx } from '../utils/dateUtils';
+import { getTimeSlotFromTime, TIME_SLOT_ORDER, timeToSlotPx, addDays } from '../utils/dateUtils';
 
 function toLocal(row) {
   const type = row.type;
@@ -84,6 +84,26 @@ export function useItems(userId) {
     }
   }, [userId]);
 
+  const addRecurringItems = useCallback(async (data, dates) => {
+    const slot = data.timeSlot || (data.time ? getTimeSlotFromTime(data.time) : 'morning');
+    const offsetDays = data.endDate && data.date
+      ? (new Date(data.endDate) - new Date(data.date)) / (1000 * 60 * 60 * 24)
+      : null;
+    const rows = dates.map(d => toRow({
+      ...data,
+      timeSlot: slot,
+      date: d,
+      endDate: offsetDays != null ? addDays(d, offsetDays) : '',
+    }, userId));
+    const { data: inserted } = await supabase.from('items').insert(rows).select();
+    if (inserted) {
+      setItems(prev => [
+        ...prev,
+        ...inserted.filter(row => !prev.some(i => i.id === row.id)).map(toLocal),
+      ]);
+    }
+  }, [userId]);
+
   const updateItem = useCallback(async (id, data) => {
     const slot = data.timeSlot || (data.time ? getTimeSlotFromTime(data.time) : undefined);
     setItems(prev => prev.map(i => i.id === id ? { ...i, ...data, timeSlot: slot ?? data.timeSlot } : i));
@@ -133,5 +153,5 @@ export function useItems(userId) {
     });
   }, [items]);
 
-  return { items, loading, addItem, updateItem, deleteItem, toggleComplete, moveItem, getItemsForDate, getItemsForCell };
+  return { items, loading, addItem, addRecurringItems, updateItem, deleteItem, toggleComplete, moveItem, getItemsForDate, getItemsForCell };
 }

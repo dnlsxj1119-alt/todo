@@ -166,3 +166,33 @@ export function getTimeSlotFromTime(time) {
   if (h >= 17 && h < 21) return 'evening';
   return 'night';
 }
+
+export function addDays(dateStr, n) {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const date = new Date(y, m - 1, d + n);
+  return toDateString(date);
+}
+
+function addMonthsClamped(dateStr, n) {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const target = new Date(y, m - 1 + n, 1);
+  const daysInMonth = new Date(target.getFullYear(), target.getMonth() + 1, 0).getDate();
+  target.setDate(Math.min(d, daysInMonth));
+  return toDateString(target);
+}
+
+export function getRecurrenceDates(startDateStr, endDateStr, frequency, max = 200) {
+  if (!startDateStr || !endDateStr || startDateStr > endDateStr) return [startDateStr].filter(Boolean);
+  const dates = [];
+  let cursor = startDateStr;
+  let step = 0;
+  while (cursor <= endDateStr && dates.length < max) {
+    dates.push(cursor);
+    step += 1;
+    if (frequency === 'daily') cursor = addDays(startDateStr, step);
+    else if (frequency === 'weekly') cursor = addDays(startDateStr, step * 7);
+    else if (frequency === 'monthly') cursor = addMonthsClamped(startDateStr, step);
+    else break;
+  }
+  return dates;
+}

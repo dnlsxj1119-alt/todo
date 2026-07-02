@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { getTimeSlotFromTime, getSpanCount, TIME_SLOTS } from '../utils/dateUtils';
+import { getTimeSlotFromTime, getSpanCount, TIME_SLOTS, getRecurrenceDates } from '../utils/dateUtils';
 import TimePicker from './TimePicker';
 
 const TYPE_CONFIG = {
@@ -7,6 +7,13 @@ const TYPE_CONFIG = {
   education: { label: '교육',   emoji: '🔵', color: 'blue' },
   schedule:  { label: '일정',   emoji: '🟢', color: 'green' },
 };
+
+const REPEAT_OPTIONS = [
+  { key: 'none',    label: '반복 안함' },
+  { key: 'daily',   label: '매일' },
+  { key: 'weekly',  label: '매주' },
+  { key: 'monthly', label: '매월' },
+];
 
 export default function ItemModal({ item, defaultDate, onSave, onDelete, onClose }) {
   const isEdit = !!item;
@@ -22,6 +29,8 @@ export default function ItemModal({ item, defaultDate, onSave, onDelete, onClose
     endDate: item?.endDate ?? '',
     timeSlot: item?.timeSlot ?? 'morning',
     completed: item?.completed ?? false,
+    repeat: 'none',
+    repeatEndDate: '',
   });
 
   useEffect(() => {
@@ -58,8 +67,18 @@ export default function ItemModal({ item, defaultDate, onSave, onDelete, onClose
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!form.title.trim()) return;
-    onSave({ ...form, timeSlot: form.type === 'todo' ? 'all' : form.timeSlot });
+    const timeSlot = form.type === 'todo' ? 'all' : form.timeSlot;
+    if (!isEdit && form.repeat !== 'none' && form.repeatEndDate) {
+      const occurrenceDates = getRecurrenceDates(form.date, form.repeatEndDate, form.repeat);
+      onSave({ ...form, timeSlot, occurrenceDates });
+      return;
+    }
+    onSave({ ...form, timeSlot });
   };
+
+  const occurrenceCount = !isEdit && form.repeat !== 'none' && form.repeatEndDate
+    ? getRecurrenceDates(form.date, form.repeatEndDate, form.repeat).length
+    : 0;
 
   const needsTime = form.type === 'schedule' || form.type === 'education';
   const startSlot = TIME_SLOTS.find(s => s.key === form.timeSlot);
@@ -144,6 +163,36 @@ export default function ItemModal({ item, defaultDate, onSave, onDelete, onClose
                 <label className="field-label">종료 시간</label>
                 <TimePicker value={form.endTime} onChange={handleEndTimeChange} />
               </div>
+            </div>
+          )}
+
+          {/* 반복 (신규 추가 시에만) */}
+          {!isEdit && (
+            <div className="field-group">
+              <label className="field-label">반복</label>
+              <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+                <select className="field-input" style={{ width: 110, flex: 'none' }}
+                  value={form.repeat} onChange={(e) => set('repeat', e.target.value)}>
+                  {REPEAT_OPTIONS.map(o => (
+                    <option key={o.key} value={o.key}>{o.label}</option>
+                  ))}
+                </select>
+                {form.repeat !== 'none' && (
+                  <>
+                    <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>종료일</span>
+                    <input className="field-input" style={{ flex: 1, minWidth: 120 }} type="date"
+                      min={form.date}
+                      value={form.repeatEndDate}
+                      onChange={(e) => set('repeatEndDate', e.target.value)}
+                      required />
+                  </>
+                )}
+              </div>
+              {form.repeat !== 'none' && form.repeatEndDate && (
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
+                  총 {occurrenceCount}개 일정이 생성됩니다{occurrenceCount >= 200 ? ' (최대 200개까지 생성)' : ''}
+                </div>
+              )}
             </div>
           )}
 

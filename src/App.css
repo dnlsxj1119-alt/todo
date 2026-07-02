@@ -713,6 +713,14 @@ input, textarea, select { font-family: inherit; }
   align-content: start;
 }
 
+.proj-section-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-primary);
+  padding: 20px 28px 0;
+}
+.proj-section:first-child .proj-section-title { padding-top: 24px; }
+
 .proj-card {
   background: var(--surface);
   border-radius: var(--radius-lg);

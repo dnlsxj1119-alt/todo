@@ -43,7 +43,7 @@ export default function App() {
   const [modal, setModal] = useState(null);
 
   const userId = user?.id;
-  const { items, loading, addItem, updateItem, deleteItem, toggleComplete, moveItem, getItemsForDate, getItemsForCell } = useItems(userId);
+  const { items, loading, addItem, addRecurringItems, updateItem, deleteItem, toggleComplete, moveItem, getItemsForDate, getItemsForCell } = useItems(userId);
   const { projects, addProject, updateProject, deleteProject, toggleTask, cycleEmailStatus, reorderProjects, togglePin } = useProjects(userId);
   const { habits, addHabit, updateHabit, deleteHabit, toggleHabitDate, reorderHabits } = useHabits(userId);
 
@@ -61,10 +61,15 @@ export default function App() {
     if (modal?.mode === 'edit') {
       updateItem(modal.item.id, data);
     } else {
-      addItem({ ...data, timeSlot: data.timeSlot || modal?.defaultSlot || 'morning' });
+      const merged = { ...data, timeSlot: data.timeSlot || modal?.defaultSlot || 'morning' };
+      if (merged.occurrenceDates) {
+        addRecurringItems(merged, merged.occurrenceDates);
+      } else {
+        addItem(merged);
+      }
     }
     closeModal();
-  }, [modal, addItem, updateItem, closeModal]);
+  }, [modal, addItem, addRecurringItems, updateItem, closeModal]);
 
   const handleDelete = useCallback((id) => {
     deleteItem(id);

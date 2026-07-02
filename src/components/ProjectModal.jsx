@@ -10,6 +10,7 @@ export default function ProjectModal({ project, onSave, onDelete, onClose }) {
   const [form, setForm] = useState({
     type: project?.type ?? 'education',
     title: project?.title ?? '',
+    startDate: project?.startDate ?? '',
     deadline: project?.deadline ?? '',
     tasks: project?.tasks ?? [],
     goals: project?.goals ?? [],
@@ -110,17 +111,25 @@ export default function ProjectModal({ project, onSave, onDelete, onClose }) {
             </div>
           </div>
 
-          {/* Title + Deadline */}
+          {/* Title */}
+          <div className="field-group">
+            <label className="field-label">프로젝트 이름 *</label>
+            <input className="field-input" type="text" value={form.title}
+              onChange={e => set('title', e.target.value)}
+              placeholder="프로젝트 이름" autoFocus required />
+          </div>
+
+          {/* Start date + Deadline */}
           <div className="field-row">
-            <div className="field-group" style={{ flex: 2 }}>
-              <label className="field-label">프로젝트 이름 *</label>
-              <input className="field-input" type="text" value={form.title}
-                onChange={e => set('title', e.target.value)}
-                placeholder="프로젝트 이름" autoFocus required />
+            <div className="field-group field-group--half">
+              <label className="field-label">시작일</label>
+              <input className="field-input" type="date" value={form.startDate}
+                onChange={e => set('startDate', e.target.value)} />
             </div>
             <div className="field-group field-group--half">
               <label className="field-label">마감 기한</label>
               <input className="field-input" type="date" value={form.deadline}
+                min={form.startDate || undefined}
                 onChange={e => set('deadline', e.target.value)} />
             </div>
           </div>
