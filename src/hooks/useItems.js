@@ -2,19 +2,33 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { getTimeSlotFromTime, TIME_SLOT_ORDER, timeToSlotPx, addDays } from '../utils/dateUtils';
 
-function leadingNumber(title) {
-  const m = /^\d+/.exec((title ?? '').trim());
-  return m ? parseInt(m[0], 10) : null;
+// 실제 시간이 없는 옛 항목 대비: 제목 앞 숫자를 HHMM 형태의 시간으로 해석
+function legacyTitleMinutes(title) {
+  const m = /^(\d{1,4})/.exec((title ?? '').trim());
+  if (!m) return null;
+  const digits = m[1];
+  const hh = digits.length <= 2 ? parseInt(digits, 10) : parseInt(digits.slice(0, -2), 10);
+  const mm = digits.length <= 2 ? 0 : parseInt(digits.slice(-2), 10);
+  if (hh > 23 || mm > 59) return null;
+  return hh * 60 + mm;
 }
 
-function sortByLeadingNumber(list) {
+function timeMinutes(item) {
+  if (item.time) {
+    const [h, m] = item.time.split(':').map(Number);
+    return h * 60 + m;
+  }
+  return legacyTitleMinutes(item.title);
+}
+
+function sortByTime(list) {
   return [...list].sort((a, b) => {
-    const na = leadingNumber(a.title);
-    const nb = leadingNumber(b.title);
-    if (na === null && nb === null) return 0;
-    if (na === null) return 1;
-    if (nb === null) return -1;
-    return na - nb;
+    const ta = timeMinutes(a);
+    const tb = timeMinutes(b);
+    if (ta === null && tb === null) return 0;
+    if (ta === null) return 1;
+    if (tb === null) return -1;
+    return ta - tb;
   });
 }
 
@@ -144,16 +158,16 @@ export function useItems(userId) {
   }, []);
 
   const getItemsForDate = useCallback((dateStr) =>
-    sortByLeadingNumber(items.filter(i =>
+    sortByTime(items.filter(i =>
       i.date === dateStr ||
       (i.type !== 'todo' && i.endDate && i.date < dateStr && i.endDate >= dateStr)
     )), [items]);
 
   const getItemsForCell = useCallback((dateStr, slot) => {
     if (slot === 'all') {
-      return sortByLeadingNumber(items.filter(i => i.date === dateStr && i.type === 'todo'));
+      return sortByTime(items.filter(i => i.date === dateStr && i.type === 'todo'));
     }
-    return sortByLeadingNumber(items.filter(i => {
+    return sortByTime(items.filter(i => {
       if (i.type === 'todo') return false;
       if (i.date === dateStr) return i.timeSlot === slot;
       if (i.endDate && i.date < dateStr && i.endDate > dateStr) return true;
