@@ -19,11 +19,13 @@ class ErrorBoundary extends Component {
 }
 import { useProjects } from './hooks/useProjects';
 import { useHabits } from './hooks/useHabits';
-import { getWeekStart, toDateString } from './utils/dateUtils';
+import { useMonthlyGoals } from './hooks/useMonthlyGoals';
+import { getWeekStart, toDateString, getMonthKey } from './utils/dateUtils';
 import CalendarView from './components/CalendarView';
 import WeeklyView from './components/WeeklyView';
 import ProjectsView from './components/ProjectsView';
 import HabitTracker from './components/HabitTracker';
+import MonthlyGoalsView from './components/MonthlyGoalsView';
 import ItemModal from './components/ItemModal';
 import './App.css';
 
@@ -39,6 +41,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('calendar');
   const [currentMonth, setCurrentMonth] = useState(() => new Date());
   const [currentWeek, setCurrentWeek] = useState(() => getWeekStart(new Date()));
+  const [goalsMonth, setGoalsMonth] = useState(() => new Date());
   const [filterType, setFilterType] = useState(null);
   const [modal, setModal] = useState(null);
 
@@ -46,6 +49,7 @@ export default function App() {
   const { items, loading, addItem, addRecurringItems, updateItem, deleteItem, toggleComplete, moveItem, getItemsForDate, getItemsForCell } = useItems(userId);
   const { projects, addProject, updateProject, deleteProject, toggleTask, cycleEmailStatus, reorderProjects, togglePin } = useProjects(userId);
   const { habits, addHabit, updateHabit, deleteHabit, toggleHabitDate, reorderHabits } = useHabits(userId);
+  const { getForMonth: getMonthlyGoal, updateNotes: updateGoalNotes, addItem: addGoalItem, toggleItem: toggleGoalItem, deleteItem: deleteGoalItem } = useMonthlyGoals(userId);
 
   const openAdd = useCallback((defaultDate, defaultSlot) => {
     setModal({ mode: 'add', defaultDate, defaultSlot });
@@ -140,6 +144,13 @@ export default function App() {
             <span className="nav-icon">🎯</span>
             <span>습관 트래커</span>
           </button>
+          <button
+            className={`nav-item ${activeTab === 'goals' ? 'nav-item--active' : ''}`}
+            onClick={() => setActiveTab('goals')}
+          >
+            <span className="nav-icon">📝</span>
+            <span>이번달 목표</span>
+          </button>
         </nav>
 
         {/* Filter */}
@@ -216,6 +227,16 @@ export default function App() {
             onDelete={deleteHabit}
             onToggle={toggleHabitDate}
             onReorder={reorderHabits}
+          />
+        ) : activeTab === 'goals' ? (
+          <MonthlyGoalsView
+            currentMonth={goalsMonth}
+            setCurrentMonth={setGoalsMonth}
+            goal={getMonthlyGoal(getMonthKey(goalsMonth))}
+            onUpdateNotes={updateGoalNotes}
+            onAddItem={addGoalItem}
+            onToggleItem={toggleGoalItem}
+            onDeleteItem={deleteGoalItem}
           />
         ) : (
           <ProjectsView

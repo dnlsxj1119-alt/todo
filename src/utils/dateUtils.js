@@ -51,6 +51,27 @@ export function formatMonthYear(date) {
   return date.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long' });
 }
 
+export function getMonthKey(date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+}
+
+// 달을 1~7일/8~14일/15~21일/22일~말일 4주차로 나눈다
+export function getMonthWeekRanges(date) {
+  const year = date.getFullYear();
+  const month = date.getMonth();
+  const lastDay = new Date(year, month + 1, 0).getDate();
+  const bounds = [1, 8, 15, 22, lastDay + 1];
+  return bounds.slice(0, 4).map((start, i) => {
+    const end = bounds[i + 1] - 1;
+    return {
+      week: i,
+      startDate: toDateString(new Date(year, month, start)),
+      endDate: toDateString(new Date(year, month, end)),
+      label: `${month + 1}.${start} – ${month + 1}.${end}`,
+    };
+  });
+}
+
 export function formatWeekRange(weekStart) {
   const end = new Date(weekStart);
   end.setDate(weekStart.getDate() + 6);
