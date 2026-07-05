@@ -2,6 +2,22 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { getTimeSlotFromTime, TIME_SLOT_ORDER, timeToSlotPx, addDays } from '../utils/dateUtils';
 
+function leadingNumber(title) {
+  const m = /^\d+/.exec((title ?? '').trim());
+  return m ? parseInt(m[0], 10) : null;
+}
+
+function sortByLeadingNumber(list) {
+  return [...list].sort((a, b) => {
+    const na = leadingNumber(a.title);
+    const nb = leadingNumber(b.title);
+    if (na === null && nb === null) return 0;
+    if (na === null) return 1;
+    if (nb === null) return -1;
+    return na - nb;
+  });
+}
+
 function toLocal(row) {
   const type = row.type;
   const rawSlot = row.time_slot ?? 'morning';
@@ -128,16 +144,16 @@ export function useItems(userId) {
   }, []);
 
   const getItemsForDate = useCallback((dateStr) =>
-    items.filter(i =>
+    sortByLeadingNumber(items.filter(i =>
       i.date === dateStr ||
       (i.type !== 'todo' && i.endDate && i.date < dateStr && i.endDate >= dateStr)
-    ), [items]);
+    )), [items]);
 
   const getItemsForCell = useCallback((dateStr, slot) => {
     if (slot === 'all') {
-      return items.filter(i => i.date === dateStr && i.type === 'todo');
+      return sortByLeadingNumber(items.filter(i => i.date === dateStr && i.type === 'todo'));
     }
-    return items.filter(i => {
+    return sortByLeadingNumber(items.filter(i => {
       if (i.type === 'todo') return false;
       if (i.date === dateStr) return i.timeSlot === slot;
       if (i.endDate && i.date < dateStr && i.endDate > dateStr) return true;
@@ -150,7 +166,7 @@ export function useItems(userId) {
         return false;
       }
       return false;
-    });
+    }));
   }, [items]);
 
   return { items, loading, addItem, addRecurringItems, updateItem, deleteItem, toggleComplete, moveItem, getItemsForDate, getItemsForCell };
