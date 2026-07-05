@@ -158,22 +158,6 @@ export default function WeeklyView({
           </div>
         ))}
 
-        {/* 습관 칩 (전체 행만) */}
-        {slotKey === 'all' && habits?.filter(h => habitAppliesToDate(h, ds)).map(habit => {
-          const done = habit.completedDates.includes(ds);
-          return (
-            <div key={`habit-${habit.id}`}
-              className={`habit-chip ${done ? 'habit-chip--done' : ''}`}
-              style={done
-                ? { background: habit.color, borderColor: habit.color, color: '#fff' }
-                : { borderColor: habit.color, color: habit.color, background: habit.color + '14' }
-              }
-              onClick={(e) => { e.stopPropagation(); onToggleHabit?.(habit.id, ds); }}>
-              {done ? '✓' : '○'} {habit.title}
-            </div>
-          );
-        })}
-
         {allItems.length === 0
           ? <div className="wg-cell-empty" title="더블클릭으로 추가" />
           : allItems.map(item => {
@@ -204,8 +188,33 @@ export default function WeeklyView({
     );
   };
 
-  // 그리드 행 번호: 1=헤더, 2=전체, 3=아침, 4=점심, 5=저녁, 6=밤
+  // 그리드 행 번호: 1=헤더, 2=전체, 3=아침, 4=점심, 5=저녁, 6=밤, 7=습관
   const SLOT_ROW = { all: 2, morning: 3, lunch: 4, evening: 5, night: 6 };
+  const HABIT_ROW = 7;
+
+  const renderHabitCell = (ds, colNum) => (
+    <div
+      key={`habit-${ds}`}
+      className="wg-cell wg-cell--habit"
+      style={{ gridRow: HABIT_ROW, gridColumn: colNum }}
+      onDoubleClick={() => onDayClick(ds, 'all')}
+    >
+      {habits?.filter(h => habitAppliesToDate(h, ds)).map(habit => {
+        const done = habit.completedDates.includes(ds);
+        return (
+          <div key={`habit-${habit.id}`}
+            className={`habit-chip ${done ? 'habit-chip--done' : ''}`}
+            style={done
+              ? { background: habit.color, borderColor: habit.color, color: '#fff' }
+              : { borderColor: habit.color, color: habit.color, background: habit.color + '14' }
+            }
+            onClick={(e) => { e.stopPropagation(); onToggleHabit?.(habit.id, ds); }}>
+            {done ? '✓' : '○'} {habit.title}
+          </div>
+        );
+      })}
+    </div>
+  );
 
   return (
     <div className="weekly-view" onDragEnd={handleDragEnd}>
@@ -259,6 +268,13 @@ export default function WeeklyView({
               </>
             );
           })}
+
+          {/* 습관 행 */}
+          <div className="wg-slot-label wg-slot-label--habit" style={{ gridRow: HABIT_ROW, gridColumn: 1 }}>
+            <span className="slot-emoji">🔥</span>
+            <span className="slot-name">습관</span>
+          </div>
+          {days.map((day, i) => renderHabitCell(toDateString(day), i + 2))}
         </div>
       </div>
     </div>

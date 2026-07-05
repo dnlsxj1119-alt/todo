@@ -12,7 +12,7 @@ export function buildDeadlineMap(projects) {
     }
     (p.tasks ?? []).forEach(t => {
       if (t.deadline) {
-        add(t.deadline, { key: `task-${t.id}`, type: 'task', project: p, title: t.label, done: t.status === 'done' });
+        add(t.deadline, { key: `task-${t.id}`, type: 'task', project: p, title: `${t.label}(${p.title})`, done: t.status === 'done' });
       }
     });
   });
