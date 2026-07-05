@@ -103,7 +103,7 @@ export default function ItemModal({ item, defaultDate, onSave, onDelete, onClose
     });
   };
 
-  const needsTime = form.type === 'schedule' || form.type === 'education';
+  const needsTime = true;
   const startSlot = TIME_SLOTS.find(s => s.key === form.timeSlot);
   const endSlot = form.endTime ? TIME_SLOTS.find(s => s.key === getTimeSlotFromTime(form.endTime)) : null;
   const span = form.time && form.endTime ? getSpanCount(form.timeSlot, getTimeSlotFromTime(form.endTime)) : 1;

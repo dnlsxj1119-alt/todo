@@ -24,6 +24,7 @@ function ItemChip({ item, onClick, onToggle }) {
       >
         {item.completed ? '✓' : '○'}
       </span>
+      {!item._isCont && item.time && <span className="chip-time">{item.time}</span>}
       <span className="chip-title">{item._isCont ? `↩ ${item.title}` : item.title}</span>
     </div>
   );

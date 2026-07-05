@@ -352,7 +352,8 @@ input, textarea, select { font-family: inherit; }
 }
 .chip:hover .chip-check { opacity: 1; }
 .chip-priority { font-size: 8px; flex-shrink: 0; }
-.chip-title { overflow: hidden; text-overflow: ellipsis; }
+.chip-time { font-size: 10px; font-weight: 700; opacity: 0.75; flex-shrink: 0; }
+.chip-title { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 
 .show-more-btn {
   font-size: 10px;
