@@ -3,9 +3,9 @@ import { getTimeSlotFromTime, getSpanCount, TIME_SLOTS, getRecurrenceDates } fro
 import TimePicker from './TimePicker';
 
 const TYPE_CONFIG = {
-  todo:      { label: '할일',   emoji: '🟣', color: 'purple' },
-  education: { label: '교육',   emoji: '🔵', color: 'blue' },
   schedule:  { label: '일정',   emoji: '🟢', color: 'green' },
+  education: { label: '교육',   emoji: '🔵', color: 'blue' },
+  todo:      { label: '할일',   emoji: '🟣', color: 'purple' },
 };
 
 const REPEAT_OPTIONS = [

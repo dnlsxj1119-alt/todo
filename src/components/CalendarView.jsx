@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { getMonthGrid, toDateString, isToday, formatMonthYear, DAY_NAMES } from '../utils/dateUtils';
+import { buildDeadlineMap } from '../utils/deadlines';
 
 const TYPE_COLOR = {
   todo:      'chip--purple',
@@ -28,16 +29,15 @@ function ItemChip({ item, onClick, onToggle }) {
   );
 }
 
-function DeadlineChip({ project, onClick }) {
-  const isCompleted = project.tasks?.length > 0 && project.tasks.every(t => t.status === 'done');
+function DeadlineChip({ entry, onClick }) {
   return (
     <div
-      className={`chip chip--deadline${isCompleted ? ' chip--done' : ''}`}
-      onClick={(e) => { e.stopPropagation(); onClick(project); }}
-      title={`마감: ${project.title}`}
+      className={`chip chip--deadline${entry.done ? ' chip--done' : ''}`}
+      onClick={(e) => { e.stopPropagation(); onClick(entry.project); }}
+      title={`마감: ${entry.title}`}
     >
-      <span className="chip-check" style={{ opacity: 1 }}>🏁</span>
-      <span className="chip-title">{project.title}</span>
+      <span className="chip-check" style={{ opacity: 1 }}>{entry.type === 'task' ? '📌' : '🏁'}</span>
+      <span className="chip-title">{entry.title}</span>
     </div>
   );
 }
@@ -60,16 +60,7 @@ export default function CalendarView({ currentMonth, setCurrentMonth, getItemsFo
 
   const VISIBLE_MAX = 3;
 
-  const deadlineMap = useMemo(() => {
-    const map = {};
-    projects.forEach(p => {
-      if (p.deadline) {
-        if (!map[p.deadline]) map[p.deadline] = [];
-        map[p.deadline].push(p);
-      }
-    });
-    return map;
-  }, [projects]);
+  const deadlineMap = useMemo(() => buildDeadlineMap(projects), [projects]);
 
   return (
     <div className="calendar-view">
@@ -114,10 +105,10 @@ export default function CalendarView({ currentMonth, setCurrentMonth, getItemsFo
             >
               <span className={`cal-date-num ${today ? 'today-num' : ''}`}>{date.getDate()}</span>
               <div className="chip-stack">
-                {visibleDeadlines.map(p => (
+                {visibleDeadlines.map(entry => (
                   <DeadlineChip
-                    key={`deadline-${p.id}`}
-                    project={p}
+                    key={entry.key}
+                    entry={entry}
                     onClick={onProjectClick}
                   />
                 ))}

@@ -8,3 +8,13 @@ export const PROJECT_TYPES = [
 export function getProjectType(key) {
   return PROJECT_TYPES.find(t => t.key === key) ?? PROJECT_TYPES[1];
 }
+
+export function getTaskProgressPct(tasks) {
+  if (!tasks || tasks.length === 0) return 0;
+  const weight = tasks.reduce((sum, t) => {
+    if (t.status === 'done') return sum + 1;
+    if (t.status === 'in_progress') return sum + 0.5;
+    return sum;
+  }, 0);
+  return Math.round((weight / tasks.length) * 100);
+}

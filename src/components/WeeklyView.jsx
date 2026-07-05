@@ -5,6 +5,7 @@ import {
   getTimeSlotFromTime, getSpanCount, getCardStyle, getEndDayCardStyle,
 } from '../utils/dateUtils';
 import { habitAppliesToDate } from '../hooks/useHabits';
+import { buildDeadlineMap } from '../utils/deadlines';
 
 const TYPE_COLOR = {
   todo:      'week-card--purple',
@@ -72,13 +73,14 @@ function useSpanData(items) {
 export default function WeeklyView({
   currentWeek, setCurrentWeek, items, getItemsForCell,
   onItemClick, onDayClick, onToggle, moveItem, filterType,
-  habits, onToggleHabit,
+  habits, onToggleHabit, projects, onProjectClick,
 }) {
   const [dragOverCell, setDragOverCell] = useState(null);
   const [dragItemType, setDragItemType] = useState(null);
 
   const days = getWeekDays(currentWeek);
   const { spanMap, covered } = useSpanData(items);
+  const deadlineMap = useMemo(() => buildDeadlineMap(projects), [projects]);
 
   const prevWeek = () => { const d = new Date(currentWeek); d.setDate(d.getDate() - 7); setCurrentWeek(d); };
   const nextWeek = () => { const d = new Date(currentWeek); d.setDate(d.getDate() + 7); setCurrentWeek(d); };
@@ -145,6 +147,17 @@ export default function WeeklyView({
         onDragLeave={() => setDragOverCell(null)}
         onDoubleClick={() => onDayClick(ds, slotKey)}
       >
+        {/* 마감일 칩 (전체 행만) */}
+        {slotKey === 'all' && (deadlineMap[ds] ?? []).map(entry => (
+          <div key={entry.key}
+            className={`chip chip--deadline${entry.done ? ' chip--done' : ''}`}
+            onClick={(e) => { e.stopPropagation(); onProjectClick?.(entry.project); }}
+            title={`마감: ${entry.title}`}>
+            <span className="chip-check" style={{ opacity: 1 }}>{entry.type === 'task' ? '📌' : '🏁'}</span>
+            <span className="chip-title">{entry.title}</span>
+          </div>
+        ))}
+
         {/* 습관 칩 (전체 행만) */}
         {slotKey === 'all' && habits?.filter(h => habitAppliesToDate(h, ds)).map(habit => {
           const done = habit.completedDates.includes(ds);

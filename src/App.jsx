@@ -205,6 +205,8 @@ export default function App() {
             filterType={filterType}
             habits={habits}
             onToggleHabit={toggleHabitDate}
+            projects={projects}
+            onProjectClick={() => setActiveTab('projects')}
           />
         ) : activeTab === 'habits' ? (
           <HabitTracker

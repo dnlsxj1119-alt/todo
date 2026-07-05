@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import ProjectModal from './ProjectModal';
-import { PROJECT_TYPES, getProjectType } from '../utils/projectTypes';
+import { PROJECT_TYPES, getProjectType, getTaskProgressPct } from '../utils/projectTypes';
 import { toDateString } from '../utils/dateUtils';
 
 const TASK_STATUS = {
@@ -16,9 +16,7 @@ const EMAIL_STATUS = {
 };
 
 function ProjectProgress({ current, total, tasks }) {
-  const done = tasks.filter(t => t.status === 'done').length;
-  const taskTotal = tasks.length || 1;
-  const pct = Math.round((done / taskTotal) * 100);
+  const pct = getTaskProgressPct(tasks);
   return (
     <div className="proj-progress">
       <div className="proj-progress-header">
@@ -33,8 +31,7 @@ function ProjectProgress({ current, total, tasks }) {
 }
 
 function SponsorshipProgress({ tasks }) {
-  const done = tasks.filter(t => t.status === 'done').length;
-  const pct = Math.round((done / tasks.length) * 100);
+  const pct = getTaskProgressPct(tasks);
   return (
     <div className="proj-progress">
       <div className="proj-progress-header">
@@ -80,9 +77,7 @@ function ProjectCard({ project, onToggleTask, onEdit, onTogglePin, onDragStart, 
 
   const activeTasks = project.tasks.filter(t => t.status !== 'done');
   const doneTasks   = project.tasks.filter(t => t.status === 'done');
-  const pct = project.tasks.length
-    ? Math.round((doneTasks.length / project.tasks.length) * 100)
-    : 0;
+  const pct = getTaskProgressPct(project.tasks);
 
   return (
     <div
@@ -267,7 +262,7 @@ export default function ProjectsView({ projects, onToggleTask, onCycleEmail, onA
   };
   const handleDragEnd = () => { setDragId(null); setDragOverId(null); };
 
-  const getPct = (p) => p.tasks.length ? Math.round(p.tasks.filter(t => t.status === 'done').length / p.tasks.length * 100) : 0;
+  const getPct = (p) => getTaskProgressPct(p.tasks);
 
   const todayStr = toDateString(new Date());
   const sortByPin = (a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0) || a.sortOrder - b.sortOrder;
