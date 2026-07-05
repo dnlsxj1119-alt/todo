@@ -181,9 +181,22 @@ function addMonthsClamped(dateStr, n) {
   return toDateString(target);
 }
 
-export function getRecurrenceDates(startDateStr, endDateStr, frequency, max = 200) {
+export function getRecurrenceDates(startDateStr, endDateStr, frequency, weekdays = [], max = 200) {
   if (!startDateStr || !endDateStr || startDateStr > endDateStr) return [startDateStr].filter(Boolean);
   const dates = [];
+
+  if (frequency === 'weekday') {
+    if (weekdays.length === 0) return [startDateStr];
+    let cursor = startDateStr;
+    while (cursor <= endDateStr && dates.length < max) {
+      const [y, m, d] = cursor.split('-').map(Number);
+      const dow = new Date(y, m - 1, d).getDay();
+      if (weekdays.includes(dow)) dates.push(cursor);
+      cursor = addDays(cursor, 1);
+    }
+    return dates;
+  }
+
   let cursor = startDateStr;
   let step = 0;
   while (cursor <= endDateStr && dates.length < max) {

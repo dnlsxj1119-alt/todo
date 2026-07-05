@@ -12,15 +12,18 @@ const REPEAT_OPTIONS = [
   { key: 'none',    label: '반복 안함' },
   { key: 'daily',   label: '매일' },
   { key: 'weekly',  label: '매주' },
+  { key: 'weekday', label: '요일 지정' },
   { key: 'monthly', label: '매월' },
 ];
+
+const WEEKDAY_LABELS = ['일', '월', '화', '수', '목', '금', '토'];
 
 export default function ItemModal({ item, defaultDate, onSave, onDelete, onClose }) {
   const isEdit = !!item;
   const overlayRef = useRef(null);
 
   const [form, setForm] = useState({
-    type: item?.type ?? 'todo',
+    type: item?.type ?? 'schedule',
     title: item?.title ?? '',
     description: item?.description ?? '',
     date: item?.date ?? defaultDate ?? '',
@@ -31,6 +34,7 @@ export default function ItemModal({ item, defaultDate, onSave, onDelete, onClose
     completed: item?.completed ?? false,
     repeat: 'none',
     repeatEndDate: '',
+    repeatDays: [],
   });
 
   useEffect(() => {
@@ -69,7 +73,7 @@ export default function ItemModal({ item, defaultDate, onSave, onDelete, onClose
     if (!form.title.trim()) return;
     const timeSlot = form.type === 'todo' ? 'all' : form.timeSlot;
     if (!isEdit && form.repeat !== 'none' && form.repeatEndDate) {
-      const occurrenceDates = getRecurrenceDates(form.date, form.repeatEndDate, form.repeat);
+      const occurrenceDates = getRecurrenceDates(form.date, form.repeatEndDate, form.repeat, form.repeatDays);
       onSave({ ...form, timeSlot, occurrenceDates });
       return;
     }
@@ -77,8 +81,27 @@ export default function ItemModal({ item, defaultDate, onSave, onDelete, onClose
   };
 
   const occurrenceCount = !isEdit && form.repeat !== 'none' && form.repeatEndDate
-    ? getRecurrenceDates(form.date, form.repeatEndDate, form.repeat).length
+    ? getRecurrenceDates(form.date, form.repeatEndDate, form.repeat, form.repeatDays).length
     : 0;
+
+  const toggleRepeatDay = (dow) => {
+    setForm(f => ({
+      ...f,
+      repeatDays: f.repeatDays.includes(dow)
+        ? f.repeatDays.filter(d => d !== dow)
+        : [...f.repeatDays, dow].sort(),
+    }));
+  };
+
+  const handleRepeatChange = (val) => {
+    setForm(f => {
+      if (val === 'weekday' && f.repeatDays.length === 0 && f.date) {
+        const [y, m, d] = f.date.split('-').map(Number);
+        return { ...f, repeat: val, repeatDays: [new Date(y, m - 1, d).getDay()] };
+      }
+      return { ...f, repeat: val };
+    });
+  };
 
   const needsTime = form.type === 'schedule' || form.type === 'education';
   const startSlot = TIME_SLOTS.find(s => s.key === form.timeSlot);
@@ -172,7 +195,7 @@ export default function ItemModal({ item, defaultDate, onSave, onDelete, onClose
               <label className="field-label">반복</label>
               <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
                 <select className="field-input" style={{ width: 110, flex: 'none' }}
-                  value={form.repeat} onChange={(e) => set('repeat', e.target.value)}>
+                  value={form.repeat} onChange={(e) => handleRepeatChange(e.target.value)}>
                   {REPEAT_OPTIONS.map(o => (
                     <option key={o.key} value={o.key}>{o.label}</option>
                   ))}
@@ -188,7 +211,23 @@ export default function ItemModal({ item, defaultDate, onSave, onDelete, onClose
                   </>
                 )}
               </div>
-              {form.repeat !== 'none' && form.repeatEndDate && (
+              {form.repeat === 'weekday' && (
+                <div style={{ display: 'flex', gap: 4, marginTop: 6 }}>
+                  {WEEKDAY_LABELS.map((label, dow) => (
+                    <button key={dow} type="button"
+                      onClick={() => toggleRepeatDay(dow)}
+                      style={{
+                        width: 30, height: 30, borderRadius: '50%', fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                        background: form.repeatDays.includes(dow) ? 'var(--purple-mid, #8B5CF6)' : 'var(--bg)',
+                        color: form.repeatDays.includes(dow) ? '#fff' : 'var(--text-muted)',
+                        border: form.repeatDays.includes(dow) ? 'none' : '1.5px solid var(--border)',
+                      }}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {form.repeat !== 'none' && form.repeatEndDate && (form.repeat !== 'weekday' || form.repeatDays.length > 0) && (
                 <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
                   총 {occurrenceCount}개 일정이 생성됩니다{occurrenceCount >= 200 ? ' (최대 200개까지 생성)' : ''}
                 </div>

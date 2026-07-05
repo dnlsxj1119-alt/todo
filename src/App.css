@@ -453,7 +453,8 @@ input, textarea, select { font-family: inherit; }
 .wg-cell--all { background: #FDFCFF; display: flex; flex-direction: column; gap: 3px; padding: 6px 4px; }
 .wg-cell--all.wg-cell--drag-over { background: var(--purple-light) !important; }
 .wg-cell-empty { flex: 1; }
-.wg-cell--habit { background: #FFFBF5; display: flex; flex-wrap: wrap; align-content: flex-start; gap: 4px; padding: 6px; }
+.wg-cell--habit { background: #FFFBF5; display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 6px; }
+.wg-cell--habit .habit-chip { width: 100%; box-sizing: border-box; }
 
 /* Week cards */
 .week-card {
