@@ -41,11 +41,14 @@ function WeekCard({ item, onItemClick, onToggle, onDragStart, cardStyle, isConti
   );
 }
 
-// 각 날짜×슬롯의 span 수와 covered 여부를 미리 계산
+// 각 날짜×슬롯의 span 수와 covered 여부를 미리 계산.
+// 같은 날 안에서 스패닝 이벤트 두 개가 맞닿아 있으면(예: 점심~저녁, 저녁~밤)
+// 두 구간을 하나로 합쳐야 뒤 이벤트가 앞 이벤트의 칸 안에서 잘리지 않는다.
 function useSpanData(items) {
   return useMemo(() => {
     const spanMap = {};
     const covered = new Set();
+    const rangesByDate = {};
 
     items.forEach(item => {
       if (!item.time || item.type === 'todo') return;
@@ -57,13 +60,31 @@ function useSpanData(items) {
       const span = getSpanCount(item.timeSlot, endSlot);
       if (span <= 1) return;
 
-      const key = `${item.date}-${item.timeSlot}`;
-      spanMap[key] = Math.max(spanMap[key] || 1, span);
-
       const startIdx = TIME_SLOT_ORDER.indexOf(item.timeSlot);
-      for (let i = 1; i < span; i++) {
-        covered.add(`${item.date}-${TIME_SLOT_ORDER[startIdx + i]}`);
+      const endIdx = startIdx + span - 1;
+      (rangesByDate[item.date] ??= []).push([startIdx, endIdx]);
+    });
+
+    const applyRun = (date, [start, end]) => {
+      const key = `${date}-${TIME_SLOT_ORDER[start]}`;
+      spanMap[key] = end - start + 1;
+      for (let i = start + 1; i <= end; i++) {
+        covered.add(`${date}-${TIME_SLOT_ORDER[i]}`);
       }
+    };
+
+    Object.entries(rangesByDate).forEach(([date, ranges]) => {
+      ranges.sort((a, b) => a[0] - b[0]);
+      let run = null;
+      ranges.forEach(([start, end]) => {
+        if (run && start <= run[1]) {
+          run[1] = Math.max(run[1], end);
+        } else {
+          if (run) applyRun(date, run);
+          run = [start, end];
+        }
+      });
+      if (run) applyRun(date, run);
     });
 
     return { spanMap, covered };
