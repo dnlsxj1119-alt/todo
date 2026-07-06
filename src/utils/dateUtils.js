@@ -55,21 +55,30 @@ export function getMonthKey(date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
 }
 
-// 달을 1~7일/8~14일/15~21일/22일~말일 4주차로 나눈다
+// 달을 월요일 시작 ~ 일요일 끝 실제 주차로 나눈다 (1일이 속한 주부터 말일이 속한 주까지)
 export function getMonthWeekRanges(date) {
   const year = date.getFullYear();
   const month = date.getMonth();
-  const lastDay = new Date(year, month + 1, 0).getDate();
-  const bounds = [1, 8, 15, 22, lastDay + 1];
-  return bounds.slice(0, 4).map((start, i) => {
-    const end = bounds[i + 1] - 1;
-    return {
+  const lastDay = new Date(year, month + 1, 0);
+  const fmt = (d) => `${d.getMonth() + 1}.${d.getDate()}`;
+
+  const weeks = [];
+  let weekStart = getWeekStart(new Date(year, month, 1));
+  let i = 0;
+  while (weekStart <= lastDay) {
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekStart.getDate() + 6);
+    weeks.push({
       week: i,
-      startDate: toDateString(new Date(year, month, start)),
-      endDate: toDateString(new Date(year, month, end)),
-      label: `${month + 1}.${start} – ${month + 1}.${end}`,
-    };
-  });
+      startDate: toDateString(weekStart),
+      endDate: toDateString(weekEnd),
+      label: `${fmt(weekStart)} – ${fmt(weekEnd)}`,
+    });
+    weekStart = new Date(weekStart);
+    weekStart.setDate(weekStart.getDate() + 7);
+    i++;
+  }
+  return weeks;
 }
 
 export function formatWeekRange(weekStart) {
