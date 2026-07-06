@@ -49,7 +49,7 @@ export default function App() {
   const { items, loading, addItem, addRecurringItems, updateItem, deleteItem, toggleComplete, moveItem, getItemsForDate, getItemsForCell } = useItems(userId);
   const { projects, addProject, updateProject, deleteProject, toggleTask, cycleEmailStatus, reorderProjects, togglePin } = useProjects(userId);
   const { habits, addHabit, updateHabit, deleteHabit, toggleHabitDate, reorderHabits } = useHabits(userId);
-  const { getForMonth: getMonthlyGoal, updateNotes: updateGoalNotes, addItem: addGoalItem, toggleItem: toggleGoalItem, deleteItem: deleteGoalItem } = useMonthlyGoals(userId);
+  const { getForMonth: getMonthlyGoal, updateNotes: updateGoalNotes, addItem: addGoalItem, toggleItem: toggleGoalItem, deleteItem: deleteGoalItem, editItem: editGoalItem, reorderItems: reorderGoalItems } = useMonthlyGoals(userId);
 
   const openAdd = useCallback((defaultDate, defaultSlot) => {
     setModal({ mode: 'add', defaultDate, defaultSlot });
@@ -237,6 +237,8 @@ export default function App() {
             onAddItem={addGoalItem}
             onToggleItem={toggleGoalItem}
             onDeleteItem={deleteGoalItem}
+            onEditItem={editGoalItem}
+            onReorderItems={reorderGoalItems}
           />
         ) : (
           <ProjectsView

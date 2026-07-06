@@ -83,5 +83,13 @@ export function useMonthlyGoals(userId) {
     return upsert(month, { items });
   }, [goalsByMonth, upsert]);
 
-  return { loading, getForMonth, updateNotes, addItem, toggleItem, deleteItem };
+  const editItem = useCallback((month, itemId, text) => {
+    const current = goalsByMonth[month] ?? { month, notes: '', items: [] };
+    const items = current.items.map(i => i.id === itemId ? { ...i, text } : i);
+    return upsert(month, { items });
+  }, [goalsByMonth, upsert]);
+
+  const reorderItems = useCallback((month, items) => upsert(month, { items }), [upsert]);
+
+  return { loading, getForMonth, updateNotes, addItem, toggleItem, deleteItem, editItem, reorderItems };
 }
