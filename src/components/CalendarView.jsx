@@ -43,7 +43,7 @@ function DeadlineChip({ entry, onClick }) {
   );
 }
 
-export default function CalendarView({ currentMonth, setCurrentMonth, getItemsForDate, onItemClick, onDayClick, onToggle, filterType, projects = [], onProjectClick }) {
+export default function CalendarView({ currentMonth, setCurrentMonth, getItemsForDate, onItemClick, onDayClick, onDateNumClick, reflectionDates, onToggle, filterType, projects = [], onProjectClick }) {
   const [expanded, setExpanded] = useState({});
 
   const year = currentMonth.getFullYear();
@@ -104,7 +104,13 @@ export default function CalendarView({ currentMonth, setCurrentMonth, getItemsFo
               className={`cal-cell ${!isCurrentMonth ? 'cal-cell--other' : ''} ${today ? 'cal-cell--today' : ''} ${dow === 0 ? 'cal-cell--sun' : dow === 6 ? 'cal-cell--sat' : ''}`}
               onClick={() => onDayClick(ds)}
             >
-              <span className={`cal-date-num ${today ? 'today-num' : ''}`}>{date.getDate()}</span>
+              <span
+                className={`cal-date-num ${today ? 'today-num' : ''} ${reflectionDates?.has(ds) ? 'cal-date-num--has-reflection' : ''}`}
+                onClick={(e) => { e.stopPropagation(); onDateNumClick?.(ds); }}
+                title="오늘의 회고 보기/작성"
+              >
+                {date.getDate()}
+              </span>
               <div className="chip-stack">
                 {visibleDeadlines.map(entry => (
                   <DeadlineChip

@@ -20,12 +20,15 @@ class ErrorBoundary extends Component {
 import { useProjects } from './hooks/useProjects';
 import { useHabits } from './hooks/useHabits';
 import { useMonthlyGoals } from './hooks/useMonthlyGoals';
+import { useDailyReflections } from './hooks/useDailyReflections';
 import { getWeekStart, toDateString, getMonthKey } from './utils/dateUtils';
 import CalendarView from './components/CalendarView';
 import WeeklyView from './components/WeeklyView';
 import ProjectsView from './components/ProjectsView';
 import HabitTracker from './components/HabitTracker';
 import MonthlyGoalsView from './components/MonthlyGoalsView';
+import DailyReflectionView from './components/DailyReflectionView';
+import ReflectionEditorModal from './components/ReflectionEditorModal';
 import ItemModal from './components/ItemModal';
 import './App.css';
 
@@ -42,6 +45,8 @@ export default function App() {
   const [currentMonth, setCurrentMonth] = useState(() => new Date());
   const [currentWeek, setCurrentWeek] = useState(() => getWeekStart(new Date()));
   const [goalsMonth, setGoalsMonth] = useState(() => new Date());
+  const [reflectionMonth, setReflectionMonth] = useState(() => new Date());
+  const [reflectionModalDate, setReflectionModalDate] = useState(null);
   const [filterType, setFilterType] = useState(null);
   const [modal, setModal] = useState(null);
 
@@ -50,6 +55,16 @@ export default function App() {
   const { projects, addProject, updateProject, deleteProject, toggleTask, cycleEmailStatus, reorderProjects, togglePin } = useProjects(userId);
   const { habits, addHabit, updateHabit, deleteHabit, toggleHabitDate, reorderHabits } = useHabits(userId);
   const { getForMonth: getMonthlyGoal, updateNotes: updateGoalNotes, addItem: addGoalItem, toggleItem: toggleGoalItem, deleteItem: deleteGoalItem, editItem: editGoalItem, reorderItems: reorderGoalItems } = useMonthlyGoals(userId);
+  const {
+    getForDate: getReflection,
+    addLearning, editLearning, deleteLearning,
+    updateBestChoice, updateTomorrowPlan,
+    getWeekStats,
+    reflectionDates,
+  } = useDailyReflections(userId);
+
+  const openReflection = useCallback((ds) => setReflectionModalDate(ds), []);
+  const closeReflection = useCallback(() => setReflectionModalDate(null), []);
 
   const openAdd = useCallback((defaultDate, defaultSlot) => {
     setModal({ mode: 'add', defaultDate, defaultSlot });
@@ -151,6 +166,13 @@ export default function App() {
             <span className="nav-icon">📝</span>
             <span>이번달 목표</span>
           </button>
+          <button
+            className={`nav-item ${activeTab === 'reflection' ? 'nav-item--active' : ''}`}
+            onClick={() => setActiveTab('reflection')}
+          >
+            <span className="nav-icon">💭</span>
+            <span>오늘의 회고</span>
+          </button>
         </nav>
 
         {/* Filter */}
@@ -198,6 +220,8 @@ export default function App() {
             getItemsForDate={getItemsForDate}
             onItemClick={openEdit}
             onDayClick={(ds) => openAdd(ds)}
+            onDateNumClick={openReflection}
+            reflectionDates={reflectionDates}
             onToggle={toggleComplete}
             filterType={filterType}
             projects={projects}
@@ -240,6 +264,14 @@ export default function App() {
             onEditItem={editGoalItem}
             onReorderItems={reorderGoalItems}
           />
+        ) : activeTab === 'reflection' ? (
+          <DailyReflectionView
+            currentMonth={reflectionMonth}
+            setCurrentMonth={setReflectionMonth}
+            getReflection={getReflection}
+            weekStats={getWeekStats(toDateString(new Date()))}
+            onOpenDate={openReflection}
+          />
         ) : (
           <ProjectsView
             projects={projects}
@@ -263,6 +295,20 @@ export default function App() {
           onSave={handleSave}
           onDelete={handleDelete}
           onClose={closeModal}
+        />
+      )}
+
+      {reflectionModalDate && (
+        <ReflectionEditorModal
+          date={reflectionModalDate}
+          setDate={setReflectionModalDate}
+          reflection={getReflection(reflectionModalDate)}
+          onAddLearning={addLearning}
+          onEditLearning={editLearning}
+          onDeleteLearning={deleteLearning}
+          onUpdateBestChoice={updateBestChoice}
+          onUpdateTomorrowPlan={updateTomorrowPlan}
+          onClose={closeReflection}
         />
       )}
     </div>

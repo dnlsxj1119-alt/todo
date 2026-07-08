@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 
 function toLocal(row) {
@@ -13,6 +13,9 @@ function toLocal(row) {
 export function useMonthlyGoals(userId) {
   const [goalsByMonth, setGoalsByMonth] = useState({});
   const [loading, setLoading] = useState(true);
+  // 이 달에 대해 아직 처리 중인(전송 대기/진행 중) 로컬 저장이 있는 동안에는
+  // 실시간 echo를 무시한다 - 로컬 낙관적 상태가 항상 더 최신이기 때문
+  const pendingRef = useRef({});
 
   useEffect(() => {
     if (!userId) return;
@@ -43,6 +46,7 @@ export function useMonthlyGoals(userId) {
           });
         } else {
           const row = toLocal(payload.new);
+          if ((pendingRef.current[row.month] ?? 0) > 0) return; // 아직 처리 중인 로컬 변경이 있으면 echo 무시
           setGoalsByMonth(prev => ({ ...prev, [row.month]: row }));
         }
       })
@@ -53,14 +57,24 @@ export function useMonthlyGoals(userId) {
   const getForMonth = useCallback((month) => goalsByMonth[month] ?? { month, notes: '', items: [] },
     [goalsByMonth]);
 
-  const upsert = useCallback(async (month, patch) => {
+  // 빠르게 연속으로 upsert가 호출될 때 네트워크 응답 순서가 뒤바뀌어
+  // 최신 내용이 이전 내용에 덮어써지지 않도록 요청을 순서대로 처리한다
+  const upsertQueueRef = useRef(Promise.resolve());
+
+  const upsert = useCallback((month, patch) => {
     const current = goalsByMonth[month] ?? { month, notes: '', items: [] };
     const next = { ...current, ...patch };
     setGoalsByMonth(prev => ({ ...prev, [month]: next }));
-    const { error } = await supabase
-      .from('monthly_goals')
-      .upsert({ user_id: userId, month, notes: next.notes, items: next.items }, { onConflict: 'user_id,month' });
-    if (error) console.error('[monthly_goals upsert]', error);
+    pendingRef.current[month] = (pendingRef.current[month] ?? 0) + 1;
+    const run = async () => {
+      const { error } = await supabase
+        .from('monthly_goals')
+        .upsert({ user_id: userId, month, notes: next.notes, items: next.items }, { onConflict: 'user_id,month' });
+      if (error) console.error('[monthly_goals upsert]', error);
+      pendingRef.current[month] = Math.max(0, (pendingRef.current[month] ?? 1) - 1);
+    };
+    upsertQueueRef.current = upsertQueueRef.current.then(run, run);
+    return upsertQueueRef.current;
   }, [userId, goalsByMonth]);
 
   const updateNotes = useCallback((month, notes) => upsert(month, { notes }), [upsert]);

@@ -1,7 +1,117 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { getMonthWeekRanges, toDateString, formatMonthYear } from '../utils/dateUtils';
 
 const COL_COUNT = 3;
+
+// "[x] 텍스트" / "[ ] 텍스트" = 체크박스 줄, 접두어 없는 줄 = 체크박스 없는 빈 줄(구분용 여백)
+function parseChecklistText(text) {
+  if (!text) return [{ type: 'check', text: '', done: false }];
+  return text.split('\n').map(line => {
+    const m = /^\[( |x|X)\]\s?(.*)$/.exec(line);
+    if (m) return { type: 'check', text: m[2], done: /x/i.test(m[1]) };
+    return { type: 'plain', text: line, done: false };
+  });
+}
+
+function serializeChecklistText(lines) {
+  return lines.map(l => l.type === 'plain' ? l.text : `[${l.done ? 'x' : ' '}] ${l.text}`).join('\n');
+}
+
+// 부모의 notes 문자열과 매번 다시 동기화하지 않고, 이 컴포넌트가 줄 목록을 직접 소유한다
+// (부모는 key={goal.month}로 달이 바뀔 때만 이 컴포넌트를 새로 마운트한다)
+function NotesChecklist({ initialNotes, onSave }) {
+  const [lines, setLines] = useState(() =>
+    parseChecklistText(initialNotes).map(l => ({ ...l, id: crypto.randomUUID() }))
+  );
+  const inputRefs = useRef({});
+  const [focusId, setFocusId] = useState(null);
+
+  useEffect(() => {
+    if (focusId != null && inputRefs.current[focusId]) {
+      inputRefs.current[focusId].focus();
+      setFocusId(null);
+    }
+  }, [focusId]);
+
+  const nonEmpty = lines.filter(l => l.type === 'check' && l.text.trim() !== '');
+  const done = nonEmpty.filter(l => l.done).length;
+  const total = nonEmpty.length;
+  const pct = total ? Math.round((done / total) * 100) : 0;
+
+  const commit = (next) => {
+    setLines(next);
+    onSave(serializeChecklistText(next));
+  };
+
+  const toggleLine = (id) => {
+    commit(lines.map(l => l.id === id ? { ...l, done: !l.done } : l));
+  };
+
+  const updateLineText = (id, text) => {
+    setLines(prev => prev.map(l => l.id === id ? { ...l, text } : l));
+  };
+
+  const saveAll = () => onSave(serializeChecklistText(lines));
+
+  const addLineAfter = (id) => {
+    const idx = lines.findIndex(l => l.id === id);
+    const current = lines[idx];
+    // 빈 줄에서 Enter를 치면 체크박스 없는 빈 줄을, 내용이 있으면 같은 종류의 줄을 이어서 만든다
+    const newType = current.text.trim() === '' ? 'plain' : current.type;
+    const newLine = { id: crypto.randomUUID(), type: newType, text: '', done: false };
+    const next = [...lines];
+    next.splice(idx + 1, 0, newLine);
+    commit(next);
+    setFocusId(newLine.id);
+  };
+
+  const removeLine = (id) => {
+    if (lines.length <= 1) return;
+    const idx = lines.findIndex(l => l.id === id);
+    const next = lines.filter(l => l.id !== id);
+    commit(next);
+    setFocusId(next[Math.max(0, idx - 1)]?.id ?? null);
+  };
+
+  return (
+    <div className="goals-checklist-wrap">
+      {total > 0 && (
+        <div className="goals-progress">
+          <div className="goals-progress-bar"><div className="goals-progress-fill" style={{ width: `${pct}%` }} /></div>
+          <span className="goals-progress-label">{done}/{total} 완료 ({pct}%)</span>
+        </div>
+      )}
+      <div className="goals-checklist-box">
+        {lines.map((line, idx) => (
+          <div className={`goals-checklist-row ${line.type === 'plain' ? 'goals-checklist-row--plain' : ''}`} key={line.id}>
+            {line.type === 'check' && (
+              <span
+                className="goal-item-check"
+                onClick={() => toggleLine(line.id)}
+                role="checkbox"
+                aria-checked={line.done}
+              >
+                {line.done ? '✓' : '○'}
+              </span>
+            )}
+            <input
+              ref={(el) => { inputRefs.current[line.id] = el; }}
+              className={`goals-checklist-input ${line.done ? 'goals-checklist-input--done' : ''}`}
+              value={line.text}
+              placeholder={idx === 0 ? '이번 달에 이루고 싶은 것들을 적어보세요' : ''}
+              onChange={(e) => updateLineText(line.id, e.target.value)}
+              onBlur={saveAll}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') { e.preventDefault(); addLineAfter(line.id); }
+                if (e.key === 'Backspace' && line.text === '' && lines.length > 1) { e.preventDefault(); removeLine(line.id); }
+              }}
+            />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 function GoalColumn({
   items, weekIdx, col, onAdd, onToggle, onDelete,
@@ -108,15 +218,6 @@ function WeekRow({ range, items, isCurrentWeek, onAdd, onToggle, onDelete, dragH
 }
 
 export default function MonthlyGoalsView({ currentMonth, setCurrentMonth, goal, onUpdateNotes, onAddItem, onToggleItem, onDeleteItem, onEditItem, onReorderItems }) {
-  const [notes, setNotes] = useState(goal.notes);
-  const [monthKeyLoaded, setMonthKeyLoaded] = useState(goal.month);
-
-  // 월이 바뀌면 textarea 내용을 새 달의 노트로 다시 맞춘다
-  if (goal.month !== monthKeyLoaded) {
-    setNotes(goal.notes);
-    setMonthKeyLoaded(goal.month);
-  }
-
   const [dragId, setDragId] = useState(null);
   const [dragOverId, setDragOverId] = useState(null);
   const [editingId, setEditingId] = useState(null);
@@ -194,12 +295,10 @@ export default function MonthlyGoalsView({ currentMonth, setCurrentMonth, goal, 
       <div className="goals-body">
         <div className="goals-notes-pane">
           <div className="goals-pane-title">이번달 목표</div>
-          <textarea
-            className="goals-notes-textarea"
-            placeholder="이번 달에 이루고 싶은 것들을 자유롭게 적어보세요"
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            onBlur={() => onUpdateNotes(goal.month, notes)}
+          <NotesChecklist
+            key={goal.month}
+            initialNotes={goal.notes}
+            onSave={(text) => onUpdateNotes(goal.month, text)}
           />
         </div>
 
