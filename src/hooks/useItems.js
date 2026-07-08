@@ -165,10 +165,13 @@ export function useItems(userId) {
 
   const getItemsForCell = useCallback((dateStr, slot) => {
     if (slot === 'all') {
-      return sortByTime(items.filter(i => i.date === dateStr && i.type === 'todo'));
+      // 시간이 설정된 할일은 해당 시간대 행에 표시되므로 전체 행에서는 제외
+      return sortByTime(items.filter(i => i.date === dateStr && i.type === 'todo' && !i.time));
     }
     return sortByTime(items.filter(i => {
-      if (i.type === 'todo') return false;
+      if (i.type === 'todo') {
+        return i.date === dateStr && !!i.time && getTimeSlotFromTime(i.time) === slot;
+      }
       if (i.date === dateStr) return i.timeSlot === slot;
       if (i.endDate && i.date < dateStr && i.endDate > dateStr) return true;
       if (i.endDate === dateStr && i.date < dateStr) {

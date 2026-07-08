@@ -109,9 +109,8 @@ export default function ItemModal({ item, defaultDate, onSave, onDelete, onClose
   const span = form.time && form.endTime ? getSpanCount(form.timeSlot, getTimeSlotFromTime(form.endTime)) : 1;
 
   const slotHintText = () => {
-    if (form.type === 'todo') return null;
     if (!startSlot) return null;
-    if (span > 1 && endSlot) {
+    if (form.type !== 'todo' && span > 1 && endSlot) {
       return `${startSlot.emoji} ${startSlot.label} → ${endSlot.emoji} ${endSlot.label} (${span}개 행에 걸쳐 표시)`;
     }
     return `${startSlot.emoji} ${startSlot.label} (${startSlot.range}) 행에 표시${!form.time ? ' — 시간 입력 시 자동 설정' : ''}`;
@@ -236,10 +235,10 @@ export default function ItemModal({ item, defaultDate, onSave, onDelete, onClose
           )}
 
           {/* 슬롯 힌트 */}
-          {form.type === 'todo' ? (
-            <div className="slot-hint slot-hint--all">📋 주간뷰 전체 행에 표시됩니다</div>
+          {form.type === 'todo' && !form.time ? (
+            <div className="slot-hint slot-hint--all">📋 시간 미설정 시 주간뷰 전체 행에 표시됩니다</div>
           ) : (
-            <div className={`slot-hint ${span > 1 ? 'slot-hint--span' : ''}`}>
+            <div className={`slot-hint ${form.type !== 'todo' && span > 1 ? 'slot-hint--span' : ''}`}>
               {slotHintText()}
             </div>
           )}
