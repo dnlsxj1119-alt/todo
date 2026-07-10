@@ -237,11 +237,48 @@ function WeekRow({ range, items, isCurrentWeek, onAdd, onToggle, onDelete, dragH
   );
 }
 
+const NOTES_WIDTH_KEY = 'goalsNotesWidth';
+const NOTES_WIDTH_MIN = 200;
+const NOTES_WIDTH_MAX = 520;
+const NOTES_WIDTH_DEFAULT = 260;
+
 export default function MonthlyGoalsView({ currentMonth, setCurrentMonth, goal, onUpdateNotes, onAddItem, onToggleItem, onDeleteItem, onEditItem, onReorderItems }) {
   const [dragId, setDragId] = useState(null);
   const [dragOverId, setDragOverId] = useState(null);
   const [editingId, setEditingId] = useState(null);
   const [editText, setEditText] = useState('');
+  const [notesWidth, setNotesWidth] = useState(() => {
+    const saved = Number(localStorage.getItem(NOTES_WIDTH_KEY));
+    return saved >= NOTES_WIDTH_MIN && saved <= NOTES_WIDTH_MAX ? saved : NOTES_WIDTH_DEFAULT;
+  });
+  const goalsBodyRef = useRef(null);
+  const resizeRef = useRef(null);
+
+  const startResize = (e) => {
+    e.preventDefault();
+    resizeRef.current = { startX: e.clientX, startWidth: notesWidth, current: notesWidth };
+    const onMove = (moveEvent) => {
+      const next = Math.min(
+        NOTES_WIDTH_MAX,
+        Math.max(NOTES_WIDTH_MIN, resizeRef.current.startWidth + (moveEvent.clientX - resizeRef.current.startX))
+      );
+      resizeRef.current.current = next;
+      goalsBodyRef.current?.style.setProperty('--goals-notes-width', `${next}px`);
+    };
+    const onUp = () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      const finalWidth = resizeRef.current.current;
+      setNotesWidth(finalWidth);
+      localStorage.setItem(NOTES_WIDTH_KEY, String(finalWidth));
+    };
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  };
 
   const prevMonth = () => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1));
   const nextMonth = () => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1));
@@ -312,7 +349,7 @@ export default function MonthlyGoalsView({ currentMonth, setCurrentMonth, goal, 
         <button className="nav-btn" onClick={nextMonth} aria-label="다음 달">›</button>
       </div>
 
-      <div className="goals-body">
+      <div className="goals-body" ref={goalsBodyRef} style={{ '--goals-notes-width': `${notesWidth}px` }}>
         <div className="goals-notes-pane">
           <div className="goals-pane-title">이번달 목표</div>
           <NotesChecklist
@@ -321,6 +358,8 @@ export default function MonthlyGoalsView({ currentMonth, setCurrentMonth, goal, 
             onSave={(text) => onUpdateNotes(goal.month, text)}
           />
         </div>
+
+        <div className="goals-notes-resizer" onMouseDown={startResize} />
 
         <div className="goals-week-list">
           {weekRanges.map(range => (

@@ -1275,16 +1275,35 @@ input, textarea, select { font-family: inherit; }
 .goals-body {
   flex: 1;
   display: grid;
-  grid-template-columns: 260px 1fr;
-  gap: 20px;
+  grid-template-columns: var(--goals-notes-width, 260px) 12px 1fr;
+  column-gap: 8px;
+  row-gap: 20px;
   padding: 20px 24px;
   overflow: auto;
 }
+
+.goals-notes-resizer {
+  cursor: col-resize;
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  touch-action: none;
+}
+.goals-notes-resizer::after {
+  content: '';
+  width: 2px;
+  align-self: stretch;
+  background: var(--border);
+  border-radius: 2px;
+  transition: background 0.15s;
+}
+.goals-notes-resizer:hover::after { background: var(--purple-mid); }
 
 .goals-notes-pane {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  min-width: 0;
 }
 .goals-pane-title {
   font-size: 13px;
@@ -1355,6 +1374,7 @@ input, textarea, select { font-family: inherit; }
   display: flex;
   flex-direction: column;
   gap: 14px;
+  min-width: 0;
 }
 
 .goal-week-row {
@@ -1459,6 +1479,7 @@ input, textarea, select { font-family: inherit; }
 
 @media (max-width: 900px) {
   .goals-body { grid-template-columns: 1fr; }
+  .goals-notes-resizer { display: none; }
 }
 @media (max-width: 560px) {
   .goal-week-cols { grid-template-columns: 1fr; }
