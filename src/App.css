@@ -1310,14 +1310,38 @@ input, textarea, select { font-family: inherit; }
 }
 .goals-checklist-box:focus-within { border-color: var(--purple-mid); }
 
-.goals-checklist-row { display: flex; align-items: center; gap: 8px; }
-.goals-checklist-row--plain { padding-left: 22px; }
+.goals-checklist-row { position: relative; display: flex; align-items: flex-start; gap: 8px; }
+.goals-checklist-type-toggle {
+  position: absolute;
+  left: -14px;
+  top: 4px;
+  width: 14px;
+  border: none;
+  background: transparent;
+  padding: 0;
+  font-size: 11px;
+  line-height: 1;
+  color: var(--text-muted);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.goals-checklist-row:hover .goals-checklist-type-toggle { opacity: 0.5; }
+.goals-checklist-type-toggle:hover { opacity: 1; color: var(--text-primary); }
+.goals-checklist-row .goal-item-check { margin-top: 2px; }
 .goals-checklist-input {
   flex: 1;
   min-width: 0;
+  width: 100%;
+  display: block;
+  box-sizing: border-box;
   border: none;
   background: transparent;
   outline: none;
+  resize: none;
+  overflow: hidden;
+  white-space: pre-wrap;
+  word-break: break-word;
   font-size: 13px;
   line-height: 1.8;
   color: var(--text-primary);

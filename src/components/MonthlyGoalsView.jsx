@@ -17,6 +17,12 @@ function serializeChecklistText(lines) {
   return lines.map(l => l.type === 'plain' ? l.text : `[${l.done ? 'x' : ' '}] ${l.text}`).join('\n');
 }
 
+function autoResizeTextarea(el) {
+  if (!el) return;
+  el.style.height = 'auto';
+  el.style.height = `${el.scrollHeight}px`;
+}
+
 // 부모의 notes 문자열과 매번 다시 동기화하지 않고, 이 컴포넌트가 줄 목록을 직접 소유한다
 // (부모는 key={goal.month}로 달이 바뀔 때만 이 컴포넌트를 새로 마운트한다)
 function NotesChecklist({ initialNotes, onSave }) {
@@ -45,6 +51,10 @@ function NotesChecklist({ initialNotes, onSave }) {
 
   const toggleLine = (id) => {
     commit(lines.map(l => l.id === id ? { ...l, done: !l.done } : l));
+  };
+
+  const toggleLineType = (id) => {
+    commit(lines.map(l => l.id === id ? { ...l, type: l.type === 'check' ? 'plain' : 'check' } : l));
   };
 
   const updateLineText = (id, text) => {
@@ -83,7 +93,16 @@ function NotesChecklist({ initialNotes, onSave }) {
       )}
       <div className="goals-checklist-box">
         {lines.map((line, idx) => (
-          <div className={`goals-checklist-row ${line.type === 'plain' ? 'goals-checklist-row--plain' : ''}`} key={line.id}>
+          <div className="goals-checklist-row" key={line.id}>
+            <button
+              type="button"
+              className="goals-checklist-type-toggle"
+              onClick={() => toggleLineType(line.id)}
+              title={line.type === 'check' ? '체크박스 없애기' : '체크박스 추가'}
+              tabIndex={-1}
+            >
+              {line.type === 'check' ? '☑' : '☐'}
+            </button>
             {line.type === 'check' && (
               <span
                 className="goal-item-check"
@@ -94,12 +113,13 @@ function NotesChecklist({ initialNotes, onSave }) {
                 {line.done ? '✓' : '○'}
               </span>
             )}
-            <input
-              ref={(el) => { inputRefs.current[line.id] = el; }}
+            <textarea
+              ref={(el) => { inputRefs.current[line.id] = el; autoResizeTextarea(el); }}
               className={`goals-checklist-input ${line.done ? 'goals-checklist-input--done' : ''}`}
               value={line.text}
+              rows={1}
               placeholder={idx === 0 ? '이번 달에 이루고 싶은 것들을 적어보세요' : ''}
-              onChange={(e) => updateLineText(line.id, e.target.value)}
+              onChange={(e) => { updateLineText(line.id, e.target.value); autoResizeTextarea(e.target); }}
               onBlur={saveAll}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') { e.preventDefault(); addLineAfter(line.id); }
