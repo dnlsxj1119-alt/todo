@@ -1283,21 +1283,49 @@ input, textarea, select { font-family: inherit; }
 }
 
 .goals-notes-resizer {
+  position: relative;
   cursor: col-resize;
-  display: flex;
-  align-items: stretch;
-  justify-content: center;
   touch-action: none;
 }
 .goals-notes-resizer::after {
   content: '';
-  width: 2px;
-  align-self: stretch;
-  background: var(--border);
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 3px;
+  margin-left: -1.5px;
+  background: var(--text-muted);
+  opacity: 0.4;
   border-radius: 2px;
-  transition: background 0.15s;
+  transition: opacity 0.15s, background 0.15s;
 }
-.goals-notes-resizer:hover::after { background: var(--purple-mid); }
+.goals-notes-resizer:hover::after,
+.goals-notes-resizer:active::after {
+  opacity: 1;
+  background: var(--purple-mid);
+}
+.goals-notes-resizer::before {
+  content: '⋮';
+  position: sticky;
+  top: calc(50% - 12px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 24px;
+  margin: 0 auto;
+  border-radius: 6px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1;
+  opacity: 0;
+  transition: opacity 0.15s;
+  pointer-events: none;
+}
+.goals-notes-resizer:hover::before { opacity: 1; }
 
 .goals-notes-pane {
   display: flex;
