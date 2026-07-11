@@ -46,8 +46,8 @@ export default function DailyReflectionView({ currentMonth, setCurrentMonth, get
           const dow = date.getDay();
           const todayCell = isToday(date);
 
-          // 성과는 있는 만큼 다 보여주고(최대 3개 + 더보기), 없으면 잘한 선택으로 대체
-          const VISIBLE_MAX = 3;
+          // 성과는 있는 만큼 다 보여주고(최대 5개 + 더보기), 없으면 잘한 선택으로 대체
+          const VISIBLE_MAX = 5;
           const visibleLearnings = r.learnings.slice(0, VISIBLE_MAX);
           const hiddenCount = r.learnings.length - visibleLearnings.length;
           const showChoiceFallback = r.learnings.length === 0 && r.bestChoice.trim();

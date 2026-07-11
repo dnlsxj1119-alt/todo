@@ -1554,25 +1554,35 @@ input, textarea, select { font-family: inherit; }
 .refl-cell-learn {
   font-size: 10.5px;
   font-weight: 500;
+  line-height: 1.35;
   color: var(--blue-dark);
   background: var(--blue-light);
   border-radius: 4px;
   padding: 1px 5px;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
+  white-space: normal;
+  word-break: break-word;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
 }
 .refl-cell-choice {
   font-size: 10.5px;
   font-weight: 500;
   font-style: italic;
+  line-height: 1.35;
   color: #B45309;
   background: #FFF3E0;
   border-radius: 4px;
   padding: 1px 5px;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
+  white-space: normal;
+  word-break: break-word;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
 }
 
 /* ===================== Reflection Editor Modal =====================
