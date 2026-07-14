@@ -39,6 +39,16 @@ const FILTER_OPTIONS = [
   { key: 'schedule',  label: '일정',   emoji: '🟢' },
 ];
 
+function SidebarToggleIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="3" width="18" height="18" rx="2" />
+      <line x1="9" y1="3" x2="9" y2="21" />
+    </svg>
+  );
+}
+
 export default function App() {
   const { user, loading: authLoading, signInWithGoogle, signInWithEmail, signUpWithEmail, signOut } = useAuth();
   const [activeTab, setActiveTab] = useState('calendar');
@@ -49,9 +59,20 @@ export default function App() {
   const [reflectionModalDate, setReflectionModalDate] = useState(null);
   const [filterType, setFilterType] = useState(null);
   const [modal, setModal] = useState(null);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(
+    () => localStorage.getItem('sidebarCollapsed') === '1'
+  );
+
+  const toggleSidebar = () => {
+    setSidebarCollapsed(prev => {
+      const next = !prev;
+      localStorage.setItem('sidebarCollapsed', next ? '1' : '0');
+      return next;
+    });
+  };
 
   const userId = user?.id;
-  const { items, loading, addItem, addRecurringItems, updateItem, deleteItem, toggleComplete, moveItem, getItemsForDate, getItemsForCell } = useItems(userId);
+  const { items, loading, addItem, addRecurringItems, updateItem, deleteItem, toggleComplete, moveItem, getItemsForDate, getItemsForCell, getBacklogItems } = useItems(userId);
   const { projects, addProject, updateProject, deleteProject, toggleTask, cycleEmailStatus, reorderProjects, togglePin } = useProjects(userId);
   const { habits, addHabit, updateHabit, deleteHabit, toggleHabitDate, reorderHabits } = useHabits(userId);
   const { getForMonth: getMonthlyGoal, updateNotes: updateGoalNotes, addItem: addGoalItem, toggleItem: toggleGoalItem, deleteItem: deleteGoalItem, editItem: editGoalItem, reorderItems: reorderGoalItems } = useMonthlyGoals(userId);
@@ -95,6 +116,10 @@ export default function App() {
     closeModal();
   }, [deleteItem, closeModal]);
 
+  const addBacklogItem = useCallback((title) => {
+    addItem({ type: 'todo', title, date: '', timeSlot: 'all' });
+  }, [addItem]);
+
   if (authLoading) {
     return (
       <div className="app-loading">
@@ -120,13 +145,23 @@ export default function App() {
   return (
     <div className="app">
       {/* Sidebar */}
-      <aside className="sidebar">
+      <aside className={`sidebar ${sidebarCollapsed ? 'sidebar--collapsed' : ''}`}>
         <div className="sidebar-brand">
-          <div className="brand-icon">📅</div>
+          <div className="brand-icon"
+            onClick={sidebarCollapsed ? toggleSidebar : undefined}
+            role={sidebarCollapsed ? 'button' : undefined}
+            title={sidebarCollapsed ? '사이드바 펼치기' : undefined}>
+            📅
+          </div>
           <div>
             <div className="brand-title">플로우</div>
             <div className="brand-sub">일정 &amp; 할일 관리</div>
           </div>
+          <button className="sidebar-toggle-btn" onClick={toggleSidebar}
+            title={sidebarCollapsed ? '사이드바 펼치기' : '사이드바 접기'}
+            aria-label={sidebarCollapsed ? '사이드바 펼치기' : '사이드바 접기'}>
+            <SidebarToggleIcon />
+          </button>
         </div>
 
         {/* Nav */}
@@ -134,44 +169,50 @@ export default function App() {
           <button
             className={`nav-item ${activeTab === 'calendar' ? 'nav-item--active' : ''}`}
             onClick={() => setActiveTab('calendar')}
+            title="월간 달력"
           >
             <span className="nav-icon">🗓️</span>
-            <span>월간 달력</span>
+            <span className="nav-label">월간 달력</span>
           </button>
           <button
             className={`nav-item ${activeTab === 'week' ? 'nav-item--active' : ''}`}
             onClick={() => setActiveTab('week')}
+            title="주간 일정"
           >
             <span className="nav-icon">📆</span>
-            <span>주간 일정</span>
+            <span className="nav-label">주간 일정</span>
           </button>
           <button
             className={`nav-item ${activeTab === 'projects' ? 'nav-item--active' : ''}`}
             onClick={() => setActiveTab('projects')}
+            title="프로젝트"
           >
             <span className="nav-icon">🗂️</span>
-            <span>프로젝트</span>
+            <span className="nav-label">프로젝트</span>
           </button>
           <button
             className={`nav-item ${activeTab === 'habits' ? 'nav-item--active' : ''}`}
             onClick={() => setActiveTab('habits')}
+            title="습관 트래커"
           >
             <span className="nav-icon">🎯</span>
-            <span>습관 트래커</span>
+            <span className="nav-label">습관 트래커</span>
           </button>
           <button
             className={`nav-item ${activeTab === 'goals' ? 'nav-item--active' : ''}`}
             onClick={() => setActiveTab('goals')}
+            title="이번달 목표"
           >
             <span className="nav-icon">📝</span>
-            <span>이번달 목표</span>
+            <span className="nav-label">이번달 목표</span>
           </button>
           <button
             className={`nav-item ${activeTab === 'reflection' ? 'nav-item--active' : ''}`}
             onClick={() => setActiveTab('reflection')}
+            title="오늘의 회고"
           >
             <span className="nav-icon">💭</span>
-            <span>오늘의 회고</span>
+            <span className="nav-label">오늘의 회고</span>
           </button>
         </nav>
 
@@ -183,9 +224,10 @@ export default function App() {
               key={String(f.key)}
               className={`filter-btn ${filterType === f.key ? 'filter-btn--active' : ''}`}
               onClick={() => setFilterType(f.key)}
+              title={f.label}
             >
               <span>{f.emoji}</span>
-              <span>{f.label}</span>
+              <span className="filter-label">{f.label}</span>
             </button>
           ))}
         </div>
@@ -194,8 +236,10 @@ export default function App() {
         <button
           className="sidebar-add-btn"
           onClick={() => openAdd(toDateString(new Date()))}
+          title="새 항목 추가"
         >
-          + 새 항목 추가
+          <span className="sidebar-add-icon">+</span>
+          <span className="sidebar-add-label"> 새 항목 추가</span>
         </button>
 
         {/* User profile */}
@@ -242,6 +286,8 @@ export default function App() {
             onToggleHabit={toggleHabitDate}
             projects={projects}
             onProjectClick={() => setActiveTab('projects')}
+            backlogItems={getBacklogItems()}
+            onAddBacklogItem={addBacklogItem}
           />
         ) : activeTab === 'habits' ? (
           <HabitTracker

@@ -56,7 +56,7 @@ function toRow(data, userId) {
     type: data.type,
     title: data.title,
     description: data.description ?? '',
-    date: data.date,
+    date: data.date || null,
     time: data.time ?? '',
     end_time: data.endTime ?? '',
     end_date: data.endDate ?? '',
@@ -186,5 +186,8 @@ export function useItems(userId) {
     }));
   }, [items]);
 
-  return { items, loading, addItem, addRecurringItems, updateItem, deleteItem, toggleComplete, moveItem, getItemsForDate, getItemsForCell };
+  const getBacklogItems = useCallback(() =>
+    items.filter(i => i.type === 'todo' && !i.date), [items]);
+
+  return { items, loading, addItem, addRecurringItems, updateItem, deleteItem, toggleComplete, moveItem, getItemsForDate, getItemsForCell, getBacklogItems };
 }

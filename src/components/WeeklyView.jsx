@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, Fragment } from 'react';
 import {
   getWeekDays, getWeekStart, toDateString, isToday, formatWeekRange,
   TIME_SLOTS, TIME_SLOT_ORDER, DAY_NAMES_WEEK,
@@ -12,6 +12,33 @@ const TYPE_COLOR = {
   education: 'week-card--blue',
   schedule:  'week-card--green',
 };
+
+const BACKLOG_WIDTH_KEY = 'weekBacklogWidth';
+const BACKLOG_WIDTH_MIN = 200;
+const BACKLOG_WIDTH_MAX = 420;
+const BACKLOG_WIDTH_DEFAULT = 260;
+const BACKLOG_COLLAPSED_KEY = 'weekBacklogCollapsed';
+
+function BacklogQuickAdd({ onAdd }) {
+  const [text, setText] = useState('');
+  const submit = (e) => {
+    e.preventDefault();
+    const trimmed = text.trim();
+    if (!trimmed) return;
+    onAdd(trimmed);
+    setText('');
+  };
+  return (
+    <form className="backlog-add" onSubmit={submit}>
+      <input
+        className="backlog-add-input"
+        placeholder="+ 할일 추가"
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+      />
+    </form>
+  );
+}
 
 function WeekCard({ item, onItemClick, onToggle, onDragStart, cardStyle, isContinuation }) {
   return (
@@ -95,9 +122,68 @@ export default function WeeklyView({
   currentWeek, setCurrentWeek, items, getItemsForCell,
   onItemClick, onDayClick, onToggle, moveItem, filterType,
   habits, onToggleHabit, projects, onProjectClick,
+  backlogItems, onAddBacklogItem,
 }) {
   const [dragOverCell, setDragOverCell] = useState(null);
   const [dragItemType, setDragItemType] = useState(null);
+  const [dragOverBacklog, setDragOverBacklog] = useState(false);
+  const [backlogCollapsed, setBacklogCollapsed] = useState(
+    () => localStorage.getItem(BACKLOG_COLLAPSED_KEY) === '1'
+  );
+  const [backlogWidth, setBacklogWidth] = useState(() => {
+    const saved = Number(localStorage.getItem(BACKLOG_WIDTH_KEY));
+    return saved >= BACKLOG_WIDTH_MIN && saved <= BACKLOG_WIDTH_MAX ? saved : BACKLOG_WIDTH_DEFAULT;
+  });
+  const weekBodyRef = useRef(null);
+  const backlogResizeRef = useRef(null);
+
+  const toggleBacklog = () => {
+    setBacklogCollapsed(prev => {
+      const next = !prev;
+      localStorage.setItem(BACKLOG_COLLAPSED_KEY, next ? '1' : '0');
+      return next;
+    });
+  };
+
+  const startBacklogResize = (e) => {
+    e.preventDefault();
+    backlogResizeRef.current = { startX: e.clientX, startWidth: backlogWidth, current: backlogWidth };
+    const onMove = (moveEvent) => {
+      const next = Math.min(
+        BACKLOG_WIDTH_MAX,
+        Math.max(BACKLOG_WIDTH_MIN, backlogResizeRef.current.startWidth + (moveEvent.clientX - backlogResizeRef.current.startX))
+      );
+      backlogResizeRef.current.current = next;
+      weekBodyRef.current?.style.setProperty('--week-backlog-width', `${next}px`);
+    };
+    const onUp = () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      const finalWidth = backlogResizeRef.current.current;
+      setBacklogWidth(finalWidth);
+      localStorage.setItem(BACKLOG_WIDTH_KEY, String(finalWidth));
+    };
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  };
+
+  const handleBacklogDragOver = (e) => {
+    if (dragItemType !== 'todo') return;
+    e.preventDefault();
+    setDragOverBacklog(true);
+  };
+
+  const handleBacklogDrop = (e) => {
+    e.preventDefault();
+    const type = e.dataTransfer.getData('itemType');
+    const id = Number(e.dataTransfer.getData('itemId'));
+    if (type === 'todo') moveItem(id, null, 'all');
+    setDragOverBacklog(false); setDragItemType(null);
+  };
 
   const days = getWeekDays(currentWeek);
   const { spanMap, covered } = useSpanData(items);
@@ -134,7 +220,7 @@ export default function WeeklyView({
     setDragOverCell(null); setDragItemType(null);
   };
 
-  const handleDragEnd = () => { setDragOverCell(null); setDragItemType(null); };
+  const handleDragEnd = () => { setDragOverCell(null); setDragItemType(null); setDragOverBacklog(false); };
 
   // 셀 렌더링 (슬롯 row 인덱스 포함)
   const renderCell = (ds, slotKey, rowNum, colNum) => {
@@ -248,6 +334,40 @@ export default function WeeklyView({
         <button className="nav-btn" onClick={nextWeek}>›</button>
       </div>
 
+      <div className="week-body" ref={weekBodyRef} style={{ '--week-backlog-width': `${backlogWidth}px` }}>
+        {backlogCollapsed ? (
+          <button className="week-backlog-expand-btn" onClick={toggleBacklog} aria-label="백로그 펼치기">
+            <span>📋</span><span>›</span>
+          </button>
+        ) : (
+          <>
+            <div
+              className={`week-backlog-pane ${dragOverBacklog ? 'week-backlog-pane--drag-over' : ''}`}
+              onDragOver={handleBacklogDragOver}
+              onDragLeave={() => setDragOverBacklog(false)}
+              onDrop={handleBacklogDrop}
+            >
+              <div className="week-backlog-header">
+                <span className="week-backlog-title">📋 할일 백로그</span>
+                <button className="week-backlog-collapse-btn" onClick={toggleBacklog} aria-label="백로그 접기">‹</button>
+              </div>
+              <div className="week-backlog-list">
+                {backlogItems.filter(i => !filterType || i.type === filterType).length === 0
+                  ? <div className="week-backlog-empty">이번 주 할일을 적어두고<br />날짜별로 드래그해 보세요</div>
+                  : backlogItems.filter(i => !filterType || i.type === filterType).map(item => (
+                      <WeekCard key={item.id} item={item}
+                        onItemClick={onItemClick} onToggle={onToggle}
+                        onDragStart={handleDragStart}
+                        isContinuation={false} cardStyle={{}} />
+                    ))
+                }
+              </div>
+              <BacklogQuickAdd onAdd={onAddBacklogItem} />
+            </div>
+            <div className="week-backlog-resizer" onMouseDown={startBacklogResize} />
+          </>
+        )}
+
       <div className="week-grid-wrapper">
         <div className="week-grid">
           {/* 코너 */}
@@ -278,15 +398,15 @@ export default function WeeklyView({
           {TIME_SLOTS.map((slot) => {
             const rowNum = SLOT_ROW[slot.key];
             return (
-              <>
-                <div key={`lbl-${slot.key}`} className="wg-slot-label"
+              <Fragment key={slot.key}>
+                <div className="wg-slot-label"
                   style={{ gridRow: rowNum, gridColumn: 1 }}>
                   <span className="slot-emoji">{slot.emoji}</span>
                   <span className="slot-name">{slot.label}</span>
                   <span className="slot-range">{slot.range}</span>
                 </div>
                 {days.map((day, i) => renderCell(toDateString(day), slot.key, rowNum, i + 2))}
-              </>
+              </Fragment>
             );
           })}
 
@@ -297,6 +417,7 @@ export default function WeeklyView({
           </div>
           {days.map((day, i) => renderHabitCell(toDateString(day), i + 2))}
         </div>
+      </div>
       </div>
     </div>
   );

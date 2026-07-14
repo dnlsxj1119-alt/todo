@@ -72,7 +72,7 @@ export default function ItemModal({ item, defaultDate, onSave, onDelete, onClose
     e.preventDefault();
     if (!form.title.trim()) return;
     const timeSlot = form.type === 'todo' ? 'all' : form.timeSlot;
-    if (!isEdit && form.repeat !== 'none' && form.repeatEndDate) {
+    if (!isEdit && form.date && form.repeat !== 'none' && form.repeatEndDate) {
       const occurrenceDates = getRecurrenceDates(form.date, form.repeatEndDate, form.repeat, form.repeatDays);
       onSave({ ...form, timeSlot, occurrenceDates });
       return;
@@ -80,7 +80,7 @@ export default function ItemModal({ item, defaultDate, onSave, onDelete, onClose
     onSave({ ...form, timeSlot });
   };
 
-  const occurrenceCount = !isEdit && form.repeat !== 'none' && form.repeatEndDate
+  const occurrenceCount = !isEdit && form.date && form.repeat !== 'none' && form.repeatEndDate
     ? getRecurrenceDates(form.date, form.repeatEndDate, form.repeat, form.repeatDays).length
     : 0;
 
@@ -159,9 +159,12 @@ export default function ItemModal({ item, defaultDate, onSave, onDelete, onClose
           {/* 날짜 행: 시작날짜 + 종료날짜 */}
           <div className="field-row">
             <div className="field-group field-group--half">
-              <label className="field-label" htmlFor="date">시작 날짜</label>
+              <label className="field-label" htmlFor="date">
+                시작 날짜 <span style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 400 }}>(비워두면 할일 목록에 대기)</span>
+              </label>
               <input id="date" className="field-input" type="date"
-                value={form.date} onChange={(e) => set('date', e.target.value)} required />
+                value={form.date} onChange={(e) => set('date', e.target.value)}
+                required={form.type !== 'todo'} />
             </div>
             <div className="field-group field-group--half">
               <label className="field-label">
@@ -235,7 +238,9 @@ export default function ItemModal({ item, defaultDate, onSave, onDelete, onClose
           )}
 
           {/* 슬롯 힌트 */}
-          {form.type === 'todo' && !form.time ? (
+          {form.type === 'todo' && !form.date ? (
+            <div className="slot-hint slot-hint--all">📋 날짜 미설정 시 주간뷰 할일 백로그에 대기합니다</div>
+          ) : form.type === 'todo' && !form.time ? (
             <div className="slot-hint slot-hint--all">📋 시간 미설정 시 주간뷰 전체 행에 표시됩니다</div>
           ) : (
             <div className={`slot-hint ${form.type !== 'todo' && span > 1 ? 'slot-hint--span' : ''}`}>
