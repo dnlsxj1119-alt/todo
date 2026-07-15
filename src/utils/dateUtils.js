@@ -107,10 +107,11 @@ export function getSpanCount(startSlot, endSlot) {
   return e - s + 1;
 }
 
-// 시간대 행 높이 (px) — 시간당 20px 비율
-export const SLOT_HEIGHTS = { morning: 120, lunch: 120, evening: 120, night: 120 };
+// 시간대 행 높이 (px) — 시간당 30px 비율로 실제 슬롯 길이(시간)에 맞춰 계산
+// morning 6h, lunch 5h, evening 4h, night 9h
+export const SLOT_HEIGHTS = { morning: 180, lunch: 150, evening: 120, night: 270 };
 export const SLOT_START_H  = { morning: 6,   lunch: 12,  evening: 17, night: 21  };
-const PX_PER_HOUR = 20;
+const PX_PER_HOUR = 30;
 const GRID_GAP = 1;
 
 export function timeToSlotPx(timeStr, slotKey) {
