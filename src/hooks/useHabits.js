@@ -9,6 +9,7 @@ function toLocal(row) {
     color: row.color ?? '#6366F1',
     completedDates: row.completed_dates ?? [],
     sortOrder: row.sort_order ?? 0,
+    archived: row.archived ?? false,
   };
 }
 
@@ -22,7 +23,7 @@ export function habitAppliesToDate(habit, dateStr) {
 }
 
 export function useHabits(userId) {
-  const [habits, setHabits] = useState([]);
+  const [allHabits, setHabits] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -58,14 +59,14 @@ export function useHabits(userId) {
   const addHabit = useCallback(async (data) => {
     const { data: inserted, error } = await supabase
       .from('habits')
-      .insert({ user_id: userId, title: data.title, frequency: data.frequency, color: data.color, completed_dates: [], sort_order: habits.length })
+      .insert({ user_id: userId, title: data.title, frequency: data.frequency, color: data.color, completed_dates: [], sort_order: allHabits.length })
       .select()
       .single();
     if (error) { console.error('[addHabit]', error); return; }
     if (inserted) {
       setHabits(prev => prev.some(h => h.id === inserted.id) ? prev : [...prev, toLocal(inserted)]);
     }
-  }, [userId, habits.length]);
+  }, [userId, allHabits.length]);
 
   const updateHabit = useCallback(async (id, data) => {
     setHabits(prev => prev.map(h => h.id === id ? { ...h, ...data } : h));
@@ -78,7 +79,7 @@ export function useHabits(userId) {
   }, []);
 
   const toggleHabitDate = useCallback(async (id, dateStr) => {
-    const habit = habits.find(h => h.id === id);
+    const habit = allHabits.find(h => h.id === id);
     if (!habit) return;
     const dates = habit.completedDates || [];
     const newDates = dates.includes(dateStr)
@@ -86,14 +87,34 @@ export function useHabits(userId) {
       : [...dates, dateStr];
     setHabits(prev => prev.map(h => h.id === id ? { ...h, completedDates: newDates } : h));
     await supabase.from('habits').update({ completed_dates: newDates }).eq('id', id);
-  }, [habits]);
+  }, [allHabits]);
 
   const reorderHabits = useCallback(async (reordered) => {
-    setHabits(reordered);
+    setHabits(prev => {
+      const archived = prev.filter(h => h.archived);
+      return [...reordered, ...archived];
+    });
     await Promise.all(
       reordered.map((h, i) => supabase.from('habits').update({ sort_order: i }).eq('id', h.id))
     );
   }, []);
 
-  return { habits, loading, addHabit, updateHabit, deleteHabit, toggleHabitDate, reorderHabits };
+  const archiveHabit = useCallback(async (id) => {
+    setHabits(prev => prev.map(h => h.id === id ? { ...h, archived: true } : h));
+    await supabase.from('habits').update({ archived: true }).eq('id', id);
+  }, []);
+
+  const restoreHabit = useCallback(async (id) => {
+    setHabits(prev => prev.map(h => h.id === id ? { ...h, archived: false } : h));
+    await supabase.from('habits').update({ archived: false }).eq('id', id);
+  }, []);
+
+  const habits = allHabits.filter(h => !h.archived);
+  const archivedHabits = allHabits.filter(h => h.archived);
+
+  return {
+    habits, archivedHabits, loading,
+    addHabit, updateHabit, deleteHabit, toggleHabitDate, reorderHabits,
+    archiveHabit, restoreHabit,
+  };
 }

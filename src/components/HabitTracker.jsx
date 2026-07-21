@@ -5,7 +5,7 @@ import { habitAppliesToDate } from '../hooks/useHabits';
 const FREQ_LABELS = { daily: '매일', weekday: '평일', weekend: '주말' };
 const PRESET_COLORS = ['#6366F1', '#EC4899', '#10B981', '#F59E0B', '#3B82F6', '#EF4444', '#8B5CF6', '#14B8A6'];
 
-function HabitModal({ habit, onSave, onDelete, onClose }) {
+function HabitModal({ habit, onSave, onDelete, onArchive, onClose }) {
   const isEdit = !!habit;
   const [form, setForm] = useState({
     title: habit?.title ?? '',
@@ -62,7 +62,12 @@ function HabitModal({ habit, onSave, onDelete, onClose }) {
           </div>
 
           <div className="modal-actions">
-            {isEdit && <button type="button" className="btn btn--danger" onClick={() => onDelete(habit.id)}>삭제</button>}
+            {isEdit && (
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button type="button" className="btn btn--danger" onClick={() => onDelete(habit.id)}>삭제</button>
+                <button type="button" className="btn btn--ghost" onClick={() => onArchive(habit.id)}>보관</button>
+              </div>
+            )}
             <div className="modal-actions-right">
               <button type="button" className="btn btn--ghost" onClick={onClose}>취소</button>
               <button type="submit" className="btn btn--primary">{isEdit ? '저장' : '추가'}</button>
@@ -74,8 +79,42 @@ function HabitModal({ habit, onSave, onDelete, onClose }) {
   );
 }
 
-export default function HabitTracker({ habits, onAdd, onUpdate, onDelete, onToggle, onReorder }) {
+function ArchiveModal({ habits, onRestore, onClose }) {
+  return (
+    <div className="modal-overlay" onClick={(e) => { if (e.target.classList.contains('modal-overlay')) onClose(); }}>
+      <div className="modal-panel" style={{ maxWidth: 420 }}>
+        <div className="modal-header">
+          <h2>보관함</h2>
+          <button className="modal-close" onClick={onClose}>✕</button>
+        </div>
+        <div style={{ padding: '4px 20px 20px', display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 400, overflowY: 'auto' }}>
+          {habits.length === 0 ? (
+            <div className="proj-empty" style={{ padding: '24px 0' }}>
+              <div className="empty-text">보관된 습관이 없습니다</div>
+            </div>
+          ) : habits.map(habit => (
+            <div key={habit.id} style={{
+              display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px',
+              border: '1px solid var(--border)', borderRadius: 8,
+            }}>
+              <span className="habit-dot" style={{ background: habit.color }} />
+              <span style={{ flex: 1, fontSize: 14, fontWeight: 500, color: 'var(--text-secondary)' }}>{habit.title}</span>
+              <span className="habit-freq-badge" style={{ color: habit.color, background: habit.color + '22' }}>
+                {FREQ_LABELS[habit.frequency]}
+              </span>
+              <button type="button" className="btn btn--ghost" style={{ padding: '4px 10px', fontSize: 12 }}
+                onClick={() => onRestore(habit.id)}>복원</button>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function HabitTracker({ habits, archivedHabits = [], onAdd, onUpdate, onDelete, onToggle, onReorder, onArchive, onRestore }) {
   const [showModal, setShowModal] = useState(false);
+  const [showArchive, setShowArchive] = useState(false);
   const [editHabit, setEditHabit] = useState(null);
   const [currentWeek, setCurrentWeek] = useState(() => getWeekStart(new Date()));
   const [dragId, setDragId] = useState(null);
@@ -115,7 +154,12 @@ export default function HabitTracker({ habits, onAdd, onUpdate, onDelete, onTogg
           <h2 className="proj-header-title">습관 트래커</h2>
           <p className="proj-header-sub">매일의 루틴을 관리하고 추적하세요</p>
         </div>
-        <button className="btn btn--primary" onClick={() => { setEditHabit(null); setShowModal(true); }}>+ 습관 추가</button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button className="btn btn--ghost" onClick={() => setShowArchive(true)}>
+            보관함{archivedHabits.length > 0 ? ` (${archivedHabits.length})` : ''}
+          </button>
+          <button className="btn btn--primary" onClick={() => { setEditHabit(null); setShowModal(true); }}>+ 습관 추가</button>
+        </div>
       </div>
 
       {/* Week nav */}
@@ -212,7 +256,16 @@ export default function HabitTracker({ habits, onAdd, onUpdate, onDelete, onTogg
           habit={editHabit}
           onSave={handleSave}
           onDelete={(id) => { onDelete(id); setShowModal(false); }}
+          onArchive={(id) => { onArchive(id); setShowModal(false); }}
           onClose={() => setShowModal(false)}
+        />
+      )}
+
+      {showArchive && (
+        <ArchiveModal
+          habits={archivedHabits}
+          onRestore={onRestore}
+          onClose={() => setShowArchive(false)}
         />
       )}
     </div>

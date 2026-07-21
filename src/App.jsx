@@ -74,7 +74,7 @@ export default function App() {
   const userId = user?.id;
   const { items, loading, addItem, addRecurringItems, updateItem, deleteItem, toggleComplete, moveItem, getItemsForDate, getItemsForCell, getBacklogItems } = useItems(userId);
   const { projects, addProject, updateProject, deleteProject, toggleTask, cycleEmailStatus, reorderProjects, togglePin } = useProjects(userId);
-  const { habits, addHabit, updateHabit, deleteHabit, toggleHabitDate, reorderHabits } = useHabits(userId);
+  const { habits, archivedHabits, addHabit, updateHabit, deleteHabit, toggleHabitDate, reorderHabits, archiveHabit, restoreHabit } = useHabits(userId);
   const { getForMonth: getMonthlyGoal, updateNotes: updateGoalNotes, addItem: addGoalItem, toggleItem: toggleGoalItem, deleteItem: deleteGoalItem, editItem: editGoalItem, reorderItems: reorderGoalItems } = useMonthlyGoals(userId);
   const {
     getForDate: getReflection,
@@ -292,11 +292,14 @@ export default function App() {
         ) : activeTab === 'habits' ? (
           <HabitTracker
             habits={habits}
+            archivedHabits={archivedHabits}
             onAdd={addHabit}
             onUpdate={updateHabit}
             onDelete={deleteHabit}
             onToggle={toggleHabitDate}
             onReorder={reorderHabits}
+            onArchive={archiveHabit}
+            onRestore={restoreHabit}
           />
         ) : activeTab === 'goals' ? (
           <MonthlyGoalsView
