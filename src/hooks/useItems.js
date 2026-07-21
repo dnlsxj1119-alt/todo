@@ -175,6 +175,11 @@ export function useItems(userId) {
       if (i.date === dateStr) return i.timeSlot === slot;
       if (i.endDate && i.date < dateStr && i.endDate > dateStr) return true;
       if (i.endDate === dateStr && i.date < dateStr) {
+        // 종료 시간이 새벽(00:00~06:00 이전)이면 전날 밤 슬롯 안에 이미 포함되므로 이어짐 표시 불필요
+        if (i.endTime) {
+          const [endH] = i.endTime.split(':').map(Number);
+          if (endH < 6) return false;
+        }
         const endSlotKey = i.endTime ? getTimeSlotFromTime(i.endTime) : TIME_SLOT_ORDER[TIME_SLOT_ORDER.length - 1];
         const endIdx = TIME_SLOT_ORDER.indexOf(endSlotKey);
         const slotIdx = TIME_SLOT_ORDER.indexOf(slot);
