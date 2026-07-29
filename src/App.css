@@ -1103,6 +1103,44 @@ input, textarea, select { font-family: inherit; }
   .week-backlog-pane { width: 100% !important; max-height: 220px; border-right: none; border-bottom: 1px solid var(--border); }
   .week-backlog-resizer { display: none; }
   .week-backlog-expand-btn { width: 100%; flex-direction: row; border-right: none; border-bottom: 1px solid var(--border); padding: 6px; }
+
+  /* Month calendar: shrink everything so a full week always fits on screen without scrolling */
+  .cal-nav { padding: 10px 12px 8px; }
+  .cal-title { font-size: 15px; }
+  .today-btn { font-size: 10px; padding: 3px 8px; }
+  .nav-btn { font-size: 18px; padding: 2px 6px; }
+  .cal-day-header { font-size: 10px; padding: 4px 2px; }
+  .cal-grid--body {
+    display: grid;
+    grid-template-rows: repeat(6, 1fr);
+    overflow: hidden;
+    min-height: 0;
+  }
+  .cal-cell {
+    min-height: 0;
+    padding: 3px 3px 2px;
+    gap: 1px;
+    overflow: hidden;
+  }
+  .cal-date-num {
+    width: 17px;
+    height: 17px;
+    line-height: 17px;
+    font-size: 10px;
+    margin-bottom: 2px;
+  }
+  .chip-stack {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    gap: 1px;
+  }
+  .chip { font-size: 9px; padding: 1px 4px; gap: 3px; }
+  .chip-check { width: 11px; font-size: 9px; }
+  .chip-priority { font-size: 7px; }
+  .chip-time { font-size: 8px; }
+  .show-more-btn { font-size: 8px; padding: 0 3px; }
 }
 
 /* ===================== Habit Chip (WeeklyView) ===================== */

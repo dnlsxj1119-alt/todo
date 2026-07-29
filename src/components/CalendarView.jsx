@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { getMonthGrid, toDateString, isToday, formatMonthYear, DAY_NAMES } from '../utils/dateUtils';
 import { buildDeadlineMap } from '../utils/deadlines';
 
@@ -45,6 +45,14 @@ function DeadlineChip({ entry, onClick }) {
 
 export default function CalendarView({ currentMonth, setCurrentMonth, getItemsForDate, onItemClick, onDayClick, onDateNumClick, reflectionDates, onToggle, filterType, projects = [], onProjectClick }) {
   const [expanded, setExpanded] = useState({});
+  const [isMobile, setIsMobile] = useState(() => window.matchMedia('(max-width: 600px)').matches);
+
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 600px)');
+    const handler = (e) => setIsMobile(e.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
 
   const year = currentMonth.getFullYear();
   const month = currentMonth.getMonth();
@@ -59,7 +67,7 @@ export default function CalendarView({ currentMonth, setCurrentMonth, getItemsFo
 
   const toggleExpand = (key) => setExpanded(prev => ({ ...prev, [key]: !prev[key] }));
 
-  const VISIBLE_MAX = 3;
+  const VISIBLE_MAX = isMobile ? 2 : 3;
 
   const deadlineMap = useMemo(() => buildDeadlineMap(projects), [projects]);
 
