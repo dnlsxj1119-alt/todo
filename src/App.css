@@ -1089,6 +1089,9 @@ input, textarea, select { font-family: inherit; }
     align-items: center;
     height: auto;
     padding: 8px 10px;
+    padding-top: max(8px, env(safe-area-inset-top));
+    padding-left: max(10px, env(safe-area-inset-left));
+    padding-right: max(10px, env(safe-area-inset-right));
     gap: 6px;
     overflow-y: visible;
     border-right: none;
