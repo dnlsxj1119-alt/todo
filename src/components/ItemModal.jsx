@@ -21,6 +21,8 @@ const WEEKDAY_LABELS = ['일', '월', '화', '수', '목', '금', '토'];
 export default function ItemModal({ item, defaultDate, onSave, onDelete, onClose }) {
   const isEdit = !!item;
   const overlayRef = useRef(null);
+  // 종료 날짜를 사용자가 직접 입력한 적이 있으면 시간 기반 자동 다음날 계산을 건너뜀
+  const endDateManuallySet = useRef(!!item?.endDate);
 
   const [form, setForm] = useState({
     type: item?.type ?? 'schedule',
@@ -56,14 +58,15 @@ export default function ItemModal({ item, defaultDate, onSave, onDelete, onClose
 
   const handleEndTimeChange = (val) => {
     setForm(f => {
-      // 종료시간이 시작시간보다 이르고 종료날짜 미설정 → 자동으로 다음날
-      let endDate = f.endDate;
-      if (val && f.time && val <= f.time && !f.endDate) {
+      // 사용자가 종료 날짜를 직접 입력한 적이 있으면 자동 계산하지 않고 그대로 둠
+      if (endDateManuallySet.current) return { ...f, endTime: val };
+      // 종료시간이 시작시간보다 이르면 자동으로 다음날, 아니면 당일(빈값)로 매번 다시 계산
+      let endDate = '';
+      if (val && f.time && f.date && val <= f.time) {
         const next = new Date(f.date);
         next.setDate(next.getDate() + 1);
         endDate = next.toISOString().slice(0, 10);
       }
-      if (!val) endDate = '';
       return { ...f, endTime: val, endDate };
     });
   };
@@ -173,7 +176,7 @@ export default function ItemModal({ item, defaultDate, onSave, onDelete, onClose
               <input className="field-input" type="date"
                 min={form.date}
                 value={form.endDate}
-                onChange={(e) => set('endDate', e.target.value)} />
+                onChange={(e) => { endDateManuallySet.current = true; set('endDate', e.target.value); }} />
             </div>
           </div>
 
