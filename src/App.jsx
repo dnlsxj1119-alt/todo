@@ -73,7 +73,7 @@ export default function App() {
 
   const userId = user?.id;
   const { items, loading, addItem, addRecurringItems, updateItem, deleteItem, toggleComplete, moveItem, getItemsForDate, getItemsForCell, getBacklogItems } = useItems(userId);
-  const { projects, addProject, updateProject, deleteProject, toggleTask, cycleEmailStatus, reorderProjects, togglePin } = useProjects(userId);
+  const { projects, addProject, updateProject, deleteProject, toggleTask, cycleEmailStatus, reorderProjects, togglePin, completeProject } = useProjects(userId);
   const { habits, archivedHabits, addHabit, updateHabit, deleteHabit, toggleHabitDate, reorderHabits, archiveHabit, restoreHabit } = useHabits(userId);
   const { getForMonth: getMonthlyGoal, updateNotes: updateGoalNotes, addItem: addGoalItem, toggleItem: toggleGoalItem, deleteItem: deleteGoalItem, editItem: editGoalItem, reorderItems: reorderGoalItems } = useMonthlyGoals(userId);
   const {
@@ -331,6 +331,7 @@ export default function App() {
             onDelete={deleteProject}
             onReorder={reorderProjects}
             onTogglePin={togglePin}
+            onComplete={completeProject}
           />
         )}
         </ErrorBoundary>

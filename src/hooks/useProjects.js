@@ -105,6 +105,14 @@ export function useProjects(userId) {
     await supabase.from('projects').update({ emails }).eq('id', projectId);
   }, [projects]);
 
+  const completeProject = useCallback(async (projectId) => {
+    const project = projects.find(p => p.id === projectId);
+    if (!project) return;
+    const tasks = project.tasks.map(t => t.status === 'done' ? t : { ...t, status: 'done' });
+    setProjects(prev => prev.map(p => p.id === projectId ? { ...p, tasks } : p));
+    await supabase.from('projects').update({ tasks }).eq('id', projectId);
+  }, [projects]);
+
   const togglePin = useCallback(async (id) => {
     const project = projects.find(p => p.id === id);
     if (!project) return;
@@ -120,5 +128,5 @@ export function useProjects(userId) {
     );
   }, []);
 
-  return { projects, loading, addProject, updateProject, deleteProject, toggleTask, cycleEmailStatus, reorderProjects, togglePin };
+  return { projects, loading, addProject, updateProject, deleteProject, toggleTask, cycleEmailStatus, reorderProjects, togglePin, completeProject };
 }

@@ -71,13 +71,14 @@ function TaskRow({ task, projectId, onToggleTask }) {
   );
 }
 
-function ProjectCard({ project, onToggleTask, onEdit, onTogglePin, onDragStart, onDragOver, onDrop, onDragEnd, isDragOver }) {
+function ProjectCard({ project, onToggleTask, onEdit, onTogglePin, onComplete, onDragStart, onDragOver, onDrop, onDragEnd, isDragOver }) {
   const [collapsed, setCollapsed] = useState(true);
   const pt = getProjectType(project.type);
 
   const activeTasks = project.tasks.filter(t => t.status !== 'done');
   const doneTasks   = project.tasks.filter(t => t.status === 'done');
   const pct = getTaskProgressPct(project.tasks);
+  const canForceComplete = pct < 100 && project.tasks.length > 0;
 
   return (
     <div
@@ -117,6 +118,16 @@ function ProjectCard({ project, onToggleTask, onEdit, onTogglePin, onDragStart, 
           >
             {collapsed ? '▼' : '▲'}
           </button>
+          {canForceComplete && (
+            <button
+              style={{ fontSize: 11, fontWeight: 700, padding: '3px 8px', borderRadius: 20, cursor: 'pointer',
+                background: 'var(--green-light)', color: 'var(--green-dark)', border: '1px solid #B3D48A' }}
+              onClick={() => onComplete(project.id)}
+              title="남은 태스크를 모두 완료 처리하고 프로젝트를 완료로 옮깁니다 (기간 만료 등)"
+            >
+              ✅ 완료 처리
+            </button>
+          )}
           <button className="proj-edit-btn" onClick={() => onEdit(project)} title="수정">⋯</button>
         </div>
       </div>
@@ -219,7 +230,7 @@ function ProjectCard({ project, onToggleTask, onEdit, onTogglePin, onDragStart, 
   );
 }
 
-export default function ProjectsView({ projects, onToggleTask, onCycleEmail, onAdd, onEdit, onDelete, onReorder, onTogglePin }) {
+export default function ProjectsView({ projects, onToggleTask, onCycleEmail, onAdd, onEdit, onDelete, onReorder, onTogglePin, onComplete }) {
   const [showModal, setShowModal] = useState(false);
   const [editProject, setEditProject] = useState(null);
   const [dragId, setDragId] = useState(null);
@@ -285,6 +296,7 @@ export default function ProjectsView({ projects, onToggleTask, onCycleEmail, onA
           onToggleTask={onToggleTask}
           onEdit={handleEdit}
           onTogglePin={onTogglePin}
+          onComplete={onComplete}
           onDragStart={() => handleDragStart(p.id)}
           onDragOver={(e) => handleDragOver(e, p.id)}
           onDrop={(e) => handleDrop(e, p.id)}
