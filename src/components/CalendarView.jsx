@@ -44,6 +44,23 @@ function GoogleEventChip({ event }) {
   );
 }
 
+function timeMinutes(time) {
+  if (!time) return Infinity;
+  const [h, m] = time.split(':').map(Number);
+  return h * 60 + m;
+}
+
+// 앱 항목과 구글 이벤트를 시간순으로 한 줄에 섞어서 정렬 (시간 없는 항목은 뒤로)
+function mergeByTime(items, googleEvents) {
+  const tagged = [
+    ...items.map(item => ({ kind: 'item', time: timeMinutes(item.time), data: item })),
+    ...googleEvents.map(event => ({ kind: 'google', time: timeMinutes(event.time), data: event })),
+  ];
+  return tagged
+    .map((entry, index) => ({ ...entry, index }))
+    .sort((a, b) => a.time - b.time || a.index - b.index);
+}
+
 function DeadlineChip({ entry, onClick }) {
   return (
     <div
@@ -105,14 +122,14 @@ export default function CalendarView({ currentMonth, setCurrentMonth, getItemsFo
             .map(item => ({ ...item, _isCont: item.date !== ds }));
           const deadlines = filterType ? [] : (deadlineMap[ds] ?? []);
           const googleEvents = filterType ? [] : (getGoogleEventsForDate?.(ds) ?? []);
+          const combined = mergeByTime(allItems, googleEvents);
           const today = isToday(date);
           const isExpanded = expanded[ds];
-          const totalCount = allItems.length + deadlines.length + googleEvents.length;
-          const visibleItems = isExpanded ? allItems : allItems.slice(0, Math.max(0, VISIBLE_MAX - deadlines.length));
+          const totalCount = combined.length + deadlines.length;
           const visibleDeadlines = isExpanded ? deadlines : deadlines.slice(0, VISIBLE_MAX);
-          const googleBudget = Math.max(0, VISIBLE_MAX - deadlines.length - visibleItems.length);
-          const visibleGoogleEvents = isExpanded ? googleEvents : googleEvents.slice(0, googleBudget);
-          const hidden = totalCount - visibleItems.length - visibleDeadlines.length - visibleGoogleEvents.length;
+          const combinedBudget = Math.max(0, VISIBLE_MAX - visibleDeadlines.length);
+          const visibleCombined = isExpanded ? combined : combined.slice(0, combinedBudget);
+          const hidden = totalCount - visibleCombined.length - visibleDeadlines.length;
           const dow = date.getDay();
 
           return (
@@ -136,16 +153,15 @@ export default function CalendarView({ currentMonth, setCurrentMonth, getItemsFo
                     onClick={onProjectClick}
                   />
                 ))}
-                {visibleItems.map(item => (
-                  <ItemChip
-                    key={`${item.id}-${ds}`}
-                    item={item}
-                    onClick={onItemClick}
-                    onToggle={onToggle}
-                  />
-                ))}
-                {visibleGoogleEvents.map(event => (
-                  <GoogleEventChip key={`${event.id}-${ds}`} event={event} />
+                {visibleCombined.map(entry => (
+                  entry.kind === 'google'
+                    ? <GoogleEventChip key={`${entry.data.id}-${ds}`} event={entry.data} />
+                    : <ItemChip
+                        key={`${entry.data.id}-${ds}`}
+                        item={entry.data}
+                        onClick={onItemClick}
+                        onToggle={onToggle}
+                      />
                 ))}
                 {!isExpanded && hidden > 0 && (
                   <button
