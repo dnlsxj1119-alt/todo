@@ -7,7 +7,16 @@
       "Bash(git commit -m ' *)",
       "Bash(git push *)",
       "Bash(node *)",
-      "Bash(npm list *)"
+      "Bash(npm list *)",
+      "Bash(git -C /Users/choedayeon/Desktop/클로드/일정관리 status)",
+      "Bash(git -C /Users/choedayeon/Desktop/클로드/일정관리 diff)",
+      "Bash(git *)",
+      "Bash(curl -s \"https://zldesybjtlbcaosxhxyb.supabase.co/rest/v1/projects?select=id,sort_order&limit=1\" -H \"apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpsZGVzeWJqdGxiY2Fvc3hoeHliIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzOTE1MDQsImV4cCI6MjA5Nzk2NzUwNH0.fRnqzs7WMHR7r_Uu-kgAId2rbpMAhsi7se9po6u1ya0\" -H \"Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpsZGVzeWJqdGxiY2Fvc3hoeHliIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzOTE1MDQsImV4cCI6MjA5Nzk2NzUwNH0.fRnqzs7WMHR7r_Uu-kgAId2rbpMAhsi7se9po6u1ya0\")",
+      "Bash(curl -s \"https://zldesybjtlbcaosxhxyb.supabase.co/rest/v1/habits?select=*&limit=1\" -H \"apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpsZGVzeWJqdGxiY2Fvc3hoeHliIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzOTE1MDQsImV4cCI6MjA5Nzk2NzUwNH0.fRnqzs7WMHR7r_Uu-kgAId2rbpMAhsi7se9po6u1ya0\" -H \"Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpsZGVzeWJqdGxiY2Fvc3hoeHliIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzOTE1MDQsImV4cCI6MjA5Nzk2NzUwNH0.fRnqzs7WMHR7r_Uu-kgAId2rbpMAhsi7se9po6u1ya0\")",
+      "Bash(npx oxlint *)"
     ]
+  },
+  "enabledPlugins": {
+    "commit-commands@claude-code-plugins": true
   }
 }

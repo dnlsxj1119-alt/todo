@@ -40,6 +40,36 @@ function BacklogQuickAdd({ onAdd }) {
   );
 }
 
+function GoogleWeekCard({ event, cardStyle }) {
+  return (
+    <div
+      className="week-card week-card--google"
+      style={cardStyle}
+      onClick={(e) => { e.stopPropagation(); if (event.htmlLink) window.open(event.htmlLink, '_blank', 'noopener'); }}
+      title={`${event.calendarSummary ?? 'Google 캘린더'}: ${event.title}`}
+    >
+      <div className="week-card-top">
+        <span className="card-check" style={{ opacity: 1 }}>📆</span>
+        <span className="card-title">{event.title}</span>
+      </div>
+      {event.time && <div className="card-time">⏰ {event.time}{event.endTime ? ` – ${event.endTime}` : ''}</div>}
+    </div>
+  );
+}
+
+function GoogleAllDayChip({ event }) {
+  return (
+    <div
+      className="chip chip--google"
+      onClick={(e) => { e.stopPropagation(); if (event.htmlLink) window.open(event.htmlLink, '_blank', 'noopener'); }}
+      title={`${event.calendarSummary ?? 'Google 캘린더'}: ${event.title}`}
+    >
+      <span className="chip-check" style={{ opacity: 1 }}>📆</span>
+      <span className="chip-title">{event.title}</span>
+    </div>
+  );
+}
+
 function WeekCard({ item, onItemClick, onToggle, onDragStart, cardStyle, isContinuation }) {
   return (
     <div
@@ -123,6 +153,7 @@ export default function WeeklyView({
   onItemClick, onDayClick, onToggle, moveItem, filterType,
   habits, onToggleHabit, projects, onProjectClick,
   backlogItems, onAddBacklogItem,
+  getGoogleEventsForDate,
 }) {
   const [dragOverCell, setDragOverCell] = useState(null);
   const [dragItemType, setDragItemType] = useState(null);
@@ -243,6 +274,11 @@ export default function WeeklyView({
     }
 
     const isDragOver = dragOverCell === cellKey;
+    const googleEvents = getGoogleEventsForDate?.(ds) ?? [];
+    const googleAllDay = slotKey === 'all' ? googleEvents.filter(e => e.allDay) : [];
+    const googleTimed = slotKey !== 'all'
+      ? googleEvents.filter(e => !e.allDay && getTimeSlotFromTime(e.time) === slotKey)
+      : [];
 
     return (
       <div
@@ -265,7 +301,19 @@ export default function WeeklyView({
           </div>
         ))}
 
-        {allItems.length === 0
+        {/* 구글 캘린더 종일 이벤트 (전체 행만) */}
+        {googleAllDay.map(event => <GoogleAllDayChip key={event.id} event={event} />)}
+
+        {/* 구글 캘린더 시간 지정 이벤트 */}
+        {googleTimed.map(event => (
+          <GoogleWeekCard
+            key={event.id}
+            event={event}
+            cardStyle={getCardStyle({ ...event, type: 'schedule', timeSlot: slotKey }, 1, slotKey)}
+          />
+        ))}
+
+        {allItems.length === 0 && googleAllDay.length === 0 && googleTimed.length === 0
           ? <div className="wg-cell-empty" title="더블클릭으로 추가" />
           : allItems.map(item => {
               // 종료일 (item.date < ds, item.endDate === ds)

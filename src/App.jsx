@@ -1,6 +1,7 @@
-import { useState, useCallback, Component } from 'react';
+import { useState, useCallback, useMemo, Component } from 'react';
 import { useAuth } from './hooks/useAuth';
 import { useItems } from './hooks/useItems';
+import { useGoogleCalendar } from './hooks/useGoogleCalendar';
 import LoginPage from './components/LoginPage';
 
 class ErrorBoundary extends Component {
@@ -21,7 +22,7 @@ import { useProjects } from './hooks/useProjects';
 import { useHabits } from './hooks/useHabits';
 import { useMonthlyGoals } from './hooks/useMonthlyGoals';
 import { useDailyReflections } from './hooks/useDailyReflections';
-import { getWeekStart, toDateString, getMonthKey } from './utils/dateUtils';
+import { getWeekStart, toDateString, getMonthKey, getMonthGrid, getWeekDays } from './utils/dateUtils';
 import CalendarView from './components/CalendarView';
 import WeeklyView from './components/WeeklyView';
 import ProjectsView from './components/ProjectsView';
@@ -73,7 +74,23 @@ export default function App() {
 
   const userId = user?.id;
   const { items, loading, addItem, addRecurringItems, updateItem, deleteItem, toggleComplete, moveItem, getItemsForDate, getItemsForCell, getBacklogItems } = useItems(userId);
-  const { projects, addProject, updateProject, deleteProject, toggleTask, cycleEmailStatus, reorderProjects, togglePin, completeProject } = useProjects(userId);
+
+  const googleRange = useMemo(() => {
+    if (activeTab === 'calendar') {
+      const grid = getMonthGrid(currentMonth.getFullYear(), currentMonth.getMonth());
+      return { start: toDateString(grid[0].date), end: toDateString(grid[grid.length - 1].date) };
+    }
+    if (activeTab === 'week') {
+      const days = getWeekDays(currentWeek);
+      return { start: toDateString(days[0]), end: toDateString(days[6]) };
+    }
+    return { start: null, end: null };
+  }, [activeTab, currentMonth, currentWeek]);
+  const {
+    connected: googleConnected, loading: googleLoading, error: googleError,
+    getGoogleEventsForDate, disconnect: disconnectGoogle,
+  } = useGoogleCalendar(userId, googleRange.start, googleRange.end);
+  const { projects, addProject, updateProject, deleteProject, toggleTask, cycleEmailStatus, reorderProjects, togglePin, completeProject, uncompleteProject } = useProjects(userId);
   const { habits, archivedHabits, addHabit, updateHabit, deleteHabit, toggleHabitDate, reorderHabits, archiveHabit, restoreHabit } = useHabits(userId);
   const { getForMonth: getMonthlyGoal, updateNotes: updateGoalNotes, addItem: addGoalItem, toggleItem: toggleGoalItem, deleteItem: deleteGoalItem, editItem: editGoalItem, reorderItems: reorderGoalItems } = useMonthlyGoals(userId);
   const {
@@ -232,6 +249,29 @@ export default function App() {
           ))}
         </div>
 
+        {/* Google Calendar */}
+        <div className="sidebar-section">
+          <div className="sidebar-section-title">구글 캘린더</div>
+          {googleConnected ? (
+            <div className="gcal-status">
+              <span className="gcal-status-dot" />
+              <span className="gcal-status-label">
+                {googleLoading ? '불러오는 중…' : googleError ? googleError : '연동됨'}
+              </span>
+              {googleError ? (
+                <button className="gcal-action-btn" onClick={signInWithGoogle}>다시 연결</button>
+              ) : (
+                <button className="gcal-action-btn" onClick={disconnectGoogle}>해제</button>
+              )}
+            </div>
+          ) : (
+            <button className="gcal-connect-btn" onClick={signInWithGoogle} title="구글 캘린더 불러오기">
+              <span>📆</span>
+              <span className="filter-label">구글 캘린더 연동</span>
+            </button>
+          )}
+        </div>
+
         {/* Add button */}
         <button
           className="sidebar-add-btn"
@@ -270,6 +310,7 @@ export default function App() {
             filterType={filterType}
             projects={projects}
             onProjectClick={() => setActiveTab('projects')}
+            getGoogleEventsForDate={getGoogleEventsForDate}
           />
         ) : activeTab === 'week' ? (
           <WeeklyView
@@ -288,6 +329,7 @@ export default function App() {
             onProjectClick={() => setActiveTab('projects')}
             backlogItems={getBacklogItems()}
             onAddBacklogItem={addBacklogItem}
+            getGoogleEventsForDate={getGoogleEventsForDate}
           />
         ) : activeTab === 'habits' ? (
           <HabitTracker
@@ -332,6 +374,7 @@ export default function App() {
             onReorder={reorderProjects}
             onTogglePin={togglePin}
             onComplete={completeProject}
+            onUncomplete={uncompleteProject}
           />
         )}
         </ErrorBoundary>

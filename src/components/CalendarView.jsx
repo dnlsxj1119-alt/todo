@@ -30,6 +30,20 @@ function ItemChip({ item, onClick, onToggle }) {
   );
 }
 
+function GoogleEventChip({ event }) {
+  return (
+    <div
+      className="chip chip--google"
+      onClick={(e) => { e.stopPropagation(); if (event.htmlLink) window.open(event.htmlLink, '_blank', 'noopener'); }}
+      title={`${event.calendarSummary ?? 'Google 캘린더'}: ${event.title}`}
+    >
+      <span className="chip-check" style={{ opacity: 1 }}>📆</span>
+      {event.time && <span className="chip-time">{event.time}</span>}
+      <span className="chip-title">{event.title}</span>
+    </div>
+  );
+}
+
 function DeadlineChip({ entry, onClick }) {
   return (
     <div
@@ -43,7 +57,7 @@ function DeadlineChip({ entry, onClick }) {
   );
 }
 
-export default function CalendarView({ currentMonth, setCurrentMonth, getItemsForDate, onItemClick, onDayClick, onDateNumClick, reflectionDates, onToggle, filterType, projects = [], onProjectClick }) {
+export default function CalendarView({ currentMonth, setCurrentMonth, getItemsForDate, onItemClick, onDayClick, onDateNumClick, reflectionDates, onToggle, filterType, projects = [], onProjectClick, getGoogleEventsForDate }) {
   const [expanded, setExpanded] = useState({});
 
   const year = currentMonth.getFullYear();
@@ -90,12 +104,15 @@ export default function CalendarView({ currentMonth, setCurrentMonth, getItemsFo
             .filter(item => !filterType || item.type === filterType)
             .map(item => ({ ...item, _isCont: item.date !== ds }));
           const deadlines = filterType ? [] : (deadlineMap[ds] ?? []);
+          const googleEvents = filterType ? [] : (getGoogleEventsForDate?.(ds) ?? []);
           const today = isToday(date);
           const isExpanded = expanded[ds];
-          const totalCount = allItems.length + deadlines.length;
+          const totalCount = allItems.length + deadlines.length + googleEvents.length;
           const visibleItems = isExpanded ? allItems : allItems.slice(0, Math.max(0, VISIBLE_MAX - deadlines.length));
           const visibleDeadlines = isExpanded ? deadlines : deadlines.slice(0, VISIBLE_MAX);
-          const hidden = totalCount - visibleItems.length - visibleDeadlines.length;
+          const googleBudget = Math.max(0, VISIBLE_MAX - deadlines.length - visibleItems.length);
+          const visibleGoogleEvents = isExpanded ? googleEvents : googleEvents.slice(0, googleBudget);
+          const hidden = totalCount - visibleItems.length - visibleDeadlines.length - visibleGoogleEvents.length;
           const dow = date.getDay();
 
           return (
@@ -126,6 +143,9 @@ export default function CalendarView({ currentMonth, setCurrentMonth, getItemsFo
                     onClick={onItemClick}
                     onToggle={onToggle}
                   />
+                ))}
+                {visibleGoogleEvents.map(event => (
+                  <GoogleEventChip key={`${event.id}-${ds}`} event={event} />
                 ))}
                 {!isExpanded && hidden > 0 && (
                   <button
