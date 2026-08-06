@@ -14,14 +14,17 @@ export default function TimePicker({ value, onChange, placeholder = '시간 선�
   const displayH = h ?? pendingH;
   const displayM = m ?? pendingM;
 
-  // 시/분이 둘 다 정해졌을 때만 onChange를 쏜다 (한쪽만 고른 순간의
-  // "가짜" 시간값이 시작시간과 비교되어 잘못된 자동입력을 유발하는 것을 방지)
+  // 시를 고르면 분은 아직 안 골랐어도 00으로 자동입력해서 바로 onChange를 쏜다.
+  // 반대로 분을 먼저 고른 경우엔 시가 정해지기 전까지 onChange를 쏘지 않는다 -
+  // 그 순간 시를 0으로 가정해버리면 "가짜" 시간값이 시작시간과 비교되어
+  // 잘못된 종료 날짜 자동입력을 유발하기 때문 (55d71df 참고).
   const handleHour = (e) => {
     const val = e.target.value;
     if (val === '') { setPendingH(null); onChange(''); return; }
     const newH = Number(val);
-    if (displayM === null) { setPendingH(newH); return; }
-    onChange(`${String(newH).padStart(2, '0')}:${String(displayM).padStart(2, '0')}`);
+    const newM = displayM ?? 0;
+    if (displayM === null) setPendingM(newM);
+    onChange(`${String(newH).padStart(2, '0')}:${String(newM).padStart(2, '0')}`);
   };
 
   const handleMinute = (e) => {

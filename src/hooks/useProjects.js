@@ -13,6 +13,7 @@ function toLocal(row) {
     notes: row.notes ?? '',
     sortOrder: row.sort_order ?? 0,
     pinned: row.pinned ?? false,
+    forceCompleted: row.force_completed ?? false,
   };
 }
 
@@ -28,6 +29,7 @@ function toRow(data, userId) {
     notes: data.notes ?? '',
     sort_order: data.sortOrder ?? 0,
     pinned: data.pinned ?? false,
+    force_completed: data.forceCompleted ?? false,
   };
 }
 
@@ -106,12 +108,14 @@ export function useProjects(userId) {
   }, [projects]);
 
   const completeProject = useCallback(async (projectId) => {
-    const project = projects.find(p => p.id === projectId);
-    if (!project) return;
-    const tasks = project.tasks.map(t => t.status === 'done' ? t : { ...t, status: 'done' });
-    setProjects(prev => prev.map(p => p.id === projectId ? { ...p, tasks } : p));
-    await supabase.from('projects').update({ tasks }).eq('id', projectId);
-  }, [projects]);
+    setProjects(prev => prev.map(p => p.id === projectId ? { ...p, forceCompleted: true } : p));
+    await supabase.from('projects').update({ force_completed: true }).eq('id', projectId);
+  }, []);
+
+  const uncompleteProject = useCallback(async (projectId) => {
+    setProjects(prev => prev.map(p => p.id === projectId ? { ...p, forceCompleted: false } : p));
+    await supabase.from('projects').update({ force_completed: false }).eq('id', projectId);
+  }, []);
 
   const togglePin = useCallback(async (id) => {
     const project = projects.find(p => p.id === id);
@@ -128,5 +132,5 @@ export function useProjects(userId) {
     );
   }, []);
 
-  return { projects, loading, addProject, updateProject, deleteProject, toggleTask, cycleEmailStatus, reorderProjects, togglePin, completeProject };
+  return { projects, loading, addProject, updateProject, deleteProject, toggleTask, cycleEmailStatus, reorderProjects, togglePin, completeProject, uncompleteProject };
 }

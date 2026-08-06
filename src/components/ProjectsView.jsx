@@ -71,19 +71,20 @@ function TaskRow({ task, projectId, onToggleTask }) {
   );
 }
 
-function ProjectCard({ project, onToggleTask, onEdit, onTogglePin, onComplete, onDragStart, onDragOver, onDrop, onDragEnd, isDragOver }) {
+function ProjectCard({ project, onToggleTask, onEdit, onTogglePin, onComplete, onUncomplete, onDragStart, onDragOver, onDrop, onDragEnd, isDragOver }) {
   const [collapsed, setCollapsed] = useState(true);
   const pt = getProjectType(project.type);
 
   const activeTasks = project.tasks.filter(t => t.status !== 'done');
   const doneTasks   = project.tasks.filter(t => t.status === 'done');
   const pct = getTaskProgressPct(project.tasks);
-  const canForceComplete = pct < 100 && project.tasks.length > 0;
+  const isForced = !!project.forceCompleted && pct < 100;
+  const canForceComplete = !project.forceCompleted && pct < 100 && project.tasks.length > 0;
 
   return (
     <div
-      className="proj-card"
-      style={{ opacity: isDragOver ? 0.6 : 1, outline: isDragOver ? `2px dashed ${pt.border}` : 'none',
+      className={`proj-card${isForced ? ' proj-card--forced' : ''}`}
+      style={{ opacity: isDragOver ? 0.6 : undefined, outline: isDragOver ? `2px dashed ${pt.border}` : 'none',
         borderTop: `3px solid ${pt.border}`, transition: 'opacity 0.15s' }}
       draggable
       onDragStart={onDragStart}
@@ -123,9 +124,19 @@ function ProjectCard({ project, onToggleTask, onEdit, onTogglePin, onComplete, o
               style={{ fontSize: 11, fontWeight: 700, padding: '3px 8px', borderRadius: 20, cursor: 'pointer',
                 background: 'var(--green-light)', color: 'var(--green-dark)', border: '1px solid #B3D48A' }}
               onClick={() => onComplete(project.id)}
-              title="남은 태스크를 모두 완료 처리하고 프로젝트를 완료로 옮깁니다 (기간 만료 등)"
+              title="태스크 진행률은 그대로 두고 프로젝트만 완료 섹션으로 옮깁니다 (기간 만료 등)"
             >
               ✅ 완료 처리
+            </button>
+          )}
+          {isForced && (
+            <button
+              style={{ fontSize: 11, fontWeight: 700, padding: '3px 8px', borderRadius: 20, cursor: 'pointer',
+                background: 'var(--bg)', color: 'var(--text-muted)', border: '1px solid var(--border)' }}
+              onClick={() => onUncomplete(project.id)}
+              title="완료 처리를 취소하고 진행중으로 되돌립니다"
+            >
+              ↩︎ 완료 취소
             </button>
           )}
           <button className="proj-edit-btn" onClick={() => onEdit(project)} title="수정">⋯</button>
@@ -135,6 +146,9 @@ function ProjectCard({ project, onToggleTask, onEdit, onTogglePin, onComplete, o
       {/* Title + start date + deadline */}
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
         <h3 className="proj-title">{project.title}</h3>
+        {isForced && (
+          <span className="proj-forced-badge">⏸️ 완료 처리됨 ({pct}%)</span>
+        )}
         {project.startDate && (
           <span style={{
             fontSize: 11, fontWeight: 600, padding: '2px 7px', borderRadius: 20,
@@ -230,7 +244,7 @@ function ProjectCard({ project, onToggleTask, onEdit, onTogglePin, onComplete, o
   );
 }
 
-export default function ProjectsView({ projects, onToggleTask, onCycleEmail, onAdd, onEdit, onDelete, onReorder, onTogglePin, onComplete }) {
+export default function ProjectsView({ projects, onToggleTask, onCycleEmail, onAdd, onEdit, onDelete, onReorder, onTogglePin, onComplete, onUncomplete }) {
   const [showModal, setShowModal] = useState(false);
   const [editProject, setEditProject] = useState(null);
   const [dragId, setDragId] = useState(null);
@@ -278,13 +292,15 @@ export default function ProjectsView({ projects, onToggleTask, onCycleEmail, onA
   const todayStr = toDateString(new Date());
   const sortByPin = (a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0) || a.sortOrder - b.sortOrder;
 
+  const isDone = (p) => getPct(p) === 100 || p.forceCompleted;
+
   const typeFiltered = filterType ? projects.filter(p => p.type === filterType) : projects;
-  const completedProjects = typeFiltered.filter(p => getPct(p) === 100).sort(sortByPin);
+  const completedProjects = typeFiltered.filter(p => isDone(p)).sort(sortByPin);
   const notStartedProjects = typeFiltered
-    .filter(p => getPct(p) !== 100 && p.startDate && p.startDate > todayStr)
+    .filter(p => !isDone(p) && p.startDate && p.startDate > todayStr)
     .sort(sortByPin);
   const inProgressProjects = typeFiltered
-    .filter(p => getPct(p) !== 100 && !(p.startDate && p.startDate > todayStr))
+    .filter(p => !isDone(p) && !(p.startDate && p.startDate > todayStr))
     .sort(sortByPin);
 
   const renderGrid = (list) => (
@@ -297,6 +313,7 @@ export default function ProjectsView({ projects, onToggleTask, onCycleEmail, onA
           onEdit={handleEdit}
           onTogglePin={onTogglePin}
           onComplete={onComplete}
+          onUncomplete={onUncomplete}
           onDragStart={() => handleDragStart(p.id)}
           onDragOver={(e) => handleDragOver(e, p.id)}
           onDrop={(e) => handleDrop(e, p.id)}
