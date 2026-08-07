@@ -40,16 +40,20 @@ function BacklogQuickAdd({ onAdd }) {
   );
 }
 
-function GoogleWeekCard({ event, cardStyle }) {
+function GoogleWeekCard({ event, cardStyle, onToggle }) {
   return (
     <div
-      className="week-card week-card--google"
+      className={`week-card week-card--google ${event.completed ? 'week-card--done' : ''}`}
       style={cardStyle}
       onClick={(e) => { e.stopPropagation(); if (event.htmlLink) window.open(event.htmlLink, '_blank', 'noopener'); }}
       title={`${event.calendarSummary ?? 'Google 캘린더'}: ${event.title}`}
     >
       <div className="week-card-top">
-        <span className="card-check" style={{ opacity: 1 }}>📆</span>
+        <button className="card-check" style={{ opacity: 1 }}
+          onClick={(e) => { e.stopPropagation(); onToggle?.(event.id); }}
+          aria-label={event.completed ? '완료 취소' : '완료'}>
+          {event.completed ? '✓' : '📆'}
+        </button>
         <span className="card-title">{event.title}</span>
       </div>
       {event.time && <div className="card-time">⏰ {event.time}{event.endTime ? ` – ${event.endTime}` : ''}</div>}
@@ -57,14 +61,24 @@ function GoogleWeekCard({ event, cardStyle }) {
   );
 }
 
-function GoogleAllDayChip({ event }) {
+function GoogleAllDayChip({ event, onToggle }) {
   return (
     <div
-      className="chip chip--google"
+      className={`chip chip--google ${event.completed ? 'chip--done' : ''}`}
       onClick={(e) => { e.stopPropagation(); if (event.htmlLink) window.open(event.htmlLink, '_blank', 'noopener'); }}
       title={`${event.calendarSummary ?? 'Google 캘린더'}: ${event.title}`}
     >
-      <span className="chip-check" style={{ opacity: 1 }}>📆</span>
+      <span
+        className="chip-check"
+        style={{ opacity: 1 }}
+        onClick={(e) => { e.stopPropagation(); onToggle?.(event.id); }}
+        role="checkbox"
+        aria-checked={event.completed}
+        tabIndex={0}
+        onKeyDown={(e) => e.key === ' ' && (e.preventDefault(), onToggle?.(event.id))}
+      >
+        {event.completed ? '✓' : '📆'}
+      </span>
       <span className="chip-title">{event.title}</span>
     </div>
   );
@@ -153,7 +167,7 @@ export default function WeeklyView({
   onItemClick, onDayClick, onToggle, moveItem, filterType,
   habits, onToggleHabit, projects, onProjectClick,
   backlogItems, onAddBacklogItem,
-  getGoogleEventsForDate,
+  getGoogleEventsForDate, onToggleGoogleEvent,
 }) {
   const [dragOverCell, setDragOverCell] = useState(null);
   const [dragItemType, setDragItemType] = useState(null);
@@ -302,7 +316,7 @@ export default function WeeklyView({
         ))}
 
         {/* 구글 캘린더 종일 이벤트 (전체 행만) */}
-        {googleAllDay.map(event => <GoogleAllDayChip key={event.id} event={event} />)}
+        {googleAllDay.map(event => <GoogleAllDayChip key={event.id} event={event} onToggle={onToggleGoogleEvent} />)}
 
         {/* 구글 캘린더 시간 지정 이벤트 */}
         {googleTimed.map(event => (
@@ -310,6 +324,7 @@ export default function WeeklyView({
             key={event.id}
             event={event}
             cardStyle={getCardStyle({ ...event, type: 'schedule', timeSlot: slotKey }, 1, slotKey)}
+            onToggle={onToggleGoogleEvent}
           />
         ))}
 

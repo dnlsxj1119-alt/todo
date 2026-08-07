@@ -88,7 +88,7 @@ export default function App() {
   }, [activeTab, currentMonth, currentWeek]);
   const {
     connected: googleConnected, loading: googleLoading, error: googleError,
-    getGoogleEventsForDate, disconnect: disconnectGoogle,
+    getGoogleEventsForDate, toggleGoogleEventDone, disconnect: disconnectGoogle,
   } = useGoogleCalendar(userId, googleRange.start, googleRange.end);
   const { projects, addProject, updateProject, deleteProject, toggleTask, cycleEmailStatus, reorderProjects, togglePin, completeProject, uncompleteProject } = useProjects(userId);
   const { habits, archivedHabits, addHabit, updateHabit, deleteHabit, toggleHabitDate, reorderHabits, archiveHabit, restoreHabit } = useHabits(userId);
@@ -311,6 +311,7 @@ export default function App() {
             projects={projects}
             onProjectClick={() => setActiveTab('projects')}
             getGoogleEventsForDate={getGoogleEventsForDate}
+            onToggleGoogleEvent={toggleGoogleEventDone}
           />
         ) : activeTab === 'week' ? (
           <WeeklyView
@@ -330,6 +331,7 @@ export default function App() {
             backlogItems={getBacklogItems()}
             onAddBacklogItem={addBacklogItem}
             getGoogleEventsForDate={getGoogleEventsForDate}
+            onToggleGoogleEvent={toggleGoogleEventDone}
           />
         ) : activeTab === 'habits' ? (
           <HabitTracker

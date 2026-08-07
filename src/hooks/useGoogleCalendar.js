@@ -13,6 +13,21 @@ function readToken() {
   }
 }
 
+// 구글 이벤트는 구글 쪽에 완료 상태가 없어서, 완료 표시는 로컬에만 저장 (사용자별)
+function completedStorageKey(userId) {
+  return `googleCalendarCompleted:${userId ?? 'anon'}`;
+}
+
+function readCompletedSet(userId) {
+  try {
+    const raw = localStorage.getItem(completedStorageKey(userId));
+    if (!raw) return new Set();
+    return new Set(JSON.parse(raw));
+  } catch {
+    return new Set();
+  }
+}
+
 // 구글 이벤트를 앱 내부 아이템과 비슷한 모양으로 변환 (읽기 전용 오버레이용)
 function toDisplayEvent(raw, calendar) {
   const isAllDay = !!raw.start?.date;
@@ -46,6 +61,20 @@ export function useGoogleCalendar(userId, rangeStart, rangeEnd) {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [completedIds, setCompletedIds] = useState(() => readCompletedSet(userId));
+
+  useEffect(() => {
+    setCompletedIds(readCompletedSet(userId));
+  }, [userId]);
+
+  const toggleGoogleEventDone = useCallback((id) => {
+    setCompletedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      localStorage.setItem(completedStorageKey(userId), JSON.stringify([...next]));
+      return next;
+    });
+  }, [userId]);
 
   useEffect(() => {
     setConnected(!!readToken());
@@ -121,9 +150,14 @@ export function useGoogleCalendar(userId, rangeStart, rangeEnd) {
     setEvents([]);
   }, []);
 
+  const displayEvents = useMemo(
+    () => events.map(ev => ({ ...ev, completed: completedIds.has(ev.id) })),
+    [events, completedIds]
+  );
+
   const eventsByDate = useMemo(() => {
     const map = {};
-    events.forEach(ev => {
+    displayEvents.forEach(ev => {
       const start = ev.date;
       const end = ev.endDate || ev.date;
       let cursor = start;
@@ -138,9 +172,9 @@ export function useGoogleCalendar(userId, rangeStart, rangeEnd) {
       }
     });
     return map;
-  }, [events]);
+  }, [displayEvents]);
 
   const getGoogleEventsForDate = useCallback((ds) => eventsByDate[ds] ?? [], [eventsByDate]);
 
-  return { connected, loading, error, events, getGoogleEventsForDate, disconnect };
+  return { connected, loading, error, events: displayEvents, getGoogleEventsForDate, toggleGoogleEventDone, disconnect };
 }

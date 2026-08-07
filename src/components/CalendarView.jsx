@@ -30,14 +30,24 @@ function ItemChip({ item, onClick, onToggle }) {
   );
 }
 
-function GoogleEventChip({ event }) {
+function GoogleEventChip({ event, onToggle }) {
   return (
     <div
-      className="chip chip--google"
+      className={`chip chip--google ${event.completed ? 'chip--done' : ''}`}
       onClick={(e) => { e.stopPropagation(); if (event.htmlLink) window.open(event.htmlLink, '_blank', 'noopener'); }}
       title={`${event.calendarSummary ?? 'Google 캘린더'}: ${event.title}`}
     >
-      <span className="chip-check" style={{ opacity: 1 }}>📆</span>
+      <span
+        className="chip-check"
+        style={{ opacity: 1 }}
+        onClick={(e) => { e.stopPropagation(); onToggle?.(event.id); }}
+        role="checkbox"
+        aria-checked={event.completed}
+        tabIndex={0}
+        onKeyDown={(e) => e.key === ' ' && (e.preventDefault(), onToggle?.(event.id))}
+      >
+        {event.completed ? '✓' : '📆'}
+      </span>
       {event.time && <span className="chip-time">{event.time}</span>}
       <span className="chip-title">{event.title}</span>
     </div>
@@ -74,7 +84,7 @@ function DeadlineChip({ entry, onClick }) {
   );
 }
 
-export default function CalendarView({ currentMonth, setCurrentMonth, getItemsForDate, onItemClick, onDayClick, onDateNumClick, reflectionDates, onToggle, filterType, projects = [], onProjectClick, getGoogleEventsForDate }) {
+export default function CalendarView({ currentMonth, setCurrentMonth, getItemsForDate, onItemClick, onDayClick, onDateNumClick, reflectionDates, onToggle, filterType, projects = [], onProjectClick, getGoogleEventsForDate, onToggleGoogleEvent }) {
   const [expanded, setExpanded] = useState({});
 
   const year = currentMonth.getFullYear();
@@ -155,7 +165,7 @@ export default function CalendarView({ currentMonth, setCurrentMonth, getItemsFo
                 ))}
                 {visibleCombined.map(entry => (
                   entry.kind === 'google'
-                    ? <GoogleEventChip key={`${entry.data.id}-${ds}`} event={entry.data} />
+                    ? <GoogleEventChip key={`${entry.data.id}-${ds}`} event={entry.data} onToggle={onToggleGoogleEvent} />
                     : <ItemChip
                         key={`${entry.data.id}-${ds}`}
                         item={entry.data}
