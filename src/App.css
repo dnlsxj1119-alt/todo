@@ -256,6 +256,7 @@ input, textarea, select { font-family: inherit; }
   background: var(--green-mid);
   flex-shrink: 0;
 }
+.gcal-status-dot--error { background: #DC2626; }
 .gcal-status-label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .gcal-action-btn {
   font-size: 11px;
@@ -1173,6 +1174,33 @@ input, textarea, select { font-family: inherit; }
   }
   .sidebar-add-label { display: none; }
   .sidebar-add-icon { font-size: 18px; }
+
+  /* Google Calendar: keep visible as a compact icon in the mobile top bar */
+  .sidebar-section--gcal {
+    display: flex;
+    margin: 0;
+    flex-shrink: 0;
+  }
+  .sidebar-section--gcal .sidebar-section-title { display: none; }
+  .sidebar-section--gcal .gcal-connect-btn {
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    justify-content: center;
+    border-radius: 50%;
+    gap: 0;
+  }
+  .sidebar-section--gcal .gcal-connect-btn .filter-label { display: none; }
+  .sidebar-section--gcal .gcal-status {
+    padding: 0;
+    gap: 0;
+    background: none;
+    border: none;
+  }
+  .sidebar-section--gcal .gcal-status-dot { width: 20px; height: 20px; cursor: pointer; }
+  .sidebar-section--gcal .gcal-status-label,
+  .sidebar-section--gcal .gcal-action-btn { display: none; }
+
   .sidebar .sidebar-user {
     padding: 0;
     margin-top: 0;

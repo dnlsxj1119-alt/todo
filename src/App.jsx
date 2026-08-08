@@ -250,11 +250,17 @@ export default function App() {
         </div>
 
         {/* Google Calendar */}
-        <div className="sidebar-section">
+        <div className="sidebar-section sidebar-section--gcal">
           <div className="sidebar-section-title">구글 캘린더</div>
           {googleConnected ? (
             <div className="gcal-status">
-              <span className="gcal-status-dot" />
+              <span
+                className={`gcal-status-dot ${googleError ? 'gcal-status-dot--error' : ''}`}
+                onClick={googleError ? signInWithGoogle : disconnectGoogle}
+                role="button"
+                tabIndex={0}
+                title={googleError ? '다시 연결' : '탭하여 연동 해제'}
+              />
               <span className="gcal-status-label">
                 {googleLoading ? '불러오는 중…' : googleError ? googleError : '연동됨'}
               </span>
