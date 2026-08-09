@@ -1,10 +1,10 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { GOOGLE_CALENDAR_TOKEN_KEY, GOOGLE_CALENDAR_REFRESH_KEY } from './useAuth';
+import { googleCalendarTokenKey, googleCalendarRefreshKey } from './useAuth';
 import { supabase } from '../lib/supabase';
 
-function readToken() {
+function readToken(userId) {
   try {
-    const raw = localStorage.getItem(GOOGLE_CALENDAR_TOKEN_KEY);
+    const raw = localStorage.getItem(googleCalendarTokenKey(userId));
     if (!raw) return null;
     const parsed = JSON.parse(raw);
     if (!parsed?.token || parsed.expiresAt < Date.now()) return null;
@@ -14,14 +14,14 @@ function readToken() {
   }
 }
 
-function hasRefreshToken() {
-  return !!localStorage.getItem(GOOGLE_CALENDAR_REFRESH_KEY);
+function hasRefreshToken(userId) {
+  return !!localStorage.getItem(googleCalendarRefreshKey(userId));
 }
 
 // access token이 만료됐을 때, 저장해둔 refresh token으로 서버(Edge Function)에서
 // 새 access token을 조용히 재발급받는다 (사용자가 다시 로그인할 필요 없음)
-async function refreshAccessToken() {
-  const refreshToken = localStorage.getItem(GOOGLE_CALENDAR_REFRESH_KEY);
+async function refreshAccessToken(userId) {
+  const refreshToken = localStorage.getItem(googleCalendarRefreshKey(userId));
   if (!refreshToken) return null;
   try {
     const { data, error } = await supabase.functions.invoke('refresh-google-token', {
@@ -29,23 +29,23 @@ async function refreshAccessToken() {
     });
     if (error || !data?.access_token) return null;
     const expiresAt = Date.now() + Math.max(60, (data.expires_in ?? 3300) - 120) * 1000;
-    localStorage.setItem(GOOGLE_CALENDAR_TOKEN_KEY, JSON.stringify({ token: data.access_token, expiresAt }));
+    localStorage.setItem(googleCalendarTokenKey(userId), JSON.stringify({ token: data.access_token, expiresAt }));
     return data.access_token;
   } catch {
     return null;
   }
 }
 
-async function getValidToken() {
-  return readToken() ?? (await refreshAccessToken());
+async function getValidToken(userId) {
+  return readToken(userId) ?? (await refreshAccessToken(userId));
 }
 
 // 401을 받으면 refresh token으로 한 번 재발급받아 재시도한다
-async function fetchWithAuth(url, token) {
+async function fetchWithAuth(url, token, userId) {
   let currentToken = token;
   let res = await fetch(url, { headers: { Authorization: `Bearer ${currentToken}` } });
   if (res.status === 401) {
-    currentToken = await refreshAccessToken();
+    currentToken = await refreshAccessToken(userId);
     if (!currentToken) return res;
     res = await fetch(url, { headers: { Authorization: `Bearer ${currentToken}` } });
   }
@@ -96,7 +96,7 @@ function toDisplayEvent(raw, calendar) {
 }
 
 export function useGoogleCalendar(userId, rangeStart, rangeEnd) {
-  const [connected, setConnected] = useState(() => !!readToken() || hasRefreshToken());
+  const [connected, setConnected] = useState(() => !!readToken(userId) || hasRefreshToken(userId));
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -116,7 +116,7 @@ export function useGoogleCalendar(userId, rangeStart, rangeEnd) {
   }, [userId]);
 
   useEffect(() => {
-    setConnected(!!readToken() || hasRefreshToken());
+    setConnected(!!readToken(userId) || hasRefreshToken(userId));
   }, [userId]);
 
   useEffect(() => {
@@ -134,12 +134,13 @@ export function useGoogleCalendar(userId, rangeStart, rangeEnd) {
 
     (async () => {
       try {
-        const token = await getValidToken();
+        const token = await getValidToken(userId);
         if (!token) throw Object.assign(new Error('unauthorized'), { code: 401 });
 
         const listRes = await fetchWithAuth(
           'https://www.googleapis.com/calendar/v3/users/me/calendarList?minAccessRole=freeBusyReader',
-          token
+          token,
+          userId
         );
         if (listRes.status === 401) throw Object.assign(new Error('unauthorized'), { code: 401 });
         const listData = await listRes.json();
@@ -152,7 +153,7 @@ export function useGoogleCalendar(userId, rangeStart, rangeEnd) {
           url.searchParams.set('singleEvents', 'true');
           url.searchParams.set('orderBy', 'startTime');
           url.searchParams.set('maxResults', '250');
-          const res = await fetchWithAuth(url, token);
+          const res = await fetchWithAuth(url, token, userId);
           if (res.status === 401) throw Object.assign(new Error('unauthorized'), { code: 401 });
           if (!res.ok) return [];
           const data = await res.json();
@@ -165,8 +166,8 @@ export function useGoogleCalendar(userId, rangeStart, rangeEnd) {
       } catch (e) {
         if (cancelled) return;
         if (e.code === 401) {
-          localStorage.removeItem(GOOGLE_CALENDAR_TOKEN_KEY);
-          localStorage.removeItem(GOOGLE_CALENDAR_REFRESH_KEY);
+          localStorage.removeItem(googleCalendarTokenKey(userId));
+          localStorage.removeItem(googleCalendarRefreshKey(userId));
           setConnected(false);
           setError('구글 로그인이 만료됐어요. 다시 연결해 주세요.');
         } else {
@@ -182,11 +183,11 @@ export function useGoogleCalendar(userId, rangeStart, rangeEnd) {
   }, [userId, connected, rangeStart, rangeEnd]);
 
   const disconnect = useCallback(() => {
-    localStorage.removeItem(GOOGLE_CALENDAR_TOKEN_KEY);
-    localStorage.removeItem(GOOGLE_CALENDAR_REFRESH_KEY);
+    localStorage.removeItem(googleCalendarTokenKey(userId));
+    localStorage.removeItem(googleCalendarRefreshKey(userId));
     setConnected(false);
     setEvents([]);
-  }, []);
+  }, [userId]);
 
   const displayEvents = useMemo(
     () => events.map(ev => ({ ...ev, completed: completedIds.has(ev.id) })),
