@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 
 export const GOOGLE_CALENDAR_TOKEN_KEY = 'google_calendar_token';
+export const GOOGLE_CALENDAR_REFRESH_KEY = 'google_calendar_refresh_token';
 
 export function useAuth() {
   const [user, setUser] = useState(null);
@@ -21,9 +22,14 @@ export function useAuth() {
             expiresAt: Date.now() + 55 * 60 * 1000, // 구글 access token은 보통 1시간 유효
           }));
         }
+        // refresh token은 만료가 없어서, access token이 끊겨도 이걸로 서버에서 재발급받아 재로그인 없이 연동 유지
+        if (session?.provider_refresh_token) {
+          localStorage.setItem(GOOGLE_CALENDAR_REFRESH_KEY, session.provider_refresh_token);
+        }
       }
       if (event === 'SIGNED_OUT') {
         localStorage.removeItem(GOOGLE_CALENDAR_TOKEN_KEY);
+        localStorage.removeItem(GOOGLE_CALENDAR_REFRESH_KEY);
       }
     });
 
@@ -36,7 +42,9 @@ export function useAuth() {
       options: {
         redirectTo: window.location.origin,
         scopes: 'https://www.googleapis.com/auth/calendar.readonly',
-        queryParams: { prompt: 'consent' },
+        // access_type=offline이어야 refresh token이 내려와서, access token 만료 후에도
+        // 재로그인 없이 서버(Edge Function)에서 조용히 재발급받을 수 있다
+        queryParams: { prompt: 'consent', access_type: 'offline' },
       },
     });
   };
