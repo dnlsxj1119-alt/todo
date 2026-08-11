@@ -1261,6 +1261,7 @@ input, textarea, select { font-family: inherit; }
   .chip-check { width: 11px; font-size: 9px; }
   .chip-priority { font-size: 7px; }
   .chip-time { font-size: 8px; }
+  .chip--done .chip-time { display: none; }
   .show-more-btn { font-size: 8px; padding: 0 3px; }
 
   /* Weekly view: shrink columns so all 7 days fit without horizontal overflow */
