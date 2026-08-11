@@ -128,7 +128,15 @@ input, textarea, select { font-family: inherit; }
 .sidebar--collapsed .filter-btn,
 .sidebar--collapsed .sidebar-add-btn { justify-content: center; padding-left: 0; padding-right: 0; gap: 0; }
 .sidebar--collapsed .sidebar-user { flex-direction: column; }
-.sidebar--collapsed .gcal-status { display: none; }
+.sidebar--collapsed .gcal-status {
+  justify-content: center;
+  padding-left: 0;
+  padding-right: 0;
+  gap: 0;
+}
+.sidebar--collapsed .gcal-status-label,
+.sidebar--collapsed .gcal-action-btn { display: none; }
+.sidebar--collapsed .gcal-status-dot { width: 10px; height: 10px; cursor: pointer; }
 .sidebar--collapsed .gcal-connect-btn { justify-content: center; padding-left: 0; padding-right: 0; gap: 0; }
 
 .sidebar-brand {
