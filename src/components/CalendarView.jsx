@@ -9,6 +9,8 @@ const TYPE_COLOR = {
 };
 
 function ItemChip({ item, onClick, onToggle }) {
+  const timeEl = !item._isCont && item.time && <span className="chip-time">{item.time}</span>;
+  const titleEl = <span className="chip-title">{item._isCont ? `↩ ${item.title}` : item.title}</span>;
   return (
     <div
       className={`chip ${TYPE_COLOR[item.type]} ${item.completed ? 'chip--done' : ''}`}
@@ -24,13 +26,15 @@ function ItemChip({ item, onClick, onToggle }) {
       >
         {item.completed ? '✓' : '○'}
       </span>
-      {!item._isCont && item.time && <span className="chip-time">{item.time}</span>}
-      <span className="chip-title">{item._isCont ? `↩ ${item.title}` : item.title}</span>
+      {/* 완료된 항목은 좁은 화면에서 잘려도 제목이 먼저 보이도록 시간을 뒤로 보낸다 */}
+      {item.completed ? <>{titleEl}{timeEl}</> : <>{timeEl}{titleEl}</>}
     </div>
   );
 }
 
 function GoogleEventChip({ event, onToggle }) {
+  const timeEl = event.time && <span className="chip-time">{event.time}</span>;
+  const titleEl = <span className="chip-title">{event.title}</span>;
   return (
     <div
       className={`chip chip--google ${event.completed ? 'chip--done' : ''}`}
@@ -48,8 +52,7 @@ function GoogleEventChip({ event, onToggle }) {
       >
         {event.completed ? '✓' : '📆'}
       </span>
-      {event.time && <span className="chip-time">{event.time}</span>}
-      <span className="chip-title">{event.title}</span>
+      {event.completed ? <>{titleEl}{timeEl}</> : <>{timeEl}{titleEl}</>}
     </div>
   );
 }
