@@ -31,6 +31,8 @@ import MonthlyGoalsView from './components/MonthlyGoalsView';
 import DailyReflectionView from './components/DailyReflectionView';
 import ReflectionEditorModal from './components/ReflectionEditorModal';
 import ItemModal from './components/ItemModal';
+import CalendarFeedModal from './components/CalendarFeedModal';
+import { useCalendarFeed } from './hooks/useCalendarFeed';
 import './App.css';
 
 const FILTER_OPTIONS = [
@@ -63,6 +65,7 @@ export default function App() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(
     () => localStorage.getItem('sidebarCollapsed') === '1'
   );
+  const [feedModalOpen, setFeedModalOpen] = useState(false);
 
   const toggleSidebar = () => {
     setSidebarCollapsed(prev => {
@@ -90,6 +93,7 @@ export default function App() {
     connected: googleConnected, loading: googleLoading, error: googleError,
     getGoogleEventsForDate, toggleGoogleEventDone, disconnect: disconnectGoogle,
   } = useGoogleCalendar(userId, googleRange.start, googleRange.end);
+  const calendarFeed = useCalendarFeed(userId);
   const { projects, addProject, updateProject, deleteProject, toggleTask, cycleEmailStatus, reorderProjects, togglePin, completeProject, uncompleteProject } = useProjects(userId);
   const { habits, archivedHabits, addHabit, updateHabit, deleteHabit, toggleHabitDate, reorderHabits, archiveHabit, restoreHabit } = useHabits(userId);
   const { getForMonth: getMonthlyGoal, updateNotes: updateGoalNotes, addItem: addGoalItem, toggleItem: toggleGoalItem, deleteItem: deleteGoalItem, editItem: editGoalItem, reorderItems: reorderGoalItems } = useMonthlyGoals(userId);
@@ -278,6 +282,15 @@ export default function App() {
           )}
         </div>
 
+        {/* Calendar feed */}
+        <div className="sidebar-section">
+          <div className="sidebar-section-title">캘린더 공유</div>
+          <button className="gcal-connect-btn" onClick={() => setFeedModalOpen(true)} title="외부 캘린더에서 구독">
+            <span>🔗</span>
+            <span className="filter-label">외부 캘린더 구독</span>
+          </button>
+        </div>
+
         {/* Add button */}
         <button
           className="sidebar-add-btn"
@@ -396,6 +409,17 @@ export default function App() {
           onSave={handleSave}
           onDelete={handleDelete}
           onClose={closeModal}
+        />
+      )}
+
+      {feedModalOpen && (
+        <CalendarFeedModal
+          feedUrl={calendarFeed.feedUrl}
+          hasToken={calendarFeed.hasToken}
+          loading={calendarFeed.loading}
+          onRegenerate={calendarFeed.regenerate}
+          onRevoke={calendarFeed.revoke}
+          onClose={() => setFeedModalOpen(false)}
         />
       )}
 
