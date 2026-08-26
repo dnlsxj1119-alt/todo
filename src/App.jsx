@@ -22,7 +22,7 @@ import { useProjects } from './hooks/useProjects';
 import { useHabits } from './hooks/useHabits';
 import { useMonthlyGoals } from './hooks/useMonthlyGoals';
 import { useDailyReflections } from './hooks/useDailyReflections';
-import { getWeekStart, toDateString, getMonthKey, getMonthGrid, getWeekDays } from './utils/dateUtils';
+import { getWeekStart, toDateString, getMonthKey } from './utils/dateUtils';
 import CalendarView from './components/CalendarView';
 import WeeklyView from './components/WeeklyView';
 import ProjectsView from './components/ProjectsView';
@@ -36,7 +36,7 @@ import './App.css';
 const FILTER_OPTIONS = [
   { key: null,        label: '전체',   emoji: '📋' },
   { key: 'todo',      label: '할일',   emoji: '🟣' },
-  { key: 'education', label: '교육',   emoji: '🔵' },
+  { key: 'education', label: '매우중요', emoji: '🔴' },
   { key: 'schedule',  label: '일정',   emoji: '🟢' },
 ];
 
@@ -75,17 +75,9 @@ export default function App() {
   const userId = user?.id;
   const { items, loading, addItem, addRecurringItems, updateItem, deleteItem, toggleComplete, moveItem, getItemsForDate, getItemsForCell, getBacklogItems } = useItems(userId);
 
-  const googleRange = useMemo(() => {
-    if (activeTab === 'calendar') {
-      const grid = getMonthGrid(currentMonth.getFullYear(), currentMonth.getMonth());
-      return { start: toDateString(grid[0].date), end: toDateString(grid[grid.length - 1].date) };
-    }
-    if (activeTab === 'week') {
-      const days = getWeekDays(currentWeek);
-      return { start: toDateString(days[0]), end: toDateString(days[6]) };
-    }
-    return { start: null, end: null };
-  }, [activeTab, currentMonth, currentWeek]);
+  // 구글 캘린더에서 가져온 일정은 앱 화면에 표시하지 않음(범위를 비워 조회 자체를 막음).
+  // 앱 → 구글 캘린더 쓰기 동기화는 useItems 쪽에서 별도로 동작하므로 영향 없음.
+  const googleRange = useMemo(() => ({ start: null, end: null }), []);
   const {
     connected: googleConnected, loading: googleLoading, error: googleError,
     getGoogleEventsForDate, toggleGoogleEventDone, disconnect: disconnectGoogle,

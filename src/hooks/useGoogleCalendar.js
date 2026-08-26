@@ -1,56 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { googleCalendarTokenKey, googleCalendarRefreshKey } from './useAuth';
-import { supabase } from '../lib/supabase';
-
-function readToken(userId) {
-  try {
-    const raw = localStorage.getItem(googleCalendarTokenKey(userId));
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    if (!parsed?.token || parsed.expiresAt < Date.now()) return null;
-    return parsed.token;
-  } catch {
-    return null;
-  }
-}
-
-function hasRefreshToken(userId) {
-  return !!localStorage.getItem(googleCalendarRefreshKey(userId));
-}
-
-// access token이 만료됐을 때, 저장해둔 refresh token으로 서버(Edge Function)에서
-// 새 access token을 조용히 재발급받는다 (사용자가 다시 로그인할 필요 없음)
-async function refreshAccessToken(userId) {
-  const refreshToken = localStorage.getItem(googleCalendarRefreshKey(userId));
-  if (!refreshToken) return null;
-  try {
-    const { data, error } = await supabase.functions.invoke('refresh-google-token', {
-      body: { refresh_token: refreshToken },
-    });
-    if (error || !data?.access_token) return null;
-    const expiresAt = Date.now() + Math.max(60, (data.expires_in ?? 3300) - 120) * 1000;
-    localStorage.setItem(googleCalendarTokenKey(userId), JSON.stringify({ token: data.access_token, expiresAt }));
-    return data.access_token;
-  } catch {
-    return null;
-  }
-}
-
-async function getValidToken(userId) {
-  return readToken(userId) ?? (await refreshAccessToken(userId));
-}
-
-// 401을 받으면 refresh token으로 한 번 재발급받아 재시도한다
-async function fetchWithAuth(url, token, userId) {
-  let currentToken = token;
-  let res = await fetch(url, { headers: { Authorization: `Bearer ${currentToken}` } });
-  if (res.status === 401) {
-    currentToken = await refreshAccessToken(userId);
-    if (!currentToken) return res;
-    res = await fetch(url, { headers: { Authorization: `Bearer ${currentToken}` } });
-  }
-  return res;
-}
+import { readToken, hasRefreshToken, getValidToken, fetchWithAuth } from '../lib/googleCalendarApi';
 
 // 구글 이벤트는 구글 쪽에 완료 상태가 없어서, 완료 표시는 로컬에만 저장 (사용자별)
 function completedStorageKey(userId) {

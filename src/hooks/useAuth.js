@@ -47,7 +47,8 @@ export function useAuth() {
       provider: 'google',
       options: {
         redirectTo: window.location.origin,
-        scopes: 'https://www.googleapis.com/auth/calendar.readonly',
+        // readonly: 캘린더 목록/일정 조회, events: 앱에서 만든 일정을 구글 캘린더에 쓰기
+        scopes: 'https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/calendar.events',
         // access_type=offline이어야 refresh token이 내려와서, access token 만료 후에도
         // 재로그인 없이 서버(Edge Function)에서 조용히 재발급받을 수 있다
         queryParams: { prompt: 'consent', access_type: 'offline' },

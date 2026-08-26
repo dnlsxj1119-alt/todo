@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { getTimeSlotFromTime, TIME_SLOT_ORDER, timeToSlotPx, addDays } from '../utils/dateUtils';
+import { applyGoogleSync, deleteGoogleEvent } from '../lib/googleCalendarApi';
 
 // 실제 시간이 없는 옛 항목 대비: 제목 앞 숫자를 HHMM 형태의 시간으로 해석
 function legacyTitleMinutes(title) {
@@ -47,6 +48,7 @@ function toLocal(row) {
     endDate: row.end_date ?? '',
     timeSlot,
     completed: row.completed ?? false,
+    googleEventId: row.google_event_id ?? null,
   };
 }
 
@@ -62,6 +64,7 @@ function toRow(data, userId) {
     end_date: data.endDate ?? '',
     time_slot: data.timeSlot ?? 'morning',
     completed: data.completed ?? false,
+    google_event_id: data.googleEventId ?? null,
   };
 }
 
@@ -104,9 +107,10 @@ export function useItems(userId) {
 
   const addItem = useCallback(async (data) => {
     const slot = data.timeSlot || (data.time ? getTimeSlotFromTime(data.time) : 'morning');
+    const synced = await applyGoogleSync(userId, null, { ...data, timeSlot: slot });
     const { data: inserted } = await supabase
       .from('items')
-      .insert(toRow({ ...data, timeSlot: slot }, userId))
+      .insert(toRow(synced, userId))
       .select()
       .single();
     if (inserted) {
@@ -119,12 +123,14 @@ export function useItems(userId) {
     const offsetDays = data.endDate && data.date
       ? (new Date(data.endDate) - new Date(data.date)) / (1000 * 60 * 60 * 24)
       : null;
-    const rows = dates.map(d => toRow({
+    const occurrences = dates.map(d => ({
       ...data,
       timeSlot: slot,
       date: d,
       endDate: offsetDays != null ? addDays(d, offsetDays) : '',
-    }, userId));
+    }));
+    const synced = await Promise.all(occurrences.map(o => applyGoogleSync(userId, null, o)));
+    const rows = synced.map(o => toRow(o, userId));
     const { data: inserted } = await supabase.from('items').insert(rows).select();
     if (inserted) {
       setItems(prev => [
@@ -135,15 +141,22 @@ export function useItems(userId) {
   }, [userId]);
 
   const updateItem = useCallback(async (id, data) => {
+    const prev = items.find(i => i.id === id);
     const slot = data.timeSlot || (data.time ? getTimeSlotFromTime(data.time) : undefined);
-    setItems(prev => prev.map(i => i.id === id ? { ...i, ...data, timeSlot: slot ?? data.timeSlot } : i));
-    await supabase.from('items').update(toRow({ ...data, timeSlot: slot ?? data.timeSlot }, userId)).eq('id', id);
-  }, [userId]);
+    const merged = { ...prev, ...data, timeSlot: slot ?? data.timeSlot };
+    const synced = await applyGoogleSync(userId, prev, merged);
+    setItems(prevItems => prevItems.map(i => i.id === id ? synced : i));
+    await supabase.from('items').update(toRow(synced, userId)).eq('id', id);
+  }, [userId, items]);
 
   const deleteItem = useCallback(async (id) => {
+    const item = items.find(i => i.id === id);
     setItems(prev => prev.filter(i => i.id !== id));
     await supabase.from('items').delete().eq('id', id);
-  }, []);
+    if (item?.googleEventId) {
+      deleteGoogleEvent(userId, item.googleEventId).catch(err => console.error('구글 캘린더 이벤트 삭제 실패', err));
+    }
+  }, [items, userId]);
 
   const toggleComplete = useCallback(async (id) => {
     setItems(prev => prev.map(i => i.id === id ? { ...i, completed: !i.completed } : i));
