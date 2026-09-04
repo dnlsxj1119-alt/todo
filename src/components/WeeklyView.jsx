@@ -622,9 +622,9 @@ export default function WeeklyView({
                           return (
                             <div
                               key={habit.id}
-                              className={`habit-chip ${done ? 'habit-chip--done' : ''}`}
+                              className={`habit-chip habit-chip--agenda ${done ? 'habit-chip--done' : ''}`}
                               style={done
-                                ? { background: habit.color, borderColor: habit.color, color: '#fff' }
+                                ? { borderColor: habit.color, color: habit.color, background: habit.color + '14', opacity: 0.6 }
                                 : { borderColor: habit.color, color: habit.color, background: habit.color + '14' }
                               }
                               onClick={(e) => { e.stopPropagation(); onToggleHabit?.(habit.id, ds); }}

@@ -1394,6 +1394,7 @@ input, textarea, select { font-family: inherit; }
   margin: 1px 0;
 }
 .habit-chip:hover { opacity: 0.82; }
+.habit-chip--agenda.habit-chip--done { text-decoration: line-through; }
 
 /* ===================== Habit Tracker View ===================== */
 .habit-view {
