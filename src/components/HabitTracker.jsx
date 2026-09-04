@@ -252,41 +252,48 @@ export default function HabitTracker({ habits, archivedHabits = [], onAdd, onUpd
       )}
 
       {habits.length > 0 && (
-        <div className="habit-table--mobile">
-          {days.map((day, i) => {
-            const ds = toDateString(day);
-            const today = isToday(day);
-            const dayHabits = habits.filter(h => habitAppliesToDate(h, ds));
-            return (
-              <div key={ds} className={`habit-day-block ${today ? 'habit-day-block--today' : ''}`}>
-                <div className="habit-day-block-head">
-                  <span className={`agenda-dow ${i === 5 ? 'sat' : ''} ${i === 6 ? 'sun' : ''}`}>{DAY_NAMES_WEEK[i]}</span>
-                  <span className={`agenda-dnum ${today ? 'today-num' : ''}`}>{day.getDate()}</span>
+        <div className="habit-table-mobile-wrap">
+          <div className="habit-table habit-table--mobile">
+            {/* Header: habit columns */}
+            <div className="habit-row habit-row--header">
+              <div className="habit-name-col habit-name-col--day" />
+              {habits.map(habit => (
+                <div key={habit.id} className="habit-day-col habit-day-col--header">
+                  <span className="habit-dot" style={{ background: habit.color }} />
+                  <span className="habit-col-title">{habit.title}</span>
                 </div>
-                {dayHabits.length === 0 ? (
-                  <div className="agenda-empty">습관 없음</div>
-                ) : (
-                  <div className="habit-day-block-list">
-                    {dayHabits.map(habit => {
-                      const done = habit.completedDates.includes(ds);
-                      return (
-                        <button key={habit.id} type="button"
-                          className={`habit-day-item ${done ? 'habit-day-item--done' : ''}`}
-                          style={done
-                            ? { borderColor: '#E0E0E0', color: '#9CA3AF', background: '#F0F0F0' }
-                            : { borderColor: habit.color, color: habit.color, background: habit.color + '14' }
-                          }
-                          onClick={() => onToggle(habit.id, ds)}>
-                          <span className="habit-day-item-check">{done ? '✓' : '○'}</span>
-                          <span className="habit-day-item-title">{habit.title}</span>
-                        </button>
-                      );
-                    })}
+              ))}
+            </div>
+
+            {/* Day rows */}
+            {days.map((day, i) => {
+              const ds = toDateString(day);
+              const today = isToday(day);
+              return (
+                <div key={ds} className="habit-row">
+                  <div className="habit-name-col habit-name-col--day">
+                    <span className="habit-day-name">{DAY_NAMES_WEEK[i]}</span>
+                    <span className={`habit-day-num ${today ? 'today-num' : ''}`}>{day.getDate()}</span>
                   </div>
-                )}
-              </div>
-            );
-          })}
+                  {habits.map(habit => {
+                    const applies = habitAppliesToDate(habit, ds);
+                    const done = habit.completedDates.includes(ds);
+                    return (
+                      <div key={habit.id} className="habit-day-col">
+                        <button
+                          className={`habit-check-btn ${done ? 'habit-check-btn--done' : ''} ${!applies ? 'habit-check-btn--na' : ''}`}
+                          style={applies ? { '--habit-color': habit.color } : {}}
+                          onClick={() => applies && onToggle(habit.id, ds)}
+                        >
+                          {!applies ? '—' : done ? '✓' : ''}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
 
