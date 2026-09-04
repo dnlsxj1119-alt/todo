@@ -624,7 +624,7 @@ export default function WeeklyView({
                               key={habit.id}
                               className={`habit-chip habit-chip--agenda ${done ? 'habit-chip--done' : ''}`}
                               style={done
-                                ? { borderColor: habit.color, color: habit.color, background: habit.color + '14', opacity: 0.6 }
+                                ? { borderColor: '#E0E0E0', color: '#9CA3AF', background: '#F0F0F0' }
                                 : { borderColor: habit.color, color: habit.color, background: habit.color + '14' }
                               }
                               onClick={(e) => { e.stopPropagation(); onToggleHabit?.(habit.id, ds); }}
