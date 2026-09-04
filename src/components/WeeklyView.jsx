@@ -84,6 +84,60 @@ function GoogleAllDayChip({ event, onToggle }) {
   );
 }
 
+// 좁은 화면(모바일) 아젠다 뷰에서 쓰는 콤팩트 칩
+const CHIP_COLOR = {
+  todo:      'chip--purple',
+  education: 'chip--red',
+  schedule:  'chip--green',
+};
+
+function AgendaItemChip({ item, dateStr, onItemClick, onToggle }) {
+  const isCont = item.date !== dateStr;
+  return (
+    <div
+      className={`chip ${CHIP_COLOR[item.type] || ''} ${item.completed ? 'chip--done' : ''}`}
+      onClick={(e) => { e.stopPropagation(); onItemClick(item); }}
+    >
+      <span
+        className="chip-check"
+        role="checkbox"
+        aria-checked={item.completed}
+        tabIndex={0}
+        onClick={(e) => { e.stopPropagation(); onToggle(item.id); }}
+        onKeyDown={(e) => e.key === ' ' && (e.preventDefault(), onToggle(item.id))}
+      >
+        {item.completed ? '✓' : '○'}
+      </span>
+      {!isCont && item.time && <span className="chip-time">{item.time}</span>}
+      <span className="chip-title">{isCont ? `↩ ${item.title}` : item.title}</span>
+    </div>
+  );
+}
+
+function AgendaGoogleChip({ event, onToggle }) {
+  return (
+    <div
+      className={`chip chip--google ${event.completed ? 'chip--done' : ''}`}
+      onClick={(e) => { e.stopPropagation(); if (event.htmlLink) window.open(event.htmlLink, '_blank', 'noopener'); }}
+      title={`${event.calendarSummary ?? 'Google 캘린더'}: ${event.title}`}
+    >
+      <span
+        className="chip-check"
+        style={{ opacity: 1 }}
+        role="checkbox"
+        aria-checked={event.completed}
+        tabIndex={0}
+        onClick={(e) => { e.stopPropagation(); onToggle?.(event.id); }}
+        onKeyDown={(e) => e.key === ' ' && (e.preventDefault(), onToggle?.(event.id))}
+      >
+        {event.completed ? '✓' : '📆'}
+      </span>
+      {event.time && <span className="chip-time">{event.time}</span>}
+      <span className="chip-title">{event.title}</span>
+    </div>
+  );
+}
+
 function WeekCard({ item, onItemClick, onToggle, onDragStart, cardStyle, isContinuation }) {
   return (
     <div
@@ -480,6 +534,113 @@ export default function WeeklyView({
           </div>
           {days.map((day, i) => renderHabitCell(toDateString(day), i + 2))}
         </div>
+      </div>
+
+      {/* 모바일 전용: 요일별 아젠다 (그리드는 CSS로 숨김) */}
+      <div className="week-agenda">
+        {days.map((day, i) => {
+          const ds = toDateString(day);
+          const today = isToday(day);
+          const dayDeadlines = deadlineMap[ds] ?? [];
+          const googleEvents = getGoogleEventsForDate?.(ds) ?? [];
+          const googleAllDay = googleEvents.filter(e => e.allDay);
+          const allRow = getItemsForCell(ds, 'all').filter(it => !filterType || it.type === filterType);
+          const slotRows = TIME_SLOTS.map(slot => ({
+            slot,
+            slotItems: getItemsForCell(ds, slot.key).filter(it => !filterType || it.type === filterType),
+            slotGoogle: googleEvents.filter(e => !e.allDay && getTimeSlotFromTime(e.time) === slot.key),
+          }));
+          const dayHabits = habits?.filter(h => habitAppliesToDate(h, ds)) ?? [];
+          const hasAll = dayDeadlines.length > 0 || allRow.length > 0 || googleAllDay.length > 0;
+          const isEmpty = !hasAll && !dayHabits.length
+            && slotRows.every(r => !r.slotItems.length && !r.slotGoogle.length);
+
+          return (
+            <section key={ds} className={`agenda-day ${today ? 'agenda-day--today' : ''}`}>
+              <header className="agenda-day-head" onClick={() => onDayClick(ds)}>
+                <span className={`agenda-dow ${i === 5 ? 'sat' : i === 6 ? 'sun' : ''}`}>{DAY_NAMES_WEEK[i]}</span>
+                <span className={`agenda-dnum ${today ? 'today-num' : ''}`}>{day.getDate()}</span>
+                {today && <span className="agenda-today-pill">오늘</span>}
+                <button
+                  className="agenda-add-btn"
+                  onClick={(e) => { e.stopPropagation(); onDayClick(ds); }}
+                  aria-label="이 날에 추가"
+                >＋</button>
+              </header>
+
+              {isEmpty ? (
+                <p className="agenda-empty">일정 없음</p>
+              ) : (
+                <div className="agenda-rows">
+                  {hasAll && (
+                    <div className="agenda-row">
+                      <span className="agenda-slot">전체</span>
+                      <div className="agenda-chips">
+                        {dayDeadlines.map(entry => (
+                          <div
+                            key={entry.key}
+                            className={`chip chip--deadline${entry.done ? ' chip--done' : ''}`}
+                            onClick={(e) => { e.stopPropagation(); onProjectClick?.(entry.project); }}
+                            title={`마감: ${entry.title}`}
+                          >
+                            <span className="chip-check" style={{ opacity: 1 }}>{entry.type === 'task' ? '📌' : '🏁'}</span>
+                            <span className="chip-title">{entry.title}</span>
+                          </div>
+                        ))}
+                        {googleAllDay.map(event => (
+                          <AgendaGoogleChip key={event.id} event={event} onToggle={onToggleGoogleEvent} />
+                        ))}
+                        {allRow.map(item => (
+                          <AgendaItemChip key={item.id} item={item} dateStr={ds} onItemClick={onItemClick} onToggle={onToggle} />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {slotRows.map(({ slot, slotItems, slotGoogle }) => (
+                    (slotItems.length > 0 || slotGoogle.length > 0) && (
+                      <div key={slot.key} className="agenda-row">
+                        <span className="agenda-slot">{slot.label}</span>
+                        <div className="agenda-chips">
+                          {slotGoogle.map(event => (
+                            <AgendaGoogleChip key={event.id} event={event} onToggle={onToggleGoogleEvent} />
+                          ))}
+                          {slotItems.map(item => (
+                            <AgendaItemChip key={`${item.id}-${slot.key}`} item={item} dateStr={ds} onItemClick={onItemClick} onToggle={onToggle} />
+                          ))}
+                        </div>
+                      </div>
+                    )
+                  ))}
+
+                  {dayHabits.length > 0 && (
+                    <div className="agenda-row">
+                      <span className="agenda-slot">습관</span>
+                      <div className="agenda-chips agenda-chips--habit">
+                        {dayHabits.map(habit => {
+                          const done = habit.completedDates.includes(ds);
+                          return (
+                            <div
+                              key={habit.id}
+                              className={`habit-chip ${done ? 'habit-chip--done' : ''}`}
+                              style={done
+                                ? { background: habit.color, borderColor: habit.color, color: '#fff' }
+                                : { borderColor: habit.color, color: habit.color, background: habit.color + '14' }
+                              }
+                              onClick={(e) => { e.stopPropagation(); onToggleHabit?.(habit.id, ds); }}
+                            >
+                              {done ? '✓' : '○'} {habit.title}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </section>
+          );
+        })}
       </div>
       </div>
     </div>

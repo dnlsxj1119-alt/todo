@@ -477,6 +477,9 @@ input, textarea, select { font-family: inherit; }
   overflow: hidden;
 }
 
+/* 모바일 전용 아젠다 뷰 (기본은 숨김, max-width:600px에서 표시) */
+.week-agenda { display: none; }
+
 .week-body {
   flex: 1;
   display: flex;
@@ -1227,7 +1230,7 @@ input, textarea, select { font-family: inherit; }
   .user-info { display: none; }
   .sidebar .user-avatar { width: 26px; height: 26px; }
   .main-content { overflow-y: auto; }
-  .weekly-view { height: auto; }
+  .weekly-view { height: auto; overflow: visible; }
   .week-body { flex-direction: column; overflow: visible; }
   .week-backlog-pane { width: 100% !important; max-height: 220px; border-right: none; border-bottom: 1px solid var(--border); }
   .week-backlog-resizer { display: none; }
@@ -1272,24 +1275,93 @@ input, textarea, select { font-family: inherit; }
   .chip--done .chip-time { display: none; }
   .show-more-btn { font-size: 8px; padding: 0 3px; }
 
-  /* Weekly view: shrink columns so all 7 days fit without horizontal overflow */
-  .week-grid {
-    grid-template-columns: 38px repeat(7, 1fr);
-    min-width: 0;
+  /* Weekly view: 좁은 화면에서는 시간대 그리드 대신 요일별 아젠다로 전환 */
+  .week-grid-wrapper { display: none; }
+  .cal-nav { position: sticky; top: 0; z-index: 10; }
+  .week-agenda {
+    display: block;
+    background: var(--surface);
   }
-  .wg-day-header { padding: 6px 2px; }
-  .wg-day-name { font-size: 9px; }
-  .wg-day-num { width: 22px; height: 22px; line-height: 22px; font-size: 12px; margin-top: 2px; }
-  .wg-slot-label { padding: 4px 2px; gap: 1px; }
-  .slot-emoji { font-size: 12px; }
-  .slot-name { font-size: 8px; }
-  .wg-cell { padding: 2px; }
-  .wg-cell--all { padding: 4px 2px; gap: 2px; }
-  .wg-cell--habit { padding: 3px; }
-  .week-card { padding: 4px 5px; font-size: 10px; }
-  .card-time { font-size: 8px; }
-  .card-desc { font-size: 8px; }
-  .card-priority { font-size: 8px; }
+  .agenda-day {
+    padding: 10px 14px 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .agenda-day--today { background: #F5F3FF; }
+  .agenda-day-head {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    margin-bottom: 7px;
+    cursor: pointer;
+  }
+  .agenda-dow { font-size: 13px; font-weight: 700; color: var(--text-secondary); }
+  .agenda-dow.sun { color: #E5534B; }
+  .agenda-dow.sat { color: var(--blue-mid); }
+  .agenda-dnum {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-primary);
+    min-width: 20px;
+    height: 20px;
+    line-height: 20px;
+    text-align: center;
+    border-radius: 50%;
+  }
+  .agenda-dnum.today-num { background: var(--purple-mid); color: #fff; }
+  .agenda-today-pill {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 1px 7px;
+    border-radius: 99px;
+    background: var(--purple-light);
+    color: var(--purple-dark);
+  }
+  .agenda-add-btn {
+    margin-left: auto;
+    font-size: 17px;
+    line-height: 1;
+    color: var(--text-muted);
+    padding: 2px 10px;
+    border-radius: var(--radius-sm);
+  }
+  .agenda-add-btn:active { background: var(--bg); color: var(--purple-mid); }
+  .agenda-empty { font-size: 12px; color: var(--text-muted); padding-left: 2px; }
+  .agenda-rows { display: flex; flex-direction: column; gap: 5px; }
+  .agenda-row { display: flex; gap: 9px; }
+  .agenda-slot {
+    flex: 0 0 32px;
+    text-align: right;
+    font-size: 11px;
+    color: var(--text-muted);
+    padding-top: 4px;
+    line-height: 1.35;
+  }
+  .agenda-chips {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    align-items: flex-start;
+  }
+  .agenda-chips--habit { flex-direction: row; flex-wrap: wrap; gap: 4px; }
+  .agenda-chips .chip {
+    max-width: 100%;
+    font-size: 12px;
+    padding: 3px 8px;
+    gap: 5px;
+    align-items: flex-start;
+    white-space: normal;
+  }
+  .agenda-chips .chip-check {
+    width: 15px;
+    font-size: 12px;
+    opacity: 1;
+    line-height: 1.35;
+  }
+  .agenda-chips .chip-time { font-size: 11px; padding-top: 1px; }
+  .agenda-chips .chip-title { white-space: normal; overflow: visible; line-height: 1.35; }
+  .agenda-chips .chip--done .chip-time { display: inline; }
 
   /* Habit tracker: shrink name column and check buttons so the whole week fits on screen */
   .habit-view { padding: 12px 10px; }
