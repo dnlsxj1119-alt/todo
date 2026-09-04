@@ -4,7 +4,7 @@ import TimePicker from './TimePicker';
 
 const TYPE_CONFIG = {
   schedule:  { label: '일정',   emoji: '🟢', color: 'green' },
-  education: { label: '교육',   emoji: '🔵', color: 'blue' },
+  education: { label: '매우중요', emoji: '🔴', color: 'red' },
   todo:      { label: '할일',   emoji: '🟣', color: 'purple' },
 };
 

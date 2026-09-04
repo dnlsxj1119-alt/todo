@@ -9,7 +9,7 @@ import { buildDeadlineMap } from '../utils/deadlines';
 
 const TYPE_COLOR = {
   todo:      'week-card--purple',
-  education: 'week-card--blue',
+  education: 'week-card--red',
   schedule:  'week-card--green',
 };
 

@@ -4,7 +4,7 @@ import { buildDeadlineMap } from '../utils/deadlines';
 
 const TYPE_COLOR = {
   todo:      'chip--purple',
-  education: 'chip--blue',
+  education: 'chip--red',
   schedule:  'chip--green',
 };
 
