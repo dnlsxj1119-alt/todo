@@ -179,7 +179,7 @@ export default function HabitTracker({ habits, archivedHabits = [], onAdd, onUpd
           <button className="btn btn--primary" onClick={() => { setEditHabit(null); setShowModal(true); }}>첫 습관 만들기</button>
         </div>
       ) : (
-        <div className="habit-table">
+        <div className="habit-table habit-table--desktop">
           {/* Header */}
           <div className="habit-row habit-row--header">
             <div className="habit-name-col" />
@@ -245,6 +245,45 @@ export default function HabitTracker({ habits, archivedHabits = [], onAdd, onUpd
                     </div>
                   );
                 })}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {habits.length > 0 && (
+        <div className="habit-table--mobile">
+          {days.map((day, i) => {
+            const ds = toDateString(day);
+            const today = isToday(day);
+            const dayHabits = habits.filter(h => habitAppliesToDate(h, ds));
+            return (
+              <div key={ds} className={`habit-day-block ${today ? 'habit-day-block--today' : ''}`}>
+                <div className="habit-day-block-head">
+                  <span className={`agenda-dow ${i === 5 ? 'sat' : ''} ${i === 6 ? 'sun' : ''}`}>{DAY_NAMES_WEEK[i]}</span>
+                  <span className={`agenda-dnum ${today ? 'today-num' : ''}`}>{day.getDate()}</span>
+                </div>
+                {dayHabits.length === 0 ? (
+                  <div className="agenda-empty">습관 없음</div>
+                ) : (
+                  <div className="habit-day-block-list">
+                    {dayHabits.map(habit => {
+                      const done = habit.completedDates.includes(ds);
+                      return (
+                        <button key={habit.id} type="button"
+                          className={`habit-day-item ${done ? 'habit-day-item--done' : ''}`}
+                          style={done
+                            ? { borderColor: '#E0E0E0', color: '#9CA3AF', background: '#F0F0F0' }
+                            : { borderColor: habit.color, color: habit.color, background: habit.color + '14' }
+                          }
+                          onClick={() => onToggle(habit.id, ds)}>
+                          <span className="habit-day-item-check">{done ? '✓' : '○'}</span>
+                          <span className="habit-day-item-title">{habit.title}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             );
           })}
