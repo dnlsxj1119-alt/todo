@@ -374,17 +374,20 @@ export default function ListView({
 
   const rows = useMemo(() => buildRows(items, projects), [items, projects]);
 
-  const doneCount = rows.filter(r => r.status === 'done').length;
-  const catCounts = {};
-  rows.forEach(r => { if (r.cat && r.status !== 'done') catCounts[r.cat.id] = (catCounts[r.cat.id] ?? 0) + 1; });
-
   const activeCats = projects.filter(p => !catDone(p));
   const doneCats = projects.filter(catDone);
+  const doneCatIds = new Set(doneCats.map(p => p.id));
+  // 완료된 카테고리에 속한 항목은 '완료' 탭에서 제외 (카테고리와 함께 아카이브됨)
+  const inDoneCat = r => r.cat && doneCatIds.has(r.cat.id);
+
+  const doneCount = rows.filter(r => r.status === 'done' && !inDoneCat(r)).length;
+  const catCounts = {};
+  rows.forEach(r => { if (r.cat && r.status !== 'done') catCounts[r.cat.id] = (catCounts[r.cat.id] ?? 0) + 1; });
 
   const viewingDone = filter === 'done';
 
   const doneRows = rows
-    .filter(r => r.status === 'done')
+    .filter(r => r.status === 'done' && !inDoneCat(r))
     .sort((a, b) => {
       const da = a.expected || a.due || '0000';
       const db = b.expected || b.due || '0000';
@@ -405,7 +408,22 @@ export default function ListView({
     g.rows.push(r);
   });
 
+  const filteredCat = filter ? projects.find(p => p.id === filter) : null;
+  const filteredCatIsDone = !!(filteredCat && catDone(filteredCat));
+  // 완료된 카테고리를 보고 있으면 그 카테고리의 완료 항목도 아래에 같이 보여줌
+  const catDoneRows = filteredCatIsDone
+    ? rows
+        .filter(r => r.status === 'done' && r.cat && r.cat.id === filter)
+        .sort((a, b) => {
+          const da = a.expected || a.due || '0';
+          const db = b.expected || b.due || '0';
+          return da < db ? 1 : da > db ? -1 : 0;
+        })
+    : [];
+
   const passFilter = r => {
+    // 완료된 카테고리 항목은 그 카테고리를 직접 선택했을 때만 보임
+    if (inDoneCat(r) && filter !== r.cat.id) return false;
     if (r.status === 'done' && !justDone.has(r.key)) return false;
     if (filter === null) return true;
     return r.cat && r.cat.id === filter;
@@ -757,6 +775,13 @@ export default function ListView({
               </div>
             );
           })}
+
+          {filteredCatIsDone && catDoneRows.length > 0 && (
+            <div className="lv-group">
+              <div className="lv-group-h"><b>완료</b><span className="lv-group-ct">{catDoneRows.length}</span></div>
+              {catDoneRows.map(renderRow)}
+            </div>
+          )}
         </>
       )}
     </div>
