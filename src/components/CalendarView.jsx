@@ -63,15 +63,16 @@ function timeMinutes(time) {
   return h * 60 + m;
 }
 
-// 앱 항목과 구글 이벤트를 시간순으로 한 줄에 섞어서 정렬 (시간 없는 항목은 뒤로)
+// 앱 항목과 구글 이벤트를 한 줄에 섞어서 정렬
+// 완료한 항목은 뒤로, 그 안에서 시간순 (시간 없는 항목은 뒤로)
 function mergeByTime(items, googleEvents) {
   const tagged = [
-    ...items.map(item => ({ kind: 'item', time: timeMinutes(item.time), data: item })),
-    ...googleEvents.map(event => ({ kind: 'google', time: timeMinutes(event.time), data: event })),
+    ...items.map(item => ({ kind: 'item', time: timeMinutes(item.time), done: !!item.completed, data: item })),
+    ...googleEvents.map(event => ({ kind: 'google', time: timeMinutes(event.time), done: !!event.completed, data: event })),
   ];
   return tagged
     .map((entry, index) => ({ ...entry, index }))
-    .sort((a, b) => a.time - b.time || a.index - b.index);
+    .sort((a, b) => (a.done - b.done) || (a.time - b.time) || (a.index - b.index));
 }
 
 function DeadlineChip({ entry, onClick }) {
@@ -133,7 +134,9 @@ export default function CalendarView({ currentMonth, setCurrentMonth, getItemsFo
           const allItems = getItemsForDate(ds)
             .filter(item => !filterType || item.type === filterType)
             .map(item => ({ ...item, _isCont: item.date !== ds }));
-          const deadlines = filterType ? [] : (deadlineMap[ds] ?? []);
+          const deadlines = filterType
+            ? []
+            : [...(deadlineMap[ds] ?? [])].sort((a, b) => (!!a.done - !!b.done));
           const googleEvents = filterType ? [] : (getGoogleEventsForDate?.(ds) ?? []);
           const combined = mergeByTime(allItems, googleEvents);
           const today = isToday(date);
