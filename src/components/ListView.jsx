@@ -141,6 +141,25 @@ function usePopClose(ref, onClose) {
   }, [ref, onClose]);
 }
 
+function StatusMenu({ value, onPick, onClose }) {
+  const ref = useRef(null);
+  usePopClose(ref, onClose);
+  return (
+    <div className="lv-menu lv-menu--left" ref={ref} onClick={e => e.stopPropagation()}>
+      {STATUS_OPTS.map(o => (
+        <button
+          key={o.key}
+          className={`lv-menu-opt ${value === o.key ? 'lv-menu-opt--on' : ''}`}
+          onClick={() => { onPick(o.key); onClose(); }}
+        >
+          <span className="lv-menu-dot" style={{ background: o.dot }} />
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function PrioMenu({ value, onPick, onClose }) {
   const ref = useRef(null);
   usePopClose(ref, onClose);
@@ -259,6 +278,7 @@ export default function ListView({
 }) {
   const [filter, setFilterRaw] = useState(null); // null(전체) | 'done' | projectId
   const [datePop, setDatePop] = useState(null); // `${rowKey}:${field}`
+  const [statusPop, setStatusPop] = useState(null); // rowKey
   const [prioPop, setPrioPop] = useState(null); // rowKey
   const [rowMenu, setRowMenu] = useState(null); // rowKey
   // 방금 완료한 항목은 잠깐 그 자리에 남겨둠 (실수 취소용). 탭을 바꾸면 정리됨.
@@ -315,7 +335,6 @@ export default function ListView({
       return n;
     });
   };
-  const toggleDone = r => changeStatus(r, r.status === 'done' ? 'todo' : 'done');
   const openRow = r => {
     if (r.kind === 'item') onItemClick(r.raw);
     else onEditProject(r.raw.project);
@@ -418,11 +437,15 @@ export default function ListView({
         <span className="lv-ck-wrap">
           <button
             className="lv-ck-btn"
-            onClick={e => { e.stopPropagation(); toggleDone(r); }}
-            aria-label={r.status === 'done' ? '완료 취소' : '완료로 표시'}
+            onClick={e => { e.stopPropagation(); setStatusPop(statusPop === r.key ? null : r.key); }}
+            aria-label="상태 변경"
+            aria-haspopup="true"
           >
             <span className={`lv-ck ${STATUS_CLASS[r.status]}`} />
           </button>
+          {statusPop === r.key && (
+            <StatusMenu value={r.status} onPick={s => changeStatus(r, s)} onClose={() => setStatusPop(null)} />
+          )}
         </span>
         <InlineTitle value={r.title} onSave={t => setRowTitle(r, t)} />
         <span className="lv-meta">
