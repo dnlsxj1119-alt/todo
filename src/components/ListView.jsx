@@ -367,6 +367,9 @@ export default function ListView({
   const [addingCat, setAddingCat] = useState(false);
   const [newCatName, setNewCatName] = useState('');
   const [showDoneCats, setShowDoneCats] = useState(false);
+  const [pendingDel, setPendingDel] = useState({}); // rowKey -> row (되돌리기 대기)
+  const delTimers = useRef({});
+  useEffect(() => () => { Object.values(delTimers.current).forEach(clearTimeout); }, []);
   // 방금 완료한 항목은 잠깐 그 자리에 남겨둠 (실수 취소용). 탭을 바꾸면 정리됨.
   const [justDone, setJustDone] = useState(() => new Set());
 
@@ -507,6 +510,20 @@ export default function ListView({
       onSaveProject(p.id, { ...p, tasks: (p.tasks ?? []).filter(t => t.id !== r.raw.task.id) });
     }
   };
+  // X 클릭 = 바로 삭제하되 4.5초간 '되돌리기' 가능
+  const softDelete = r => {
+    setPendingDel(p => ({ ...p, [r.key]: r }));
+    delTimers.current[r.key] = setTimeout(() => {
+      deleteRow(r);
+      delete delTimers.current[r.key];
+      setPendingDel(p => { const n = { ...p }; delete n[r.key]; return n; });
+    }, 4500);
+  };
+  const undoDelete = key => {
+    clearTimeout(delTimers.current[key]);
+    delete delTimers.current[key];
+    setPendingDel(p => { const n = { ...p }; delete n[key]; return n; });
+  };
 
   const quickAdd = (groupKey, title) => {
     const projectId = filter && projects.some(p => p.id === filter) ? filter : null;
@@ -546,6 +563,14 @@ export default function ListView({
   };
 
   const renderRow = r => {
+    if (pendingDel[r.key]) {
+      return (
+        <div className="lv-row lv-row--deleting" key={r.key}>
+          <span className="lv-del-msg">🗑 삭제됨 — <b>{r.title}</b></span>
+          <button className="lv-del-undo" onClick={() => undoDelete(r.key)}>되돌리기</button>
+        </div>
+      );
+    }
     const prio = PRIO[r.priority];
     return (
       <div className={`lv-row ${r.status === 'done' ? 'lv-row--done' : ''}`} key={r.key}>
@@ -614,11 +639,16 @@ export default function ListView({
                 status={r.status}
                 onStatus={s => changeStatus(r, s)}
                 onDetail={() => openRow(r)}
-                onDelete={() => deleteRow(r)}
+                onDelete={() => softDelete(r)}
                 onClose={() => setRowMenu(null)}
               />
             )}
           </span>
+          <button
+            className="lv-row-x"
+            onClick={e => { e.stopPropagation(); softDelete(r); }}
+            aria-label="삭제"
+          >✕</button>
         </span>
       </div>
     );

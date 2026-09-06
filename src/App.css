@@ -2290,6 +2290,20 @@ input, textarea, select { font-family: inherit; }
 .lv-row-more:focus-visible { opacity: 1; }
 .lv-row-more:hover { background: var(--bg); color: var(--text-primary); }
 
+.lv-row-x { font-size: 12px; line-height: 1; color: var(--text-muted); padding: 5px 6px; border-radius: 6px;
+  opacity: 0; transition: opacity var(--transition); }
+.lv-row:hover .lv-row-x,
+.lv-row-x:focus-visible { opacity: 0.7; }
+.lv-row-x:hover { opacity: 1; background: var(--red-light); color: var(--red-mid); }
+
+.lv-row--deleting { display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 0 14px; background: var(--bg); border-style: dashed; }
+.lv-del-msg { font-size: 12.5px; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lv-del-msg b { color: var(--text-secondary); font-weight: 600; }
+.lv-del-undo { flex-shrink: 0; font-size: 12px; font-weight: 700; color: var(--accent); padding: 5px 10px;
+  border: 1px solid var(--border); border-radius: 6px; background: var(--surface); }
+.lv-del-undo:hover { border-color: var(--accent); }
+
 .lv-ck-wrap { position: relative; display: flex; align-items: center; justify-content: center; }
 .lv-ck { width: 17px; height: 17px; border-radius: 50%; border: 1.7px solid var(--text-muted);
   position: relative; transition: all var(--transition); flex-shrink: 0; pointer-events: none; }
