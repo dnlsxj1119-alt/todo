@@ -101,8 +101,8 @@ function bucketOf(r) {
 const GROUPS = [
   { key: 'overdue', label: '지난 마감', warn: true, add: false },
   { key: 'today', label: '오늘', add: true },
-  { key: 'week', label: '이번 주', add: true },
-  { key: 'later', label: '나중에', add: true },
+  { key: 'week', label: '이번 주', add: false },
+  { key: 'later', label: '나중에', add: false },
   { key: 'unplanned', label: '미정', add: true },
 ];
 
@@ -147,18 +147,88 @@ function StatusMenu({ value, onPick, onClose }) {
   const ref = useRef(null);
   usePopClose(ref, onClose);
   return (
-    <div className="lv-status-menu" ref={ref} onClick={e => e.stopPropagation()}>
+    <div className="lv-menu lv-menu--left" ref={ref} onClick={e => e.stopPropagation()}>
       {STATUS_OPTS.map(o => (
         <button
           key={o.key}
-          className={`lv-status-opt ${value === o.key ? 'lv-status-opt--on' : ''}`}
+          className={`lv-menu-opt ${value === o.key ? 'lv-menu-opt--on' : ''}`}
           onClick={() => { onPick(o.key); onClose(); }}
         >
-          <span className="lv-status-dot" style={{ background: o.dot }} />
+          <span className="lv-menu-dot" style={{ background: o.dot }} />
           {o.label}
         </button>
       ))}
     </div>
+  );
+}
+
+function PrioMenu({ value, onPick, onClose }) {
+  const ref = useRef(null);
+  usePopClose(ref, onClose);
+  return (
+    <div className="lv-menu lv-menu--left" ref={ref} onClick={e => e.stopPropagation()}>
+      {[0, 1, 2, 3].map(v => (
+        <button
+          key={v}
+          className={`lv-menu-opt ${value === v ? 'lv-menu-opt--on' : ''}`}
+          onClick={() => { onPick(v); onClose(); }}
+        >
+          <span className="lv-menu-dot" style={{ background: PRIO[v] ? PRIO[v].color : 'var(--border)' }} />
+          {v === 0 ? '없음' : PRIO[v].label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function RowMenu({ kind, onDetail, onDelete, onClose }) {
+  const ref = useRef(null);
+  usePopClose(ref, onClose);
+  return (
+    <div className="lv-menu lv-menu--right" ref={ref} onClick={e => e.stopPropagation()}>
+      <button className="lv-menu-opt" onClick={() => { onDetail(); onClose(); }}>
+        {kind === 'item' ? '자세히 편집' : '프로젝트 열기'}
+      </button>
+      <button className="lv-menu-opt lv-menu-opt--danger" onClick={() => { onDelete(); onClose(); }}>삭제</button>
+    </div>
+  );
+}
+
+function InlineTitle({ value, onSave }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value);
+  const composing = useRef(false);
+  useEffect(() => { if (!editing) setDraft(value); }, [value, editing]);
+
+  const commit = () => {
+    setEditing(false);
+    const t = draft.trim();
+    if (t && t !== value) onSave(t);
+    else setDraft(value);
+  };
+
+  if (editing) {
+    return (
+      <input
+        className="lv-name-input"
+        value={draft}
+        autoFocus
+        onChange={e => setDraft(e.target.value)}
+        onClick={e => e.stopPropagation()}
+        onCompositionStart={() => { composing.current = true; }}
+        onCompositionEnd={() => { composing.current = false; }}
+        onKeyDown={e => {
+          if (e.key === 'Escape') { setDraft(value); setEditing(false); }
+          else if (e.key === 'Enter' && !composing.current && !e.nativeEvent.isComposing) { e.preventDefault(); commit(); }
+        }}
+        onBlur={commit}
+      />
+    );
+  }
+  return (
+    <span className="lv-name" onClick={e => { e.stopPropagation(); setEditing(true); }} title="클릭해서 제목 수정">
+      {value}
+    </span>
   );
 }
 
@@ -186,12 +256,14 @@ function DatePop({ value, label, onChange, onClose }) {
 export default function ListView({
   items, projects,
   onItemClick, onSetItemStatus, onSetItemPriority,
-  onAddItem, onUpdateItem,
+  onAddItem, onUpdateItem, onDeleteItem,
   onEditProject, onSaveProject,
 }) {
   const [filter, setFilter] = useState(null); // null(전체) | 'done' | projectId
   const [datePop, setDatePop] = useState(null); // `${rowKey}:${field}`
   const [statusPop, setStatusPop] = useState(null); // rowKey
+  const [prioPop, setPrioPop] = useState(null); // rowKey
+  const [rowMenu, setRowMenu] = useState(null); // rowKey
 
   const rows = useMemo(() => buildRows(items, projects), [items, projects]);
 
@@ -252,10 +324,20 @@ export default function ListView({
     }
   };
 
-  const bumpPriority = r => {
-    const next = (r.priority + 1) % 4;
-    if (r.kind === 'item') onSetItemPriority(r.raw.id, next);
-    else patchTask(r, { priority: next });
+  const setRowPriority = (r, v) => {
+    if (r.kind === 'item') onSetItemPriority(r.raw.id, v);
+    else patchTask(r, { priority: v });
+  };
+  const setRowTitle = (r, title) => {
+    if (r.kind === 'item') onUpdateItem(r.raw.id, { title });
+    else patchTask(r, { label: title });
+  };
+  const deleteRow = r => {
+    if (r.kind === 'item') onDeleteItem(r.raw.id);
+    else {
+      const p = r.raw.project;
+      onSaveProject(p.id, { ...p, tasks: (p.tasks ?? []).filter(t => t.id !== r.raw.task.id) });
+    }
   };
 
   const quickAdd = (groupKey, title) => {
@@ -309,17 +391,19 @@ export default function ListView({
   const renderRow = r => {
     const prio = PRIO[r.priority];
     return (
-      <div
-        className={`lv-row ${r.status === 'done' ? 'lv-row--done' : ''}`}
-        key={r.key}
-        onClick={() => openRow(r)}
-      >
-        <span
-          className="lv-prio"
-          style={{ background: prio ? prio.color : 'transparent' }}
-          onClick={e => { e.stopPropagation(); bumpPriority(r); }}
-          title={prio ? `중요도: ${prio.label} (클릭해서 변경)` : '중요도 설정'}
-        />
+      <div className={`lv-row ${r.status === 'done' ? 'lv-row--done' : ''}`} key={r.key}>
+        <span className="lv-prio-wrap">
+          <button
+            className="lv-prio"
+            style={{ borderLeftColor: prio ? prio.color : 'transparent' }}
+            onClick={e => { e.stopPropagation(); setPrioPop(prioPop === r.key ? null : r.key); }}
+            title={prio ? `중요도: ${prio.label}` : '중요도 설정'}
+            aria-haspopup="true"
+          />
+          {prioPop === r.key && (
+            <PrioMenu value={r.priority} onPick={v => setRowPriority(r, v)} onClose={() => setPrioPop(null)} />
+          )}
+        </span>
         <span className="lv-ck-wrap">
           <button
             className={`lv-ck ${STATUS_CLASS[r.status]}`}
@@ -328,14 +412,10 @@ export default function ListView({
             aria-haspopup="true"
           />
           {statusPop === r.key && (
-            <StatusMenu
-              value={r.status}
-              onPick={s => setRowStatus(r, s)}
-              onClose={() => setStatusPop(null)}
-            />
+            <StatusMenu value={r.status} onPick={s => setRowStatus(r, s)} onClose={() => setStatusPop(null)} />
           )}
         </span>
-        <span className="lv-name">{r.title}</span>
+        <InlineTitle value={r.title} onSave={t => setRowTitle(r, t)} />
         <span className="lv-meta">
           {r.cat && (
             <span className="lv-pill" style={{ background: tint(r.cat.color, '22'), color: r.cat.color }}>
@@ -344,6 +424,21 @@ export default function ListView({
           )}
           {r.kind === 'item' && datePill(r, 'expected')}
           {datePill(r, 'due')}
+          <span className="lv-row-menu-wrap">
+            <button
+              className="lv-row-more"
+              onClick={e => { e.stopPropagation(); setRowMenu(rowMenu === r.key ? null : r.key); }}
+              aria-label="더보기"
+            >⋯</button>
+            {rowMenu === r.key && (
+              <RowMenu
+                kind={r.kind}
+                onDetail={() => openRow(r)}
+                onDelete={() => deleteRow(r)}
+                onClose={() => setRowMenu(null)}
+              />
+            )}
+          </span>
         </span>
       </div>
     );

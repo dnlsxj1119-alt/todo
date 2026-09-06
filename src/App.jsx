@@ -351,6 +351,7 @@ export default function App() {
             onSetItemPriority={setPriority}
             onAddItem={addItem}
             onUpdateItem={updateItem}
+            onDeleteItem={deleteItem}
             onEditProject={(p) => setProjectModal({ project: p })}
             onSaveProject={updateProject}
           />
