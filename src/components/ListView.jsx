@@ -75,7 +75,7 @@ function buildRows(items, projects) {
         raw: { project: p, task: t },
         title: t.label,
         cat: { id: p.id, name: p.title, color: pt.border },
-        expected: null,
+        expected: t.planned || null,
         due: t.deadline || null,
         time: null,
         status: t.status === 'done' ? 'done' : t.status === 'in_progress' ? 'doing' : 'todo',
@@ -350,7 +350,7 @@ export default function ListView({
     if (r.kind === 'item') {
       onUpdateItem(r.raw.id, field === 'expected' ? { date: val || '' } : { dueDate: val || '' });
     } else {
-      patchTask(r, { deadline: val || '' });
+      patchTask(r, field === 'expected' ? { planned: val || '' } : { deadline: val || '' });
     }
   };
 
@@ -454,7 +454,7 @@ export default function ListView({
               {r.cat.name}
             </span>
           )}
-          {r.kind === 'item' && datePill(r, 'expected')}
+          {datePill(r, 'expected')}
           {datePill(r, 'due')}
           <span className="lv-row-menu-wrap">
             <button
