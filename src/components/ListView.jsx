@@ -690,10 +690,6 @@ export default function ListView({
 
       <div className="lv-cats">
         <button className={`lv-cat ${filter === null ? 'lv-cat--on' : ''}`} onClick={() => setFilter(null)}>전체</button>
-        <button
-          className={`lv-cat ${viewingDone ? 'lv-cat--on' : ''}`}
-          onClick={() => setFilter(viewingDone ? null : 'done')}
-        >✓ 완료 <span className="lv-cat-ct">{doneCount}</span></button>
         {activeCats.map(p => {
           const cc = catColor(p);
           const on = filter === p.id;
@@ -742,6 +738,11 @@ export default function ListView({
         ) : (
           <button className="lv-cat lv-cat--add" onClick={() => setAddingCat(true)}>+ 카테고리</button>
         )}
+
+        <button
+          className={`lv-cat lv-cat--muted ${viewingDone ? 'lv-cat--on' : ''}`}
+          onClick={() => setFilter(viewingDone ? null : 'done')}
+        >✓ 완료 <span className="lv-cat-ct">{doneCount}</span></button>
 
         {doneCats.length > 0 && (
           <button className="lv-cat lv-cat--muted" onClick={() => setShowDoneCats(v => !v)}>
