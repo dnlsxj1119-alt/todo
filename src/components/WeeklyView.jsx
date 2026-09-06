@@ -2,7 +2,8 @@ import { useState, useMemo, useRef, Fragment } from 'react';
 import {
   getWeekDays, getWeekStart, toDateString, isToday, formatWeekRange,
   TIME_SLOTS, TIME_SLOT_ORDER, DAY_NAMES_WEEK,
-  getTimeSlotFromTime, getSpanCount, getCardStyle, getEndDayCardStyle,
+  getTimeSlotFromTime, getEndTimeSlot, getSpanCount, getCardStyle, getEndDayCardStyle,
+  SLOT_HEIGHTS, timeToSlotPx,
 } from '../utils/dateUtils';
 import { habitAppliesToDate } from '../hooks/useHabits';
 import { buildDeadlineMap } from '../utils/deadlines';
@@ -180,7 +181,7 @@ function useSpanData(items) {
       // 다일 이벤트: 시작일에서 밤(night)까지 span
       const endSlot = (item.endDate && item.endDate > item.date)
         ? 'night'
-        : item.endTime ? getTimeSlotFromTime(item.endTime) : null;
+        : item.endTime ? getEndTimeSlot(item.endTime) : null;
       if (!endSlot) return;
       const span = getSpanCount(item.timeSlot, endSlot);
       if (span <= 1) return;
@@ -332,12 +333,23 @@ export default function WeeklyView({
 
     // 기본 항목 + 스패닝으로 가려진 슬롯의 항목도 포함
     let allItems = getItemsForCell(ds, slotKey).filter(i => !filterType || i.type === filterType);
+    // 스패닝 셀에 가려진 아래 슬롯의 할일(todo)은 위치 스타일이 없어 셀 상단으로 밀리므로
+    // 슬롯 높이 + 시작 시각만큼 오프셋을 줘서 실제 시간대 위치에 배치한다.
+    const spannedTodoGroups = [];
     if (span > 1) {
       const startIdx = TIME_SLOT_ORDER.indexOf(slotKey);
+      let slotTop = SLOT_HEIGHTS[slotKey] + 1;
       for (let i = 1; i < span; i++) {
         const nextSlot = TIME_SLOT_ORDER[startIdx + i];
-        const extra = getItemsForCell(ds, nextSlot).filter(i => !filterType || i.type === filterType);
-        allItems = [...allItems, ...extra];
+        const extra = getItemsForCell(ds, nextSlot).filter(x => !filterType || x.type === filterType);
+        // 스케줄/교육 항목은 getCardStyle이 시간 기준으로 위치를 잡아준다
+        allItems = [...allItems, ...extra.filter(x => x.type !== 'todo')];
+        const todos = extra.filter(x => x.type === 'todo');
+        if (todos.length) {
+          const minPx = Math.min(...todos.map(t => timeToSlotPx(t.time, nextSlot)));
+          spannedTodoGroups.push({ top: slotTop + minPx, items: todos });
+        }
+        slotTop += SLOT_HEIGHTS[nextSlot] + 1;
       }
     }
 
@@ -382,7 +394,7 @@ export default function WeeklyView({
           />
         ))}
 
-        {allItems.length === 0 && googleAllDay.length === 0 && googleTimed.length === 0
+        {allItems.length === 0 && spannedTodoGroups.length === 0 && googleAllDay.length === 0 && googleTimed.length === 0
           ? <div className="wg-cell-empty" title="더블클릭으로 추가" />
           : allItems.map(item => {
               // 종료일 (item.date < ds, item.endDate === ds)
@@ -408,6 +420,18 @@ export default function WeeklyView({
               );
             })
         }
+
+        {spannedTodoGroups.map((g, gi) => (
+          <div key={`sptodo-${gi}`} className="wg-spanned-todos"
+            style={{ position: 'absolute', top: g.top, left: 4, right: 4 }}>
+            {g.items.map(item => (
+              <WeekCard key={`${item.id}-sptodo`} item={item}
+                onItemClick={onItemClick} onToggle={onToggle}
+                onDragStart={handleDragStart}
+                cardStyle={{}} />
+            ))}
+          </div>
+        ))}
       </div>
     );
   };

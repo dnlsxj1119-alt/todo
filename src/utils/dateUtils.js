@@ -135,7 +135,7 @@ function getMultiDayStartStyle(item) {
 }
 
 export function getEndDayCardStyle(item, slot) {
-  const endSlotKey = item.endTime ? getTimeSlotFromTime(item.endTime) : TIME_SLOT_ORDER[TIME_SLOT_ORDER.length - 1];
+  const endSlotKey = item.endTime ? getEndTimeSlot(item.endTime) : TIME_SLOT_ORDER[TIME_SLOT_ORDER.length - 1];
   const endIdx = TIME_SLOT_ORDER.indexOf(endSlotKey);
   const slotIdx = TIME_SLOT_ORDER.indexOf(slot);
   if (slotIdx < endIdx) {
@@ -171,7 +171,7 @@ export function getCardStyle(item, span, spanStartSlot = null) {
     return { position: 'absolute', top, left: 4, right: 4, height: Math.max(36, maxH) };
   }
 
-  const endSlot  = getTimeSlotFromTime(item.endTime);
+  const endSlot  = getEndTimeSlot(item.endTime);
   const endSlotIdx = TIME_SLOT_ORDER.indexOf(endSlot);
   const endPx   = timeToSlotPx(item.endTime, endSlot);
 
@@ -196,6 +196,17 @@ export function getTimeSlotFromTime(time) {
   if (h >= 12 && h < 17) return 'lunch';
   if (h >= 17 && h < 21) return 'evening';
   return 'night';
+}
+
+// 종료 시각 전용 슬롯 판정: 다음 슬롯 시작 정각에 딱 끝나면
+// 그 슬롯이 아니라 이전 슬롯의 끝으로 본다 (예: 21:00 종료 = '저녁'의 끝, '밤' 아님)
+export function getEndTimeSlot(time) {
+  if (!time) return TIME_SLOT_ORDER[TIME_SLOT_ORDER.length - 1];
+  const [h, m] = time.split(':').map(Number);
+  const slot = getTimeSlotFromTime(time);
+  const idx = TIME_SLOT_ORDER.indexOf(slot);
+  if (m === 0 && h === SLOT_START_H[slot] && idx > 0) return TIME_SLOT_ORDER[idx - 1];
+  return slot;
 }
 
 export function addDays(dateStr, n) {
