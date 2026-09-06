@@ -2243,11 +2243,14 @@ input, textarea, select { font-family: inherit; }
 .lv-group-h--warn b { color: var(--red-mid); }
 .lv-group-ct { font-size: 10.5px; color: var(--text-muted); font-weight: 600; }
 
-.lv-row { display: grid; grid-template-columns: 22px 1fr auto; gap: 11px; align-items: center;
-  padding: 10px 12px; border: 1px solid var(--border-light); border-radius: var(--radius-md);
-  background: var(--surface); margin-bottom: 6px; box-shadow: var(--shadow-sm); cursor: pointer;
-  transition: border-color var(--transition); }
+.lv-row { position: relative; display: grid; grid-template-columns: 4px 22px 1fr auto; gap: 10px;
+  align-items: center; padding: 0 12px 0 0; min-height: 42px; border: 1px solid var(--border-light);
+  border-radius: var(--radius-md); background: var(--surface); margin-bottom: 6px; box-shadow: var(--shadow-sm);
+  cursor: pointer; transition: border-color var(--transition); }
 .lv-row:hover { border-color: var(--accent); }
+.lv-prio { width: 4px; align-self: stretch; border: none; padding: 0; cursor: pointer;
+  border-radius: var(--radius-md) 0 0 var(--radius-md); }
+.lv-prio:hover { box-shadow: inset 2px 0 0 var(--text-muted); }
 .lv-row--done .lv-name { color: var(--text-muted); text-decoration: line-through; }
 
 .lv-ck { width: 16px; height: 16px; border-radius: 50%; border: 1.6px solid var(--text-muted);
@@ -2258,7 +2261,8 @@ input, textarea, select { font-family: inherit; }
 .lv-ck--done::after { content: "✓"; position: absolute; inset: 0; display: grid; place-items: center;
   color: #fff; font-size: 10px; font-weight: 800; }
 
-.lv-name { font-size: 13.5px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lv-name { font-size: 13.5px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  min-width: 0; padding: 9px 0; }
 .lv-meta { display: flex; align-items: center; gap: 7px; }
 .lv-pill { font-size: 10.5px; font-weight: 600; padding: 2px 8px; border-radius: 20px; white-space: nowrap; }
 .lv-d { font-size: 11px; color: var(--text-muted); white-space: nowrap; font-variant-numeric: tabular-nums;
@@ -2279,7 +2283,6 @@ input, textarea, select { font-family: inherit; }
 .lv-date-pop-row button { flex: 1; font-size: 11px; font-weight: 600; padding: 5px; border-radius: 6px;
   border: 1px solid var(--border); background: var(--bg); color: var(--text-secondary); }
 .lv-date-pop-row button:hover { border-color: var(--accent); color: var(--accent); }
-.lv-prio { width: 6px; align-self: stretch; border-radius: 3px; margin: -10px 0 -10px -12px; flex-shrink: 0; }
 
 .lv-quick { display: flex; align-items: center; gap: 8px; padding: 9px 12px; border: 1px dashed var(--border);
   border-radius: var(--radius-md); margin-bottom: 6px; }
@@ -2292,6 +2295,19 @@ input, textarea, select { font-family: inherit; }
 
 @media (max-width: 560px) {
   .lv-head { flex-direction: column; }
-  .lv-row { grid-template-columns: 20px 1fr; }
-  .lv-meta { grid-column: 2; flex-wrap: wrap; }
+  .lv-row { grid-template-columns: 4px 20px 1fr; }
+  .lv-meta { grid-column: 3; flex-wrap: wrap; padding-bottom: 8px; }
 }
+
+/* 세그먼트 버튼 (모달의 중요도 / 상태) */
+.seg { display: flex; gap: 4px; }
+.seg-btn { flex: 1; padding: 7px 4px; border: 1px solid var(--border); border-radius: 7px;
+  font-size: 12px; font-weight: 600; color: var(--text-muted); background: var(--bg); cursor: pointer;
+  transition: all var(--transition); }
+.seg-btn:hover { border-color: var(--accent); }
+.seg-btn--on { color: #fff; border-color: transparent; background: var(--accent); }
+.seg-btn--on[data-prio="1"] { background: #8A94B8; }
+.seg-btn--on[data-prio="2"] { background: #E0942A; }
+.seg-btn--on[data-prio="3"] { background: #D9534F; }
+.seg-btn--on[data-status="doing"] { background: #E0942A; }
+.seg-btn--on[data-status="done"] { background: var(--green-mid); }

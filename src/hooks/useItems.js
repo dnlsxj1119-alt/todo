@@ -48,11 +48,15 @@ function toLocal(row) {
     endDate: row.end_date ?? '',
     timeSlot,
     completed: row.completed ?? false,
+    dueDate: row.due_date ?? '',
+    priority: row.priority ?? 0,
+    status: row.status ?? (row.completed ? 'done' : 'todo'),
     googleEventId: row.google_event_id ?? null,
   };
 }
 
 function toRow(data, userId) {
+  const status = data.status ?? (data.completed ? 'done' : 'todo');
   return {
     user_id: userId,
     type: data.type,
@@ -63,7 +67,10 @@ function toRow(data, userId) {
     end_time: data.endTime ?? '',
     end_date: data.endDate ?? '',
     time_slot: data.timeSlot ?? 'morning',
-    completed: data.completed ?? false,
+    completed: status === 'done',
+    due_date: data.dueDate || null,
+    priority: data.priority ?? 0,
+    status,
     google_event_id: data.googleEventId ?? null,
   };
 }
@@ -159,11 +166,27 @@ export function useItems(userId) {
   }, [items, userId]);
 
   const toggleComplete = useCallback(async (id) => {
-    setItems(prev => prev.map(i => i.id === id ? { ...i, completed: !i.completed } : i));
     const item = items.find(i => i.id === id);
     if (!item) return;
-    await supabase.from('items').update({ completed: !item.completed }).eq('id', id);
+    const done = !item.completed;
+    const status = done ? 'done' : 'todo';
+    setItems(prev => prev.map(i => i.id === id ? { ...i, completed: done, status } : i));
+    await supabase.from('items').update({ completed: done, status }).eq('id', id);
   }, [items]);
+
+  // 3단계 상태 순환: todo → doing → done → todo
+  const cycleStatus = useCallback(async (id) => {
+    const item = items.find(i => i.id === id);
+    if (!item) return;
+    const next = { todo: 'doing', doing: 'done', done: 'todo' }[item.status ?? (item.completed ? 'done' : 'todo')] ?? 'doing';
+    setItems(prev => prev.map(i => i.id === id ? { ...i, status: next, completed: next === 'done' } : i));
+    await supabase.from('items').update({ status: next, completed: next === 'done' }).eq('id', id);
+  }, [items]);
+
+  const setPriority = useCallback(async (id, priority) => {
+    setItems(prev => prev.map(i => i.id === id ? { ...i, priority } : i));
+    await supabase.from('items').update({ priority }).eq('id', id);
+  }, []);
 
   const moveItem = useCallback(async (id, newDate, newTimeSlot) => {
     setItems(prev => prev.map(i => i.id === id ? { ...i, date: newDate, timeSlot: newTimeSlot } : i));
@@ -207,5 +230,5 @@ export function useItems(userId) {
   const getBacklogItems = useCallback(() =>
     items.filter(i => i.type === 'todo' && !i.date), [items]);
 
-  return { items, loading, addItem, addRecurringItems, updateItem, deleteItem, toggleComplete, moveItem, getItemsForDate, getItemsForCell, getBacklogItems };
+  return { items, loading, addItem, addRecurringItems, updateItem, deleteItem, toggleComplete, cycleStatus, setPriority, moveItem, getItemsForDate, getItemsForCell, getBacklogItems };
 }

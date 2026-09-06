@@ -76,7 +76,7 @@ export default function App() {
   };
 
   const userId = user?.id;
-  const { items, loading, addItem, addRecurringItems, updateItem, deleteItem, toggleComplete, moveItem, getItemsForDate, getItemsForCell, getBacklogItems } = useItems(userId);
+  const { items, loading, addItem, addRecurringItems, updateItem, deleteItem, toggleComplete, cycleStatus, setPriority, moveItem, getItemsForDate, getItemsForCell, getBacklogItems } = useItems(userId);
 
   // 구글 캘린더에서 가져온 일정은 앱 화면에 표시하지 않음(범위를 비워 조회 자체를 막음).
   // 앱 → 구글 캘린더 쓰기 동기화는 useItems 쪽에서 별도로 동작하므로 영향 없음.
@@ -347,7 +347,8 @@ export default function App() {
             items={items}
             projects={projects}
             onItemClick={(it) => (it ? openEdit(it) : openAdd(toDateString(new Date())))}
-            onToggleItem={toggleComplete}
+            onCycleItemStatus={cycleStatus}
+            onSetItemPriority={setPriority}
             onAddItem={addItem}
             onUpdateItem={updateItem}
             onToggleTask={toggleTask}
