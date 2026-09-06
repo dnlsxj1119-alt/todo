@@ -165,14 +165,6 @@ export default function ItemModal({ item, defaultDate, onSave, onDelete, onClose
               onChange={(e) => set('title', e.target.value)} autoFocus required />
           </div>
 
-          {/* Description */}
-          <div className="field-group">
-            <label className="field-label" htmlFor="desc">메모</label>
-            <textarea id="desc" className="field-input field-textarea" rows={2}
-              placeholder="추가 설명 (선택)" value={form.description}
-              onChange={(e) => set('description', e.target.value)} />
-          </div>
-
           {/* Date + 시작/종료 시간 */}
           {form.type === 'schedule' ? (
             /* 일정: 시작 날짜 + 종료 날짜 (여러 날 이벤트) */

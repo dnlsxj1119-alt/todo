@@ -162,7 +162,6 @@ function WeekCard({ item, onItemClick, onToggle, onDragStart, cardStyle, isConti
           {item.endDate ? ` (~ ${item.endDate})` : ''}
         </div>
       )}
-      {item.description && !isContinuation && <div className="card-desc">{item.description}</div>}
     </div>
   );
 }
@@ -215,6 +214,49 @@ function useSpanData(items) {
 
     return { spanMap, covered };
   }, [items]);
+}
+
+// 같은 칸에서 시간이 겹치는 카드들을 좌우 컬럼으로 나눠 배치
+function layoutOverlaps(cards) {
+  const geom = cards
+    .map((c, i) => {
+      const s = c.cardStyle || {};
+      const top = typeof s.top === 'number' ? s.top : null;
+      const height = typeof s.height === 'number' ? s.height : null;
+      const positioned = top != null && height != null && !c.isContinuation;
+      return { id: c.item.id, i, top, bottom: positioned ? top + height : null, positioned };
+    })
+    .filter(g => g.positioned);
+
+  if (geom.length < 2) return {};
+  geom.sort((a, b) => a.top - b.top || a.i - b.i);
+
+  const result = {};
+  let cluster = [];
+  let clusterBottom = -Infinity;
+  const flush = () => {
+    if (cluster.length > 1) {
+      const colEnds = [];
+      const colOf = {};
+      for (const g of cluster) {
+        let placed = colEnds.findIndex(end => g.top >= end - 0.5);
+        if (placed === -1) { colEnds.push(g.bottom); placed = colEnds.length - 1; }
+        else colEnds[placed] = g.bottom;
+        colOf[g.id] = placed;
+      }
+      const count = colEnds.length;
+      if (count > 1) cluster.forEach(g => { result[g.id] = { col: colOf[g.id], count }; });
+    }
+    cluster = [];
+    clusterBottom = -Infinity;
+  };
+  for (const g of geom) {
+    if (cluster.length && g.top >= clusterBottom - 0.5) flush();
+    cluster.push(g);
+    clusterBottom = Math.max(clusterBottom, g.bottom);
+  }
+  flush();
+  return result;
 }
 
 export default function WeeklyView({
@@ -396,29 +438,40 @@ export default function WeeklyView({
 
         {allItems.length === 0 && spannedTodoGroups.length === 0 && googleAllDay.length === 0 && googleTimed.length === 0
           ? <div className="wg-cell-empty" title="더블클릭으로 추가" />
-          : allItems.map(item => {
-              // 종료일 (item.date < ds, item.endDate === ds)
-              const isEndDayCont = slotKey !== 'all' && item.endDate === ds && item.date < ds;
-              // 중간일 (item.date < ds < item.endDate)
-              const isContSlot = !isEndDayCont && slotKey !== 'all'
-                && item.endDate && item.date < ds && item.endDate > ds;
-              const isContinuation = isEndDayCont || isContSlot;
-              let cardStyle;
-              if (isEndDayCont) {
-                cardStyle = getEndDayCardStyle(item, slotKey);
-              } else if (isContSlot) {
-                cardStyle = { position: 'absolute', top: 0, left: 4, right: 4, bottom: 0, opacity: 0.75 };
-              } else {
-                cardStyle = slotKey !== 'all' ? getCardStyle(item, span, slotKey) : {};
-              }
-              return (
-                <WeekCard key={`${item.id}-${slotKey}`} item={item}
-                  onItemClick={onItemClick} onToggle={onToggle}
-                  onDragStart={handleDragStart}
-                  isContinuation={isContinuation}
-                  cardStyle={cardStyle} />
-              );
-            })
+          : (() => {
+              const cards = allItems.map(item => {
+                const isEndDayCont = slotKey !== 'all' && item.endDate === ds && item.date < ds;
+                const isContSlot = !isEndDayCont && slotKey !== 'all'
+                  && item.endDate && item.date < ds && item.endDate > ds;
+                const isContinuation = isEndDayCont || isContSlot;
+                let cardStyle;
+                if (isEndDayCont) {
+                  cardStyle = getEndDayCardStyle(item, slotKey);
+                } else if (isContSlot) {
+                  cardStyle = { position: 'absolute', top: 0, left: 4, right: 4, bottom: 0, opacity: 0.75 };
+                } else {
+                  cardStyle = slotKey !== 'all' ? getCardStyle(item, span, slotKey) : {};
+                }
+                return { item, isContinuation, cardStyle };
+              });
+              const overlap = layoutOverlaps(cards);
+              return cards.map(({ item, isContinuation, cardStyle }) => {
+                const ov = overlap[item.id];
+                const finalStyle = ov
+                  ? { ...cardStyle,
+                      left: `calc(4px + (100% - 8px) * ${ov.col} / ${ov.count})`,
+                      width: `calc((100% - 8px) / ${ov.count} - 3px)`,
+                      right: 'auto' }
+                  : cardStyle;
+                return (
+                  <WeekCard key={`${item.id}-${slotKey}`} item={item}
+                    onItemClick={onItemClick} onToggle={onToggle}
+                    onDragStart={handleDragStart}
+                    isContinuation={isContinuation}
+                    cardStyle={finalStyle} />
+                );
+              });
+            })()
         }
 
         {spannedTodoGroups.map((g, gi) => (
