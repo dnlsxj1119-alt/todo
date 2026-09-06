@@ -355,8 +355,8 @@ export default function App() {
             onSetItemProject={setProject}
             onEditProject={(p) => setProjectModal({ project: p })}
             onSaveProject={updateProject}
-            onAddCategory={async (name) => {
-              const p = await addProject({ type: 'sponsorship', title: name, startDate: '', deadline: '', tasks: [], goals: [], notes: '' });
+            onAddCategory={async (name, type) => {
+              const p = await addProject({ type: type || 'sponsorship', title: name, startDate: '', deadline: '', tasks: [], goals: [], notes: '' });
               return p?.id ?? null;
             }}
             onCompleteCategory={completeProject}

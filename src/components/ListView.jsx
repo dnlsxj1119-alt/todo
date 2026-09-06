@@ -1,9 +1,22 @@
 import { useMemo, useState, useRef, useEffect } from 'react';
 import { toDateString } from '../utils/dateUtils';
-import { getProjectType, getTaskProgressPct } from '../utils/projectTypes';
+import { getProjectType, getTaskProgressPct, PROJECT_TYPES } from '../utils/projectTypes';
 
 function catDone(p) {
   return !!p.forceCompleted || ((p.tasks?.length ?? 0) > 0 && getTaskProgressPct(p.tasks) === 100);
+}
+
+// 새 카테고리엔 기존에 가장 적게 쓴 색(프로젝트 종류)을 배정
+function pickNewCatType(projects) {
+  const count = {};
+  projects.forEach(p => { count[p.type] = (count[p.type] || 0) + 1; });
+  let best = PROJECT_TYPES[0].key;
+  let bestN = Infinity;
+  PROJECT_TYPES.forEach(t => {
+    const n = count[t.key] || 0;
+    if (n < bestN) { bestN = n; best = t.key; }
+  });
+  return best;
 }
 
 /* 달력 항목(items)과 프로젝트 태스크를 하나의 목록으로 합쳐 보여주는 뷰.
@@ -435,7 +448,7 @@ export default function ListView({
     const t = newCatName.trim();
     setAddingCat(false);
     setNewCatName('');
-    if (t) onAddCategory(t);
+    if (t) onAddCategory(t, pickNewCatType(projects));
   };
   const setRowTitle = (r, title) => {
     if (r.kind === 'item') onUpdateItem(r.raw.id, { title });
@@ -531,7 +544,7 @@ export default function ListView({
                   current={r.cat ? r.cat.id : null}
                   categories={activeCats}
                   onPick={id => setRowCategory(r, id)}
-                  onCreate={async name => { const id = await onAddCategory(name); if (id) setRowCategory(r, id); setCatPop(null); }}
+                  onCreate={async name => { const id = await onAddCategory(name, pickNewCatType(projects)); if (id) setRowCategory(r, id); setCatPop(null); }}
                   onClose={() => setCatPop(null)}
                 />
               )}
