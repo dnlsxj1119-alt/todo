@@ -53,7 +53,19 @@ export default function ItemModal({ item, defaultDate, onSave, onDelete, onClose
 
   const handleTimeChange = (val) => {
     const slot = val ? getTimeSlotFromTime(val) : 'morning';
-    setForm(f => ({ ...f, time: val, endTime: '', endDate: '', timeSlot: slot }));
+    setForm(f => {
+      // 종료시간은 처음 입력값을 유지하고, 다음날 여부만 다시 계산
+      let endDate = f.endDate;
+      if (!endDateManuallySet.current) {
+        endDate = '';
+        if (val && f.endTime && f.date && f.endTime <= val) {
+          const next = new Date(f.date);
+          next.setDate(next.getDate() + 1);
+          endDate = next.toISOString().slice(0, 10);
+        }
+      }
+      return { ...f, time: val, timeSlot: slot, endDate };
+    });
   };
 
   const handleEndTimeChange = (val) => {
