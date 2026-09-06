@@ -2248,15 +2248,22 @@ input, textarea, select { font-family: inherit; }
 .lv-group-h--toggle:hover b { color: var(--text-primary); }
 .lv-group-caret { font-size: 10px; color: var(--text-muted); }
 
-.lv-row { position: relative; display: grid; grid-template-columns: 13px 20px 1fr auto; gap: 8px;
-  align-items: center; padding: 0 10px 0 0; min-height: 42px; border: 1px solid var(--border-light);
+.lv-row { position: relative; display: grid; grid-template-columns: 24px 34px 1fr auto; gap: 6px;
+  align-items: center; padding: 0 10px 0 0; min-height: 44px; border: 1px solid var(--border-light);
   border-radius: var(--radius-md); background: var(--surface); margin-bottom: 6px; box-shadow: var(--shadow-sm);
   transition: border-color var(--transition); }
 .lv-row:hover { border-color: var(--accent); }
-.lv-prio-wrap { position: relative; align-self: stretch; display: flex; }
-.lv-prio { width: 13px; align-self: stretch; border: none; border-left: 4px solid transparent; padding: 0;
-  cursor: pointer; background: none; border-radius: var(--radius-md) 0 0 var(--radius-md); }
-.lv-prio:hover { border-left-width: 7px; }
+
+.lv-prio-wrap { position: relative; display: flex; align-self: stretch; }
+.lv-prio-btn { flex: 1; border: none; border-left: 5px solid transparent; padding: 0; cursor: pointer;
+  background: none; border-radius: var(--radius-md) 0 0 var(--radius-md); }
+.lv-prio-btn:hover { border-left-width: 9px; background: var(--bg); }
+
+.lv-ck-wrap { position: relative; display: flex; align-self: stretch; }
+.lv-ck-btn { flex: 1; display: flex; align-items: center; justify-content: center; padding: 0; cursor: pointer;
+  background: none; border: none; border-radius: 8px; }
+.lv-ck-btn:hover { background: var(--bg); }
+
 .lv-row--done .lv-name { color: var(--text-muted); text-decoration: line-through; }
 
 .lv-name-input { min-width: 0; font-size: 13.5px; font-weight: 500; font-family: inherit; color: var(--text-primary);
@@ -2270,13 +2277,13 @@ input, textarea, select { font-family: inherit; }
 .lv-row-more:hover { background: var(--bg); color: var(--text-primary); }
 
 .lv-ck-wrap { position: relative; display: flex; align-items: center; justify-content: center; }
-.lv-ck { width: 16px; height: 16px; border-radius: 50%; border: 1.6px solid var(--text-muted);
-  padding: 0; background: none; position: relative; transition: all var(--transition); flex-shrink: 0; }
-.lv-ck:hover { border-color: var(--accent); }
+.lv-ck { width: 17px; height: 17px; border-radius: 50%; border: 1.7px solid var(--text-muted);
+  position: relative; transition: all var(--transition); flex-shrink: 0; pointer-events: none; }
+.lv-ck-btn:hover .lv-ck { border-color: var(--accent); }
 .lv-ck--doing { border-color: #E0942A; background: conic-gradient(#E0942A 50%, transparent 0); }
 .lv-ck--done { background: var(--green-mid); border-color: var(--green-mid); }
 .lv-ck--done::after { content: "✓"; position: absolute; inset: 0; display: grid; place-items: center;
-  color: #fff; font-size: 10px; font-weight: 800; }
+  color: #fff; font-size: 11px; font-weight: 800; }
 
 .lv-name { font-size: 13.5px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   min-width: 0; padding: 10px 0; cursor: text; border-radius: 4px; }
@@ -2326,7 +2333,7 @@ input, textarea, select { font-family: inherit; }
 
 @media (max-width: 560px) {
   .lv-head { flex-direction: column; }
-  .lv-row { grid-template-columns: 13px 20px 1fr; }
+  .lv-row { grid-template-columns: 24px 34px 1fr; }
   .lv-meta { grid-column: 3; flex-wrap: wrap; padding-bottom: 8px; }
   .lv-row-more { opacity: 1; }
 }

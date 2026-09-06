@@ -394,7 +394,7 @@ export default function ListView({
       <div className={`lv-row ${r.status === 'done' ? 'lv-row--done' : ''}`} key={r.key}>
         <span className="lv-prio-wrap">
           <button
-            className="lv-prio"
+            className="lv-prio-btn"
             style={{ borderLeftColor: prio ? prio.color : 'transparent' }}
             onClick={e => { e.stopPropagation(); setPrioPop(prioPop === r.key ? null : r.key); }}
             title={prio ? `중요도: ${prio.label}` : '중요도 설정'}
@@ -406,11 +406,13 @@ export default function ListView({
         </span>
         <span className="lv-ck-wrap">
           <button
-            className={`lv-ck ${STATUS_CLASS[r.status]}`}
+            className="lv-ck-btn"
             onClick={e => { e.stopPropagation(); setStatusPop(statusPop === r.key ? null : r.key); }}
             aria-label="상태 변경"
             aria-haspopup="true"
-          />
+          >
+            <span className={`lv-ck ${STATUS_CLASS[r.status]}`} />
+          </button>
           {statusPop === r.key && (
             <StatusMenu value={r.status} onPick={s => setRowStatus(r, s)} onClose={() => setStatusPop(null)} />
           )}
