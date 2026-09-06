@@ -32,6 +32,12 @@ function tint(hex, aa) {
 }
 
 const STATUS_CLASS = { todo: '', doing: 'lv-ck--doing', done: 'lv-ck--done' };
+const STATUS_OPTS = [
+  { key: 'todo', label: '안 함', dot: 'var(--text-muted)' },
+  { key: 'doing', label: '하는 중', dot: '#E0942A' },
+  { key: 'done', label: '완료', dot: '#5C8F1E' },
+];
+const TASK_STATUS_MAP = { todo: 'upcoming', doing: 'in_progress', done: 'done' };
 const PRIO = [
   null,
   { label: '낮음', color: '#8A94B8' },
@@ -129,13 +135,36 @@ function QuickAdd({ placeholder, onAdd }) {
   );
 }
 
-function DatePop({ value, label, onChange, onClose }) {
-  const ref = useRef(null);
+function usePopClose(ref, onClose) {
   useEffect(() => {
     const h = e => { if (ref.current && !ref.current.contains(e.target)) onClose(); };
     document.addEventListener('mousedown', h);
     return () => document.removeEventListener('mousedown', h);
-  }, [onClose]);
+  }, [ref, onClose]);
+}
+
+function StatusMenu({ value, onPick, onClose }) {
+  const ref = useRef(null);
+  usePopClose(ref, onClose);
+  return (
+    <div className="lv-status-menu" ref={ref} onClick={e => e.stopPropagation()}>
+      {STATUS_OPTS.map(o => (
+        <button
+          key={o.key}
+          className={`lv-status-opt ${value === o.key ? 'lv-status-opt--on' : ''}`}
+          onClick={() => { onPick(o.key); onClose(); }}
+        >
+          <span className="lv-status-dot" style={{ background: o.dot }} />
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function DatePop({ value, label, onChange, onClose }) {
+  const ref = useRef(null);
+  usePopClose(ref, onClose);
   return (
     <div className="lv-date-pop" ref={ref} onClick={e => e.stopPropagation()}>
       <label>{label}</label>
@@ -156,33 +185,43 @@ function DatePop({ value, label, onChange, onClose }) {
 
 export default function ListView({
   items, projects,
-  onItemClick, onCycleItemStatus, onSetItemPriority,
+  onItemClick, onSetItemStatus, onSetItemPriority,
   onAddItem, onUpdateItem,
-  onToggleTask, onEditProject, onSaveProject,
+  onEditProject, onSaveProject,
 }) {
-  const [filter, setFilter] = useState(null);
+  const [filter, setFilter] = useState(null); // null(전체) | 'done' | projectId
   const [datePop, setDatePop] = useState(null); // `${rowKey}:${field}`
-  const [showDone, setShowDone] = useState(false);
+  const [statusPop, setStatusPop] = useState(null); // rowKey
 
   const rows = useMemo(() => buildRows(items, projects), [items, projects]);
 
+  const doneCount = rows.filter(r => r.status === 'done').length;
   const catCounts = {};
   rows.forEach(r => { if (r.cat && r.status !== 'done') catCounts[r.cat.id] = (catCounts[r.cat.id] ?? 0) + 1; });
 
+  const viewingDone = filter === 'done';
+
+  const doneRows = rows
+    .filter(r => r.status === 'done')
+    .sort((a, b) => {
+      const da = a.expected || a.due || '0000';
+      const db = b.expected || b.due || '0000';
+      return da < db ? 1 : da > db ? -1 : 0; // 최근 완료가 위로
+    });
+
   const passFilter = r => {
+    if (r.status === 'done') return false;
     if (filter === null) return true;
     return r.cat && r.cat.id === filter;
   };
 
-  const grouped = { overdue: [], today: [], week: [], later: [], unplanned: [], done: [] };
-  rows.filter(passFilter).forEach(r => { grouped[bucketOf(r)].push(r); });
-  Object.keys(grouped).forEach(k => {
-    grouped[k].sort((a, b) => {
-      if (k === 'done') {
-        const da = a.expected || a.due || '0000';
-        const db = b.expected || b.due || '0000';
-        return da < db ? 1 : da > db ? -1 : 0; // 최근 완료가 위로
-      }
+  const grouped = { overdue: [], today: [], week: [], later: [], unplanned: [] };
+  rows.filter(passFilter).forEach(r => {
+    const b = bucketOf(r);
+    if (grouped[b]) grouped[b].push(r);
+  });
+  Object.values(grouped).forEach(list => {
+    list.sort((a, b) => {
       if (a.priority !== b.priority) return b.priority - a.priority;
       const da = a.expected || a.due || '9999-99-99';
       const db = b.expected || b.due || '9999-99-99';
@@ -190,9 +229,9 @@ export default function ListView({
     });
   });
 
-  const cycleStatus = r => {
-    if (r.kind === 'item') onCycleItemStatus(r.raw.id);
-    else onToggleTask(r.raw.project.id, r.raw.task.id);
+  const setRowStatus = (r, status) => {
+    if (r.kind === 'item') onSetItemStatus(r.raw.id, status);
+    else patchTask(r, { status: TASK_STATUS_MAP[status] });
   };
   const openRow = r => {
     if (r.kind === 'item') onItemClick(r.raw);
@@ -281,11 +320,21 @@ export default function ListView({
           onClick={e => { e.stopPropagation(); bumpPriority(r); }}
           title={prio ? `중요도: ${prio.label} (클릭해서 변경)` : '중요도 설정'}
         />
-        <button
-          className={`lv-ck ${STATUS_CLASS[r.status]}`}
-          onClick={e => { e.stopPropagation(); cycleStatus(r); }}
-          aria-label="상태 변경 (안 함 / 하는 중 / 완료)"
-        />
+        <span className="lv-ck-wrap">
+          <button
+            className={`lv-ck ${STATUS_CLASS[r.status]}`}
+            onClick={e => { e.stopPropagation(); setStatusPop(statusPop === r.key ? null : r.key); }}
+            aria-label="상태 변경"
+            aria-haspopup="true"
+          />
+          {statusPop === r.key && (
+            <StatusMenu
+              value={r.status}
+              onPick={s => setRowStatus(r, s)}
+              onClose={() => setStatusPop(null)}
+            />
+          )}
+        </span>
         <span className="lv-name">{r.title}</span>
         <span className="lv-meta">
           {r.cat && (
@@ -312,6 +361,10 @@ export default function ListView({
 
       <div className="lv-cats">
         <button className={`lv-cat ${filter === null ? 'lv-cat--on' : ''}`} onClick={() => setFilter(null)}>전체</button>
+        <button
+          className={`lv-cat ${viewingDone ? 'lv-cat--on' : ''}`}
+          onClick={() => setFilter(viewingDone ? null : 'done')}
+        >✓ 완료 <span className="lv-cat-ct">{doneCount}</span></button>
         {projects.map(p => {
           const pt = getProjectType(p.type);
           const on = filter === p.id;
@@ -329,50 +382,51 @@ export default function ListView({
         })}
       </div>
 
-      {filter === null && dueOnly.length > 0 && (
-        <div className="lv-duestrip">
-          📕 마감만 잡히고 계획일 미정 {dueOnly.length}
-          <div className="lv-duestrip-chips">
-            {dueOnly.slice(0, 6).map(r => (
-              <span key={r.key} onClick={() => openRow(r)}>{r.title} · {mdLabel(r.due)}</span>
-            ))}
-          </div>
+      {viewingDone ? (
+        <div className="lv-group">
+          <div className="lv-group-h"><b>완료</b><span className="lv-group-ct">{doneRows.length}</span></div>
+          {doneRows.length === 0
+            ? <div className="lv-empty">완료한 항목이 없습니다</div>
+            : doneRows.map(renderRow)}
         </div>
-      )}
-
-      {GROUPS.map(g => {
-        const list = grouped[g.key];
-        if (g.key === 'overdue' && list.length === 0) return null;
-        return (
-          <div className="lv-group" key={g.key}>
-            <div className={`lv-group-h ${g.warn ? 'lv-group-h--warn' : ''}`}>
-              <b>{g.label}</b><span className="lv-group-ct">{list.length}</span>
+      ) : (
+        <>
+          {filter === null && dueOnly.length > 0 && (
+            <div className="lv-duestrip">
+              📕 마감만 잡히고 계획일 미정 {dueOnly.length}
+              <div className="lv-duestrip-chips">
+                {dueOnly.slice(0, 6).map(r => (
+                  <span key={r.key} onClick={() => openRow(r)}>{r.title} · {mdLabel(r.due)}</span>
+                ))}
+              </div>
             </div>
-            {list.map(renderRow)}
-            {list.length === 0 && g.key !== 'unplanned' && <div className="lv-empty">비어 있음</div>}
-            {g.add && (
-              <QuickAdd
-                placeholder={
-                  g.key === 'today' ? '오늘 할 일 한 줄로 추가…' :
-                  g.key === 'week' ? '이번 주 안에 할 일…' :
-                  g.key === 'later' ? '나중에 할 일…' :
-                  '제목만 적어두기 (날짜는 나중에)…'
-                }
-                onAdd={t => quickAdd(g.key, t)}
-              />
-            )}
-          </div>
-        );
-      })}
+          )}
 
-      {grouped.done.length > 0 && (
-        <div className="lv-group lv-group--done">
-          <button className="lv-group-h lv-group-h--toggle" onClick={() => setShowDone(v => !v)}>
-            <b>완료</b><span className="lv-group-ct">{grouped.done.length}</span>
-            <span className="lv-group-caret">{showDone ? '▾' : '▸'}</span>
-          </button>
-          {showDone && grouped.done.map(renderRow)}
-        </div>
+          {GROUPS.map(g => {
+            const list = grouped[g.key];
+            if (g.key === 'overdue' && list.length === 0) return null;
+            return (
+              <div className="lv-group" key={g.key}>
+                <div className={`lv-group-h ${g.warn ? 'lv-group-h--warn' : ''}`}>
+                  <b>{g.label}</b><span className="lv-group-ct">{list.length}</span>
+                </div>
+                {list.map(renderRow)}
+                {list.length === 0 && g.key !== 'unplanned' && <div className="lv-empty">비어 있음</div>}
+                {g.add && (
+                  <QuickAdd
+                    placeholder={
+                      g.key === 'today' ? '오늘 할 일 한 줄로 추가…' :
+                      g.key === 'week' ? '이번 주 안에 할 일…' :
+                      g.key === 'later' ? '나중에 할 일…' :
+                      '제목만 적어두기 (날짜는 나중에)…'
+                    }
+                    onAdd={t => quickAdd(g.key, t)}
+                  />
+                )}
+              </div>
+            );
+          })}
+        </>
       )}
     </div>
   );

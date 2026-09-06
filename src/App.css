@@ -2258,8 +2258,9 @@ input, textarea, select { font-family: inherit; }
 .lv-prio:hover { box-shadow: inset 2px 0 0 var(--text-muted); }
 .lv-row--done .lv-name { color: var(--text-muted); text-decoration: line-through; }
 
+.lv-ck-wrap { position: relative; display: flex; align-items: center; justify-content: center; }
 .lv-ck { width: 16px; height: 16px; border-radius: 50%; border: 1.6px solid var(--text-muted);
-  justify-self: center; padding: 0; background: none; position: relative; transition: all var(--transition); }
+  padding: 0; background: none; position: relative; transition: all var(--transition); flex-shrink: 0; }
 .lv-ck:hover { border-color: var(--accent); }
 .lv-ck--doing { border-color: #E0942A; background: conic-gradient(#E0942A 50%, transparent 0); }
 .lv-ck--done { background: var(--green-mid); border-color: var(--green-mid); }
@@ -2288,6 +2289,15 @@ input, textarea, select { font-family: inherit; }
 .lv-date-pop-row button { flex: 1; font-size: 11px; font-weight: 600; padding: 5px; border-radius: 6px;
   border: 1px solid var(--border); background: var(--bg); color: var(--text-secondary); }
 .lv-date-pop-row button:hover { border-color: var(--accent); color: var(--accent); }
+
+.lv-status-menu { position: absolute; left: 0; top: calc(100% + 5px); z-index: 20; background: var(--surface);
+  border: 1px solid var(--border); border-radius: var(--radius-md); box-shadow: var(--shadow-md);
+  padding: 5px; display: flex; flex-direction: column; gap: 2px; width: 118px; }
+.lv-status-opt { display: flex; align-items: center; gap: 8px; padding: 7px 9px; border-radius: 6px;
+  font-size: 12.5px; font-weight: 600; color: var(--text-secondary); background: none; text-align: left; }
+.lv-status-opt:hover { background: var(--bg); }
+.lv-status-opt--on { color: var(--text-primary); background: var(--purple-light); }
+.lv-status-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
 
 .lv-quick { display: flex; align-items: center; gap: 8px; padding: 9px 12px; border: 1px dashed var(--border);
   border-radius: var(--radius-md); margin-bottom: 6px; }

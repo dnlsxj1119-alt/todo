@@ -174,14 +174,11 @@ export function useItems(userId) {
     await supabase.from('items').update({ completed: done, status }).eq('id', id);
   }, [items]);
 
-  // 3단계 상태 순환: todo → doing → done → todo
-  const cycleStatus = useCallback(async (id) => {
-    const item = items.find(i => i.id === id);
-    if (!item) return;
-    const next = { todo: 'doing', doing: 'done', done: 'todo' }[item.status ?? (item.completed ? 'done' : 'todo')] ?? 'doing';
-    setItems(prev => prev.map(i => i.id === id ? { ...i, status: next, completed: next === 'done' } : i));
-    await supabase.from('items').update({ status: next, completed: next === 'done' }).eq('id', id);
-  }, [items]);
+  // 상태 직접 지정: todo / doing / done
+  const setStatus = useCallback(async (id, status) => {
+    setItems(prev => prev.map(i => i.id === id ? { ...i, status, completed: status === 'done' } : i));
+    await supabase.from('items').update({ status, completed: status === 'done' }).eq('id', id);
+  }, []);
 
   const setPriority = useCallback(async (id, priority) => {
     setItems(prev => prev.map(i => i.id === id ? { ...i, priority } : i));
@@ -230,5 +227,5 @@ export function useItems(userId) {
   const getBacklogItems = useCallback(() =>
     items.filter(i => i.type === 'todo' && !i.date), [items]);
 
-  return { items, loading, addItem, addRecurringItems, updateItem, deleteItem, toggleComplete, cycleStatus, setPriority, moveItem, getItemsForDate, getItemsForCell, getBacklogItems };
+  return { items, loading, addItem, addRecurringItems, updateItem, deleteItem, toggleComplete, setStatus, setPriority, moveItem, getItemsForDate, getItemsForCell, getBacklogItems };
 }
