@@ -209,7 +209,7 @@ function PrioMenu({ value, onPick, onClose }) {
   );
 }
 
-function CategoryMenu({ current, categories, onPick, onCreate, onClose }) {
+function CategoryMenu({ current, categories, onPick, onCreate, onClose, hideNone }) {
   const ref = useRef(null);
   usePopClose(ref, onClose);
   const [adding, setAdding] = useState(false);
@@ -220,13 +220,15 @@ function CategoryMenu({ current, categories, onPick, onCreate, onClose }) {
     if (t) { onCreate(t); onClose(); }
   };
   return (
-    <div className="lv-menu lv-menu--left lv-menu--cat" ref={ref} onClick={e => e.stopPropagation()}>
-      <button
-        className={`lv-menu-opt ${!current ? 'lv-menu-opt--on' : ''}`}
-        onClick={() => { onPick(null); onClose(); }}
-      >
-        <span className="lv-menu-dot" style={{ background: 'var(--border)' }} />없음
-      </button>
+    <div className="lv-menu lv-menu--right lv-menu--cat" ref={ref} onClick={e => e.stopPropagation()}>
+      {!hideNone && (
+        <button
+          className={`lv-menu-opt ${!current ? 'lv-menu-opt--on' : ''}`}
+          onClick={() => { onPick(null); onClose(); }}
+        >
+          <span className="lv-menu-dot" style={{ background: 'var(--border)' }} />없음
+        </button>
+      )}
       {categories.map(c => (
         <button
           key={c.id}
@@ -488,7 +490,15 @@ export default function ListView({
     else patchTask(r, { priority: v });
   };
   const setRowCategory = (r, projectId) => {
-    if (r.kind === 'item') onSetItemProject(r.raw.id, projectId);
+    if (r.kind === 'item') { onSetItemProject(r.raw.id, projectId); return; }
+    // 프로젝트 태스크: 다른 카테고리(프로젝트)로 이동
+    const from = r.raw.project;
+    const task = r.raw.task;
+    if (!projectId || String(projectId) === String(from.id)) return;
+    const to = projects.find(p => String(p.id) === String(projectId));
+    if (!to) return;
+    onSaveProject(from.id, { ...from, tasks: (from.tasks ?? []).filter(t => t.id !== task.id) });
+    onSaveProject(to.id, { ...to, tasks: [...(to.tasks ?? []), task] });
   };
   const reorderCats = (toId, fromIdArg) => {
     const fromId = fromIdArg ?? dragCat;
@@ -620,30 +630,25 @@ export default function ListView({
         </span>
         <InlineTitle value={r.title} onSave={t => setRowTitle(r, t)} />
         <span className="lv-meta">
-          {r.kind === 'item' ? (
-            <span className="lv-cat-edit">
-              <button
-                className={`lv-pill lv-pill--btn ${r.cat ? '' : 'lv-pill--empty'}`}
-                style={r.cat ? { background: tint(r.cat.color, '22'), color: r.cat.color } : undefined}
-                onClick={e => { e.stopPropagation(); setCatPop(catPop === r.key ? null : r.key); }}
-              >
-                {r.cat ? r.cat.name : '+ 카테고리'}
-              </button>
-              {catPop === r.key && (
-                <CategoryMenu
-                  current={r.cat ? r.cat.id : null}
-                  categories={activeCats}
-                  onPick={id => setRowCategory(r, id)}
-                  onCreate={async name => { const id = await onAddCategory(name, pickNewCatColor(projects)); if (id) setRowCategory(r, id); setCatPop(null); }}
-                  onClose={() => setCatPop(null)}
-                />
-              )}
-            </span>
-          ) : r.cat && (
-            <span className="lv-pill" style={{ background: tint(r.cat.color, '22'), color: r.cat.color }}>
-              {r.cat.name}
-            </span>
-          )}
+          <span className="lv-cat-edit">
+            <button
+              className={`lv-pill lv-pill--btn ${r.cat ? '' : 'lv-pill--empty'}`}
+              style={r.cat ? { background: tint(r.cat.color, '22'), color: r.cat.color } : undefined}
+              onClick={e => { e.stopPropagation(); setCatPop(catPop === r.key ? null : r.key); }}
+            >
+              {r.cat ? r.cat.name : '+ 카테고리'}
+            </button>
+            {catPop === r.key && (
+              <CategoryMenu
+                current={r.cat ? r.cat.id : null}
+                categories={activeCats}
+                hideNone={r.kind === 'task'}
+                onPick={id => setRowCategory(r, id)}
+                onCreate={async name => { const id = await onAddCategory(name, pickNewCatColor(projects)); if (id) setRowCategory(r, id); setCatPop(null); }}
+                onClose={() => setCatPop(null)}
+              />
+            )}
+          </span>
           {datePill(r, 'expected')}
           {datePill(r, 'due')}
           <span className="lv-row-menu-wrap">
