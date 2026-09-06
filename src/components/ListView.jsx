@@ -356,7 +356,7 @@ export default function ListView({
   onItemClick, onSetItemStatus, onSetItemPriority, onSetItemProject,
   onAddItem, onUpdateItem, onDeleteItem,
   onEditProject, onSaveProject,
-  onAddCategory, onCompleteCategory, onUncompleteCategory, onDeleteCategory,
+  onAddCategory, onCompleteCategory, onUncompleteCategory, onDeleteCategory, onReorderCategories,
 }) {
   const [filter, setFilterRaw] = useState(null); // null(전체) | 'done' | projectId
   const [datePop, setDatePop] = useState(null); // `${rowKey}:${field}`
@@ -367,6 +367,9 @@ export default function ListView({
   const [addingCat, setAddingCat] = useState(false);
   const [newCatName, setNewCatName] = useState('');
   const [showDoneCats, setShowDoneCats] = useState(false);
+  const [openDoneGroups, setOpenDoneGroups] = useState(() => new Set());
+  const [dragCat, setDragCat] = useState(null);
+  const [dragOverCat, setDragOverCat] = useState(null);
   const [pendingDel, setPendingDel] = useState({}); // rowKey -> row (되돌리기 대기)
   const delTimers = useRef({});
   useEffect(() => () => { Object.values(delTimers.current).forEach(clearTimeout); }, []);
@@ -397,19 +400,21 @@ export default function ListView({
       return da < db ? 1 : da > db ? -1 : 0; // 최근 완료가 위로
     });
 
-  // 완료 목록은 월별로 묶어서 표시
-  const doneByMonth = [];
-  doneRows.forEach(r => {
-    const d = r.expected || r.due;
-    const key = d ? d.slice(0, 7) : 'none';
-    let g = doneByMonth[doneByMonth.length - 1];
-    if (!g || g.key !== key) {
-      const [y, m] = key === 'none' ? [] : key.split('-');
-      g = { key, label: key === 'none' ? '날짜 없음' : `${+y}년 ${+m}월`, rows: [] };
-      doneByMonth.push(g);
-    }
-    g.rows.push(r);
-  });
+  // 완료 목록은 카테고리별로 묶어서 표시
+  const doneByCategory = [];
+  {
+    const map = new Map();
+    doneRows.forEach(r => {
+      const key = r.cat ? String(r.cat.id) : '__none';
+      if (!map.has(key)) {
+        const g = { key, label: r.cat ? r.cat.name : '카테고리 없음', color: r.cat ? r.cat.color : null, rows: [] };
+        map.set(key, g);
+        doneByCategory.push(g);
+      }
+      map.get(key).rows.push(r);
+    });
+    doneByCategory.sort((a, b) => (a.key === '__none' ? 1 : b.key === '__none' ? -1 : 0));
+  }
 
   const filteredCat = filter ? projects.find(p => p.id === filter) : null;
   const filteredCatIsDone = !!(filteredCat && catDone(filteredCat));
@@ -485,6 +490,20 @@ export default function ListView({
   const setRowCategory = (r, projectId) => {
     if (r.kind === 'item') onSetItemProject(r.raw.id, projectId);
   };
+  const reorderCats = (toId) => {
+    const fromId = dragCat;
+    setDragCat(null);
+    setDragOverCat(null);
+    if (!fromId || fromId === toId || !onReorderCategories) return;
+    const arr = [...activeCats];
+    const fi = arr.findIndex(p => p.id === fromId);
+    const ti = arr.findIndex(p => p.id === toId);
+    if (fi < 0 || ti < 0) return;
+    const [m] = arr.splice(fi, 1);
+    arr.splice(ti, 0, m);
+    onReorderCategories([...arr, ...doneCats].map((p, i) => ({ ...p, sortOrder: i })));
+  };
+
   const submitNewCat = () => {
     const t = newCatName.trim();
     setAddingCat(false);
@@ -676,11 +695,17 @@ export default function ListView({
           return (
             <button
               key={p.id}
-              className={`lv-cat ${on ? 'lv-cat--on' : ''}`}
+              className={`lv-cat ${on ? 'lv-cat--on' : ''} ${dragCat === p.id ? 'lv-cat--dragging' : ''} ${dragOverCat === p.id ? 'lv-cat--dragover' : ''}`}
               style={on ? { background: cc, borderColor: cc, color: '#fff' } : undefined}
               onClick={() => setFilter(on ? null : p.id)}
               onDoubleClick={() => onEditProject(p)}
-              title="더블클릭: 이름·색 수정"
+              title="드래그: 순서 변경 · 더블클릭: 이름·색 수정"
+              draggable
+              onDragStart={() => setDragCat(p.id)}
+              onDragOver={e => { e.preventDefault(); if (dragCat && dragCat !== p.id) setDragOverCat(p.id); }}
+              onDragLeave={() => setDragOverCat(o => (o === p.id ? null : o))}
+              onDrop={e => { e.preventDefault(); reorderCats(p.id); }}
+              onDragEnd={() => { setDragCat(null); setDragOverCat(null); }}
             >
               <span className="lv-cat-dot" style={{ background: on ? '#fff' : cc }} />
               {p.title} <span className="lv-cat-ct">{catCounts[p.id] ?? 0}</span>
@@ -757,12 +782,26 @@ export default function ListView({
       {viewingDone ? (
         doneRows.length === 0
           ? <div className="lv-empty">완료한 항목이 없습니다</div>
-          : doneByMonth.map(g => (
-              <div className="lv-group" key={g.key}>
-                <div className="lv-group-h"><b>{g.label}</b><span className="lv-group-ct">{g.rows.length}</span></div>
-                {g.rows.map(renderRow)}
-              </div>
-            ))
+          : doneByCategory.map(g => {
+              const open = openDoneGroups.has(g.key);
+              return (
+                <div className="lv-group" key={g.key}>
+                  <button
+                    className="lv-group-h lv-group-h--toggle"
+                    onClick={() => setOpenDoneGroups(s => {
+                      const n = new Set(s);
+                      if (n.has(g.key)) n.delete(g.key); else n.add(g.key);
+                      return n;
+                    })}
+                  >
+                    {g.color && <span className="lv-cat-dot" style={{ background: g.color }} />}
+                    <b>{g.label}</b><span className="lv-group-ct">{g.rows.length}</span>
+                    <span className="lv-group-caret">{open ? '▾' : '▸'}</span>
+                  </button>
+                  {open && g.rows.map(renderRow)}
+                </div>
+              );
+            })
       ) : (
         <>
           {filter === null && dueOnly.length > 0 && (

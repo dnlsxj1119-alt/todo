@@ -35,6 +35,7 @@ export default function ItemModal({ item, defaultDate, onSave, onDelete, onClose
     dueDate: item?.dueDate ?? '',
     priority: item?.priority ?? 0,
     status: item?.status ?? (item?.completed ? 'done' : 'todo'),
+    projectId: item?.projectId ?? null,
     timeSlot: item?.timeSlot ?? 'morning',
     completed: item?.completed ?? false,
     repeat: 'none',

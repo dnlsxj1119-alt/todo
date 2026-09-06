@@ -85,7 +85,7 @@ export default function App() {
     connected: googleConnected, loading: googleLoading, error: googleError,
     getGoogleEventsForDate, toggleGoogleEventDone, disconnect: disconnectGoogle,
   } = useGoogleCalendar(userId, googleRange.start, googleRange.end);
-  const { projects, addProject, updateProject, deleteProject, completeProject, uncompleteProject } = useProjects(userId);
+  const { projects, addProject, updateProject, deleteProject, completeProject, uncompleteProject, reorderProjects } = useProjects(userId);
   const { habits, archivedHabits, addHabit, updateHabit, deleteHabit, toggleHabitDate, reorderHabits, archiveHabit, restoreHabit } = useHabits(userId);
   const { getForMonth: getMonthlyGoal, updateNotes: updateGoalNotes, addItem: addGoalItem, toggleItem: toggleGoalItem, deleteItem: deleteGoalItem, editItem: editGoalItem, reorderItems: reorderGoalItems } = useMonthlyGoals(userId);
   const {
@@ -354,6 +354,7 @@ export default function App() {
             onCompleteCategory={completeProject}
             onUncompleteCategory={uncompleteProject}
             onDeleteCategory={deleteProject}
+            onReorderCategories={reorderProjects}
           />
         ) : activeTab === 'habits' ? (
           <HabitTracker

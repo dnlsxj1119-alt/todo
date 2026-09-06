@@ -104,7 +104,17 @@ export function useItems(userId) {
             return [...prev, toLocal(payload.new)];
           });
         } else if (payload.eventType === 'UPDATE') {
-          setItems(prev => prev.map(i => i.id === payload.new.id ? toLocal(payload.new) : i));
+          const n = payload.new;
+          setItems(prev => prev.map(i => {
+            if (i.id !== n.id) return i;
+            const next = toLocal(n);
+            // 실시간 페이로드에 컬럼이 빠져 있으면(스키마 캐시 지연) 로컬 값 유지 → 되돌아가는 것 방지
+            if (!('project_id' in n)) next.projectId = i.projectId;
+            if (!('due_date' in n)) next.dueDate = i.dueDate;
+            if (!('priority' in n)) next.priority = i.priority;
+            if (!('status' in n)) next.status = i.status;
+            return next;
+          }));
         } else if (payload.eventType === 'DELETE') {
           setItems(prev => prev.filter(i => i.id !== payload.old.id));
         }
