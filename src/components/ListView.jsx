@@ -1,13 +1,14 @@
 import { useMemo, useState, useRef, useEffect } from 'react';
 import { toDateString } from '../utils/dateUtils';
-import { getProjectType, getTaskProgressPct, CATEGORY_PALETTE } from '../utils/projectTypes';
+import { getProjectType, CATEGORY_PALETTE } from '../utils/projectTypes';
 
 function catColor(p) {
   return p.color || getProjectType(p.type).border;
 }
 
+// 카테고리 완료는 '완료 처리' 버튼으로만 결정 (태스크 진행률과 무관)
 function catDone(p) {
-  return !!p.forceCompleted || ((p.tasks?.length ?? 0) > 0 && getTaskProgressPct(p.tasks) === 100);
+  return !!p.forceCompleted;
 }
 
 // 새 카테고리엔 팔레트에서 기존에 가장 적게 쓴 색을 배정
