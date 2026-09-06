@@ -82,17 +82,11 @@ function buildRows(items, projects) {
 }
 
 function bucketOf(r) {
-  const overdue = r.due && r.status !== 'done' && r.due < TODAY;
-  if (r.status === 'done') {
-    const ref = r.expected || r.due;
-    if (ref === TODAY || !ref) return 'today';
-    if (ref > TODAY && ref <= EOW) return 'week';
-    if (ref > EOW) return 'later';
-    return 'today';
-  }
+  if (r.status === 'done') return 'done';
+  const overdue = r.due && r.due < TODAY;
   if (overdue) return 'overdue';
   if (r.expected === TODAY || r.due === TODAY) return 'today';
-  if (!r.expected) return 'inbox';
+  if (!r.expected) return 'unplanned';
   if (r.expected < TODAY) return 'today';
   if (r.expected <= EOW) return 'week';
   return 'later';
@@ -101,9 +95,9 @@ function bucketOf(r) {
 const GROUPS = [
   { key: 'overdue', label: '지난 마감', warn: true, add: false },
   { key: 'today', label: '오늘', add: true },
-  { key: 'inbox', label: '미정 · 받은칸', add: true },
   { key: 'week', label: '이번 주', add: true },
   { key: 'later', label: '나중에', add: true },
+  { key: 'unplanned', label: '미정', add: true },
 ];
 
 function QuickAdd({ placeholder, onAdd }) {
@@ -168,24 +162,27 @@ export default function ListView({
 }) {
   const [filter, setFilter] = useState(null);
   const [datePop, setDatePop] = useState(null); // `${rowKey}:${field}`
+  const [showDone, setShowDone] = useState(false);
 
   const rows = useMemo(() => buildRows(items, projects), [items, projects]);
 
-  const inboxCount = rows.filter(r => !r.expected && !r.due && r.status !== 'done').length;
   const catCounts = {};
-  rows.forEach(r => { if (r.cat) catCounts[r.cat.id] = (catCounts[r.cat.id] ?? 0) + 1; });
+  rows.forEach(r => { if (r.cat && r.status !== 'done') catCounts[r.cat.id] = (catCounts[r.cat.id] ?? 0) + 1; });
 
   const passFilter = r => {
     if (filter === null) return true;
-    if (filter === 'inbox') return !r.expected && !r.due;
     return r.cat && r.cat.id === filter;
   };
 
-  const grouped = { overdue: [], today: [], inbox: [], week: [], later: [] };
+  const grouped = { overdue: [], today: [], week: [], later: [], unplanned: [], done: [] };
   rows.filter(passFilter).forEach(r => { grouped[bucketOf(r)].push(r); });
-  Object.values(grouped).forEach(list => {
-    list.sort((a, b) => {
-      if ((a.status === 'done') !== (b.status === 'done')) return a.status === 'done' ? 1 : -1;
+  Object.keys(grouped).forEach(k => {
+    grouped[k].sort((a, b) => {
+      if (k === 'done') {
+        const da = a.expected || a.due || '0000';
+        const db = b.expected || b.due || '0000';
+        return da < db ? 1 : da > db ? -1 : 0; // 최근 완료가 위로
+      }
       if (a.priority !== b.priority) return b.priority - a.priority;
       const da = a.expected || a.due || '9999-99-99';
       const db = b.expected || b.due || '9999-99-99';
@@ -270,6 +267,39 @@ export default function ListView({
     );
   };
 
+  const renderRow = r => {
+    const prio = PRIO[r.priority];
+    return (
+      <div
+        className={`lv-row ${r.status === 'done' ? 'lv-row--done' : ''}`}
+        key={r.key}
+        onClick={() => openRow(r)}
+      >
+        <span
+          className="lv-prio"
+          style={{ background: prio ? prio.color : 'transparent' }}
+          onClick={e => { e.stopPropagation(); bumpPriority(r); }}
+          title={prio ? `중요도: ${prio.label} (클릭해서 변경)` : '중요도 설정'}
+        />
+        <button
+          className={`lv-ck ${STATUS_CLASS[r.status]}`}
+          onClick={e => { e.stopPropagation(); cycleStatus(r); }}
+          aria-label="상태 변경 (안 함 / 하는 중 / 완료)"
+        />
+        <span className="lv-name">{r.title}</span>
+        <span className="lv-meta">
+          {r.cat && (
+            <span className="lv-pill" style={{ background: tint(r.cat.color, '22'), color: r.cat.color }}>
+              {r.cat.name}
+            </span>
+          )}
+          {r.kind === 'item' && datePill(r, 'expected')}
+          {datePill(r, 'due')}
+        </span>
+      </div>
+    );
+  };
+
   return (
     <div className="listview">
       <div className="lv-head">
@@ -282,10 +312,6 @@ export default function ListView({
 
       <div className="lv-cats">
         <button className={`lv-cat ${filter === null ? 'lv-cat--on' : ''}`} onClick={() => setFilter(null)}>전체</button>
-        <button
-          className={`lv-cat ${filter === 'inbox' ? 'lv-cat--on' : ''}`}
-          onClick={() => setFilter('inbox')}
-        >📥 받은칸 <span className="lv-cat-ct">{inboxCount}</span></button>
         {projects.map(p => {
           const pt = getProjectType(p.type);
           const on = filter === p.id;
@@ -322,39 +348,8 @@ export default function ListView({
             <div className={`lv-group-h ${g.warn ? 'lv-group-h--warn' : ''}`}>
               <b>{g.label}</b><span className="lv-group-ct">{list.length}</span>
             </div>
-            {list.map(r => {
-              const prio = PRIO[r.priority];
-              return (
-                <div
-                  className={`lv-row ${r.status === 'done' ? 'lv-row--done' : ''}`}
-                  key={r.key}
-                  onClick={() => openRow(r)}
-                >
-                  <span
-                    className="lv-prio"
-                    style={{ background: prio ? prio.color : 'transparent' }}
-                    onClick={e => { e.stopPropagation(); bumpPriority(r); }}
-                    title={prio ? `중요도: ${prio.label} (클릭해서 변경)` : '중요도 설정'}
-                  />
-                  <button
-                    className={`lv-ck ${STATUS_CLASS[r.status]}`}
-                    onClick={e => { e.stopPropagation(); cycleStatus(r); }}
-                    aria-label="상태 변경 (안 함 / 하는 중 / 완료)"
-                  />
-                  <span className="lv-name">{r.title}</span>
-                  <span className="lv-meta">
-                    {r.cat && (
-                      <span className="lv-pill" style={{ background: tint(r.cat.color, '22'), color: r.cat.color }}>
-                        {r.cat.name}
-                      </span>
-                    )}
-                    {r.kind === 'item' && datePill(r, 'expected')}
-                    {datePill(r, 'due')}
-                  </span>
-                </div>
-              );
-            })}
-            {list.length === 0 && g.key !== 'inbox' && <div className="lv-empty">비어 있음</div>}
+            {list.map(renderRow)}
+            {list.length === 0 && g.key !== 'unplanned' && <div className="lv-empty">비어 있음</div>}
             {g.add && (
               <QuickAdd
                 placeholder={
@@ -369,6 +364,16 @@ export default function ListView({
           </div>
         );
       })}
+
+      {grouped.done.length > 0 && (
+        <div className="lv-group lv-group--done">
+          <button className="lv-group-h lv-group-h--toggle" onClick={() => setShowDone(v => !v)}>
+            <b>완료</b><span className="lv-group-ct">{grouped.done.length}</span>
+            <span className="lv-group-caret">{showDone ? '▾' : '▸'}</span>
+          </button>
+          {showDone && grouped.done.map(renderRow)}
+        </div>
+      )}
     </div>
   );
 }
