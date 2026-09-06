@@ -2209,13 +2209,14 @@ input, textarea, select { font-family: inherit; }
 /* ===================== ListView (통합 목록) ===================== */
 .listview {
   width: 100%;
-  max-width: 760px;
-  margin: 0 auto;
-  align-self: center;
-  padding: 26px 28px 80px;
+  max-width: 1040px;
+  margin: 0;
+  align-self: stretch;
+  padding: 26px 40px 80px;
   overflow-y: auto;
   height: 100%;
 }
+@media (max-width: 900px) { .listview { padding: 22px 20px 70px; } }
 .lv-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
 .lv-head .btn--primary { flex-shrink: 0; }
 .lv-title { font-size: 20px; font-weight: 800; letter-spacing: -0.02em; margin: 0; }
@@ -2321,6 +2322,9 @@ input, textarea, select { font-family: inherit; }
 .lv-menu-opt--danger { color: var(--red-mid); }
 .lv-menu-opt--danger:hover { background: var(--red-light); }
 .lv-menu-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+.lv-menu-label { font-size: 10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;
+  letter-spacing: 0.06em; padding: 4px 9px 2px; }
+.lv-menu-sep { height: 1px; background: var(--border-light); margin: 4px 4px; }
 
 .lv-quick { display: flex; align-items: center; gap: 8px; padding: 9px 12px; border: 1px dashed var(--border);
   border-radius: var(--radius-md); margin-bottom: 6px; }

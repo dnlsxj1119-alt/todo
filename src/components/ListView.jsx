@@ -87,10 +87,8 @@ function buildRows(items, projects) {
   return rows;
 }
 
-function bucketOf(r) {
-  if (r.status === 'done') return 'done';
-  const overdue = r.due && r.due < TODAY;
-  if (overdue) return 'overdue';
+function dateBucket(r) {
+  if (r.due && r.due < TODAY && r.status !== 'done') return 'overdue';
   if (r.expected === TODAY || r.due === TODAY) return 'today';
   if (!r.expected) return 'unplanned';
   if (r.expected < TODAY) return 'today';
@@ -143,25 +141,6 @@ function usePopClose(ref, onClose) {
   }, [ref, onClose]);
 }
 
-function StatusMenu({ value, onPick, onClose }) {
-  const ref = useRef(null);
-  usePopClose(ref, onClose);
-  return (
-    <div className="lv-menu lv-menu--left" ref={ref} onClick={e => e.stopPropagation()}>
-      {STATUS_OPTS.map(o => (
-        <button
-          key={o.key}
-          className={`lv-menu-opt ${value === o.key ? 'lv-menu-opt--on' : ''}`}
-          onClick={() => { onPick(o.key); onClose(); }}
-        >
-          <span className="lv-menu-dot" style={{ background: o.dot }} />
-          {o.label}
-        </button>
-      ))}
-    </div>
-  );
-}
-
 function PrioMenu({ value, onPick, onClose }) {
   const ref = useRef(null);
   usePopClose(ref, onClose);
@@ -181,11 +160,23 @@ function PrioMenu({ value, onPick, onClose }) {
   );
 }
 
-function RowMenu({ kind, onDetail, onDelete, onClose }) {
+function RowMenu({ kind, status, onStatus, onDetail, onDelete, onClose }) {
   const ref = useRef(null);
   usePopClose(ref, onClose);
   return (
     <div className="lv-menu lv-menu--right" ref={ref} onClick={e => e.stopPropagation()}>
+      <div className="lv-menu-label">상태</div>
+      {STATUS_OPTS.map(o => (
+        <button
+          key={o.key}
+          className={`lv-menu-opt ${status === o.key ? 'lv-menu-opt--on' : ''}`}
+          onClick={() => { onStatus(o.key); onClose(); }}
+        >
+          <span className="lv-menu-dot" style={{ background: o.dot }} />
+          {o.label}
+        </button>
+      ))}
+      <div className="lv-menu-sep" />
       <button className="lv-menu-opt" onClick={() => { onDetail(); onClose(); }}>
         {kind === 'item' ? '자세히 편집' : '프로젝트 열기'}
       </button>
@@ -234,15 +225,22 @@ function InlineTitle({ value, onSave }) {
 
 function DatePop({ value, label, onChange, onClose }) {
   const ref = useRef(null);
+  const inputRef = useRef(null);
   usePopClose(ref, onClose);
+  useEffect(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    el.focus();
+    try { el.showPicker?.(); } catch { /* 사용자 제스처 밖이면 무시 */ }
+  }, []);
   return (
     <div className="lv-date-pop" ref={ref} onClick={e => e.stopPropagation()}>
       <label>{label}</label>
       <input
+        ref={inputRef}
         type="date"
         value={value || ''}
-        autoFocus
-        onChange={e => onChange(e.target.value || null)}
+        onChange={e => { onChange(e.target.value || null); onClose(); }}
       />
       <div className="lv-date-pop-row">
         <button onClick={() => { onChange(TODAY); onClose(); }}>오늘</button>
@@ -259,11 +257,14 @@ export default function ListView({
   onAddItem, onUpdateItem, onDeleteItem,
   onEditProject, onSaveProject,
 }) {
-  const [filter, setFilter] = useState(null); // null(전체) | 'done' | projectId
+  const [filter, setFilterRaw] = useState(null); // null(전체) | 'done' | projectId
   const [datePop, setDatePop] = useState(null); // `${rowKey}:${field}`
-  const [statusPop, setStatusPop] = useState(null); // rowKey
   const [prioPop, setPrioPop] = useState(null); // rowKey
   const [rowMenu, setRowMenu] = useState(null); // rowKey
+  // 방금 완료한 항목은 잠깐 그 자리에 남겨둠 (실수 취소용). 탭을 바꾸면 정리됨.
+  const [justDone, setJustDone] = useState(() => new Set());
+
+  const setFilter = f => { setFilterRaw(f); setJustDone(new Set()); };
 
   const rows = useMemo(() => buildRows(items, projects), [items, projects]);
 
@@ -282,18 +283,19 @@ export default function ListView({
     });
 
   const passFilter = r => {
-    if (r.status === 'done') return false;
+    if (r.status === 'done' && !justDone.has(r.key)) return false;
     if (filter === null) return true;
     return r.cat && r.cat.id === filter;
   };
 
   const grouped = { overdue: [], today: [], week: [], later: [], unplanned: [] };
   rows.filter(passFilter).forEach(r => {
-    const b = bucketOf(r);
+    const b = dateBucket(r);
     if (grouped[b]) grouped[b].push(r);
   });
   Object.values(grouped).forEach(list => {
     list.sort((a, b) => {
+      if ((a.status === 'done') !== (b.status === 'done')) return a.status === 'done' ? 1 : -1;
       if (a.priority !== b.priority) return b.priority - a.priority;
       const da = a.expected || a.due || '9999-99-99';
       const db = b.expected || b.due || '9999-99-99';
@@ -305,6 +307,15 @@ export default function ListView({
     if (r.kind === 'item') onSetItemStatus(r.raw.id, status);
     else patchTask(r, { status: TASK_STATUS_MAP[status] });
   };
+  const changeStatus = (r, status) => {
+    setRowStatus(r, status);
+    setJustDone(prev => {
+      const n = new Set(prev);
+      if (status === 'done') n.add(r.key); else n.delete(r.key);
+      return n;
+    });
+  };
+  const toggleDone = r => changeStatus(r, r.status === 'done' ? 'todo' : 'done');
   const openRow = r => {
     if (r.kind === 'item') onItemClick(r.raw);
     else onEditProject(r.raw.project);
@@ -407,15 +418,11 @@ export default function ListView({
         <span className="lv-ck-wrap">
           <button
             className="lv-ck-btn"
-            onClick={e => { e.stopPropagation(); setStatusPop(statusPop === r.key ? null : r.key); }}
-            aria-label="상태 변경"
-            aria-haspopup="true"
+            onClick={e => { e.stopPropagation(); toggleDone(r); }}
+            aria-label={r.status === 'done' ? '완료 취소' : '완료로 표시'}
           >
             <span className={`lv-ck ${STATUS_CLASS[r.status]}`} />
           </button>
-          {statusPop === r.key && (
-            <StatusMenu value={r.status} onPick={s => setRowStatus(r, s)} onClose={() => setStatusPop(null)} />
-          )}
         </span>
         <InlineTitle value={r.title} onSave={t => setRowTitle(r, t)} />
         <span className="lv-meta">
@@ -435,6 +442,8 @@ export default function ListView({
             {rowMenu === r.key && (
               <RowMenu
                 kind={r.kind}
+                status={r.status}
+                onStatus={s => changeStatus(r, s)}
                 onDetail={() => openRow(r)}
                 onDelete={() => deleteRow(r)}
                 onClose={() => setRowMenu(null)}
