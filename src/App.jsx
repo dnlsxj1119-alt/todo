@@ -76,7 +76,7 @@ export default function App() {
   };
 
   const userId = user?.id;
-  const { items, loading, addItem, addRecurringItems, updateItem, deleteItem, toggleComplete, setStatus, setPriority, moveItem, getItemsForDate, getItemsForCell, getBacklogItems } = useItems(userId);
+  const { items, loading, addItem, addRecurringItems, updateItem, deleteItem, toggleComplete, setStatus, setPriority, setProject, moveItem, getItemsForDate, getItemsForCell, getBacklogItems } = useItems(userId);
 
   // 구글 캘린더에서 가져온 일정은 앱 화면에 표시하지 않음(범위를 비워 조회 자체를 막음).
   // 앱 → 구글 캘린더 쓰기 동기화는 useItems 쪽에서 별도로 동작하므로 영향 없음.
@@ -352,8 +352,15 @@ export default function App() {
             onAddItem={addItem}
             onUpdateItem={updateItem}
             onDeleteItem={deleteItem}
+            onSetItemProject={setProject}
             onEditProject={(p) => setProjectModal({ project: p })}
             onSaveProject={updateProject}
+            onAddCategory={async (name) => {
+              const p = await addProject({ type: 'sponsorship', title: name, startDate: '', deadline: '', tasks: [], goals: [], notes: '' });
+              return p?.id ?? null;
+            }}
+            onCompleteCategory={completeProject}
+            onUncompleteCategory={uncompleteProject}
           />
         ) : activeTab === 'habits' ? (
           <HabitTracker

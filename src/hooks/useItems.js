@@ -51,6 +51,7 @@ function toLocal(row) {
     dueDate: row.due_date ?? '',
     priority: row.priority ?? 0,
     status: row.status ?? (row.completed ? 'done' : 'todo'),
+    projectId: row.project_id ?? null,
     googleEventId: row.google_event_id ?? null,
   };
 }
@@ -71,6 +72,7 @@ function toRow(data, userId) {
     due_date: data.dueDate || null,
     priority: data.priority ?? 0,
     status,
+    project_id: data.projectId ?? null,
     google_event_id: data.googleEventId ?? null,
   };
 }
@@ -185,6 +187,11 @@ export function useItems(userId) {
     await supabase.from('items').update({ priority }).eq('id', id);
   }, []);
 
+  const setProject = useCallback(async (id, projectId) => {
+    setItems(prev => prev.map(i => i.id === id ? { ...i, projectId } : i));
+    await supabase.from('items').update({ project_id: projectId }).eq('id', id);
+  }, []);
+
   const moveItem = useCallback(async (id, newDate, newTimeSlot) => {
     setItems(prev => prev.map(i => i.id === id ? { ...i, date: newDate, timeSlot: newTimeSlot } : i));
     await supabase.from('items').update({ date: newDate, time_slot: newTimeSlot }).eq('id', id);
@@ -227,5 +234,5 @@ export function useItems(userId) {
   const getBacklogItems = useCallback(() =>
     items.filter(i => i.type === 'todo' && !i.date), [items]);
 
-  return { items, loading, addItem, addRecurringItems, updateItem, deleteItem, toggleComplete, setStatus, setPriority, moveItem, getItemsForDate, getItemsForCell, getBacklogItems };
+  return { items, loading, addItem, addRecurringItems, updateItem, deleteItem, toggleComplete, setStatus, setPriority, setProject, moveItem, getItemsForDate, getItemsForCell, getBacklogItems };
 }

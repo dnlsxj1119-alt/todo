@@ -72,7 +72,9 @@ export function useProjects(userId) {
       .from('projects').insert(toRow(data, userId)).select().single();
     if (inserted) {
       setProjects(prev => prev.some(p => p.id === inserted.id) ? prev : [...prev, toLocal(inserted)]);
+      return toLocal(inserted);
     }
+    return null;
   }, [userId]);
 
   const updateProject = useCallback(async (id, data) => {

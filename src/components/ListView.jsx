@@ -1,6 +1,10 @@
 import { useMemo, useState, useRef, useEffect } from 'react';
 import { toDateString } from '../utils/dateUtils';
-import { getProjectType } from '../utils/projectTypes';
+import { getProjectType, getTaskProgressPct } from '../utils/projectTypes';
+
+function catDone(p) {
+  return !!p.forceCompleted || ((p.tasks?.length ?? 0) > 0 && getTaskProgressPct(p.tasks) === 100);
+}
 
 /* 달력 항목(items)과 프로젝트 태스크를 하나의 목록으로 합쳐 보여주는 뷰.
    - 프로젝트 = 카테고리로 표시
@@ -45,19 +49,26 @@ const PRIO = [
   { label: '높음', color: '#D9534F' },
 ];
 
+function catOf(p) {
+  return { id: p.id, name: p.title, color: getProjectType(p.type).border };
+}
+
 function buildRows(items, projects) {
   const rows = [];
+  const projById = {};
+  projects.forEach(p => { projById[p.id] = p; });
 
   items
     .filter(it => it.type === 'todo' || it.type === 'education')
     .forEach(it => {
       const status = it.status || (it.completed ? 'done' : 'todo');
+      const p = it.projectId ? projById[it.projectId] : null;
       rows.push({
         key: `i-${it.id}`,
         kind: 'item',
         raw: it,
         title: it.title,
-        cat: null,
+        cat: p ? catOf(p) : null,
         expected: it.date || null,
         due: it.dueDate || null,
         time: it.time || null,
@@ -179,6 +190,57 @@ function PrioMenu({ value, onPick, onClose }) {
   );
 }
 
+function CategoryMenu({ current, categories, onPick, onCreate, onClose }) {
+  const ref = useRef(null);
+  usePopClose(ref, onClose);
+  const [adding, setAdding] = useState(false);
+  const [name, setName] = useState('');
+  const composing = useRef(false);
+  const submit = () => {
+    const t = name.trim();
+    if (t) { onCreate(t); onClose(); }
+  };
+  return (
+    <div className="lv-menu lv-menu--left lv-menu--cat" ref={ref} onClick={e => e.stopPropagation()}>
+      <button
+        className={`lv-menu-opt ${!current ? 'lv-menu-opt--on' : ''}`}
+        onClick={() => { onPick(null); onClose(); }}
+      >
+        <span className="lv-menu-dot" style={{ background: 'var(--border)' }} />없음
+      </button>
+      {categories.map(c => (
+        <button
+          key={c.id}
+          className={`lv-menu-opt ${current === c.id ? 'lv-menu-opt--on' : ''}`}
+          onClick={() => { onPick(c.id); onClose(); }}
+        >
+          <span className="lv-menu-dot" style={{ background: getProjectType(c.type).border }} />
+          {c.title}
+        </button>
+      ))}
+      <div className="lv-menu-sep" />
+      {adding ? (
+        <input
+          className="lv-menu-input"
+          value={name}
+          autoFocus
+          placeholder="카테고리 이름"
+          onChange={e => setName(e.target.value)}
+          onCompositionStart={() => { composing.current = true; }}
+          onCompositionEnd={() => { composing.current = false; }}
+          onKeyDown={e => {
+            if (e.key === 'Escape') setAdding(false);
+            else if (e.key === 'Enter' && !composing.current && !e.nativeEvent.isComposing) { e.preventDefault(); submit(); }
+          }}
+          onBlur={submit}
+        />
+      ) : (
+        <button className="lv-menu-opt lv-menu-opt--add" onClick={() => setAdding(true)}>+ 새 카테고리</button>
+      )}
+    </div>
+  );
+}
+
 function RowMenu({ kind, status, onStatus, onDetail, onDelete, onClose }) {
   const ref = useRef(null);
   usePopClose(ref, onClose);
@@ -272,15 +334,20 @@ function DatePop({ value, label, onChange, onClose }) {
 
 export default function ListView({
   items, projects,
-  onItemClick, onSetItemStatus, onSetItemPriority,
+  onItemClick, onSetItemStatus, onSetItemPriority, onSetItemProject,
   onAddItem, onUpdateItem, onDeleteItem,
   onEditProject, onSaveProject,
+  onAddCategory, onCompleteCategory, onUncompleteCategory,
 }) {
   const [filter, setFilterRaw] = useState(null); // null(전체) | 'done' | projectId
   const [datePop, setDatePop] = useState(null); // `${rowKey}:${field}`
   const [statusPop, setStatusPop] = useState(null); // rowKey
   const [prioPop, setPrioPop] = useState(null); // rowKey
+  const [catPop, setCatPop] = useState(null); // rowKey
   const [rowMenu, setRowMenu] = useState(null); // rowKey
+  const [addingCat, setAddingCat] = useState(false);
+  const [newCatName, setNewCatName] = useState('');
+  const [showDoneCats, setShowDoneCats] = useState(false);
   // 방금 완료한 항목은 잠깐 그 자리에 남겨둠 (실수 취소용). 탭을 바꾸면 정리됨.
   const [justDone, setJustDone] = useState(() => new Set());
 
@@ -291,6 +358,9 @@ export default function ListView({
   const doneCount = rows.filter(r => r.status === 'done').length;
   const catCounts = {};
   rows.forEach(r => { if (r.cat && r.status !== 'done') catCounts[r.cat.id] = (catCounts[r.cat.id] ?? 0) + 1; });
+
+  const activeCats = projects.filter(p => !catDone(p));
+  const doneCats = projects.filter(catDone);
 
   const viewingDone = filter === 'done';
 
@@ -358,6 +428,15 @@ export default function ListView({
     if (r.kind === 'item') onSetItemPriority(r.raw.id, v);
     else patchTask(r, { priority: v });
   };
+  const setRowCategory = (r, projectId) => {
+    if (r.kind === 'item') onSetItemProject(r.raw.id, projectId);
+  };
+  const submitNewCat = () => {
+    const t = newCatName.trim();
+    setAddingCat(false);
+    setNewCatName('');
+    if (t) onAddCategory(t);
+  };
   const setRowTitle = (r, title) => {
     if (r.kind === 'item') onUpdateItem(r.raw.id, { title });
     else patchTask(r, { label: title });
@@ -371,20 +450,9 @@ export default function ListView({
   };
 
   const quickAdd = (groupKey, title) => {
-    const activeProject = filter && filter !== 'inbox'
-      ? projects.find(p => p.id === filter)
-      : null;
-    if (activeProject) {
-      const newTask = { id: Date.now(), label: title, status: 'upcoming' };
-      onSaveProject(activeProject.id, { ...activeProject, tasks: [...(activeProject.tasks ?? []), newTask] });
-      return;
-    }
-    const date =
-      groupKey === 'today' ? TODAY :
-      groupKey === 'week' ? addDays(TODAY, 2) :
-      groupKey === 'later' ? addDays(TODAY, 9) :
-      '';
-    onAddItem({ type: 'todo', title, date, timeSlot: 'all' });
+    const projectId = filter && projects.some(p => p.id === filter) ? filter : null;
+    const date = groupKey === 'today' ? TODAY : '';
+    onAddItem({ type: 'todo', title, date, timeSlot: 'all', projectId });
   };
 
   const dueOnly = rows
@@ -449,7 +517,26 @@ export default function ListView({
         </span>
         <InlineTitle value={r.title} onSave={t => setRowTitle(r, t)} />
         <span className="lv-meta">
-          {r.cat && (
+          {r.kind === 'item' ? (
+            <span className="lv-cat-edit">
+              <button
+                className={`lv-pill lv-pill--btn ${r.cat ? '' : 'lv-pill--empty'}`}
+                style={r.cat ? { background: tint(r.cat.color, '22'), color: r.cat.color } : undefined}
+                onClick={e => { e.stopPropagation(); setCatPop(catPop === r.key ? null : r.key); }}
+              >
+                {r.cat ? r.cat.name : '+ 카테고리'}
+              </button>
+              {catPop === r.key && (
+                <CategoryMenu
+                  current={r.cat ? r.cat.id : null}
+                  categories={activeCats}
+                  onPick={id => setRowCategory(r, id)}
+                  onCreate={async name => { const id = await onAddCategory(name); if (id) setRowCategory(r, id); setCatPop(null); }}
+                  onClose={() => setCatPop(null)}
+                />
+              )}
+            </span>
+          ) : r.cat && (
             <span className="lv-pill" style={{ background: tint(r.cat.color, '22'), color: r.cat.color }}>
               {r.cat.name}
             </span>
@@ -494,7 +581,7 @@ export default function ListView({
           className={`lv-cat ${viewingDone ? 'lv-cat--on' : ''}`}
           onClick={() => setFilter(viewingDone ? null : 'done')}
         >✓ 완료 <span className="lv-cat-ct">{doneCount}</span></button>
-        {projects.map(p => {
+        {activeCats.map(p => {
           const pt = getProjectType(p.type);
           const on = filter === p.id;
           return (
@@ -503,13 +590,71 @@ export default function ListView({
               className={`lv-cat ${on ? 'lv-cat--on' : ''}`}
               style={on ? { background: pt.border, borderColor: pt.border, color: '#fff' } : undefined}
               onClick={() => setFilter(on ? null : p.id)}
+              onDoubleClick={() => onEditProject(p)}
+              title="더블클릭: 이름·색 수정 / 완료 처리"
             >
               <span className="lv-cat-dot" style={{ background: on ? '#fff' : pt.border }} />
               {p.title} <span className="lv-cat-ct">{catCounts[p.id] ?? 0}</span>
             </button>
           );
         })}
+
+        {addingCat ? (
+          <input
+            className="lv-cat-input"
+            value={newCatName}
+            autoFocus
+            placeholder="카테고리 이름 (Enter)"
+            onChange={e => setNewCatName(e.target.value)}
+            onKeyDown={e => {
+              if (e.key === 'Escape') { setAddingCat(false); setNewCatName(''); }
+              else if (e.key === 'Enter' && !e.nativeEvent.isComposing) { e.preventDefault(); submitNewCat(); }
+            }}
+            onBlur={submitNewCat}
+          />
+        ) : (
+          <button className="lv-cat lv-cat--add" onClick={() => setAddingCat(true)}>+ 카테고리</button>
+        )}
+
+        {doneCats.length > 0 && (
+          <button className="lv-cat lv-cat--muted" onClick={() => setShowDoneCats(v => !v)}>
+            완료된 카테고리 {doneCats.length} {showDoneCats ? '▾' : '▸'}
+          </button>
+        )}
       </div>
+
+      {(() => {
+        const sel = filter && activeCats.find(p => p.id === filter);
+        if (!sel) return null;
+        return (
+          <div className="lv-cat-actions">
+            <span>카테고리: <b>{sel.title}</b></span>
+            <button onClick={() => onEditProject(sel)}>✏️ 이름·색</button>
+            <button onClick={() => { onCompleteCategory(sel.id); setFilter(null); }}>✅ 완료 처리</button>
+          </div>
+        );
+      })()}
+
+      {showDoneCats && doneCats.length > 0 && (
+        <div className="lv-cats lv-cats--done">
+          {doneCats.map(p => (
+            <button
+              key={p.id}
+              className={`lv-cat ${filter === p.id ? 'lv-cat--on' : ''}`}
+              onClick={() => setFilter(filter === p.id ? null : p.id)}
+              onDoubleClick={() => onEditProject(p)}
+            >
+              <span className="lv-cat-dot" style={{ background: getProjectType(p.type).border }} />
+              {p.title}
+              <span
+                className="lv-cat-restore"
+                onClick={e => { e.stopPropagation(); onUncompleteCategory(p.id); }}
+                title="완료 취소"
+              >↩</span>
+            </button>
+          ))}
+        </div>
+      )}
 
       {viewingDone ? (
         <div className="lv-group">
