@@ -2345,6 +2345,14 @@ input, textarea, select { font-family: inherit; }
 .lv-cat-actions button { font-size: 12px; font-weight: 600; color: var(--text-secondary); padding: 4px 10px;
   border: 1px solid var(--border); border-radius: 6px; background: var(--surface); }
 .lv-cat-actions button:hover { border-color: var(--accent); color: var(--accent); }
+.lv-cat-actions button.lv-cat-actions--danger:hover { border-color: var(--red-mid); color: var(--red-mid); }
+
+/* 카테고리 색 팔레트 (CategoryModal) */
+.color-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; }
+.color-sw { width: 100%; aspect-ratio: 1; border-radius: 8px; border: 2px solid transparent; cursor: pointer;
+  transition: transform var(--transition); }
+.color-sw:hover { transform: scale(1.08); }
+.color-sw--on { border-color: var(--text-primary); box-shadow: 0 0 0 2px var(--surface) inset; }
 
 /* 행의 카테고리 칩 (드롭다운) */
 .lv-cat-edit { position: relative; display: inline-flex; }

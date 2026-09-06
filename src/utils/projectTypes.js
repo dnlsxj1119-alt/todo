@@ -5,6 +5,11 @@ export const PROJECT_TYPES = [
   { key: 'hobby',       label: '취미',    emoji: '🎨', bg: '#F3E8FF', color: '#6B21A8', border: '#C084FC' },
 ];
 
+export const CATEGORY_PALETTE = [
+  '#E0648F', '#D9534F', '#E0942A', '#C9A227', '#5C8F1E', '#2E9E8F',
+  '#378ADD', '#5A6BD8', '#8A5CD8', '#B052C0', '#7A8290', '#3C7A5A',
+];
+
 export function getProjectType(key) {
   return PROJECT_TYPES.find(t => t.key === key) ?? PROJECT_TYPES[1];
 }

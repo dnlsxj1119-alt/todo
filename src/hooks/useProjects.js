@@ -5,6 +5,7 @@ function toLocal(row) {
   return {
     id: row.id,
     type: row.type,
+    color: row.color ?? '',
     title: row.title,
     startDate: row.start_date ?? '',
     deadline: row.deadline ?? '',
@@ -21,6 +22,7 @@ function toRow(data, userId) {
   return {
     user_id: userId,
     type: data.type,
+    color: data.color || null,
     title: data.title,
     start_date: data.startDate || null,
     deadline: data.deadline || null,

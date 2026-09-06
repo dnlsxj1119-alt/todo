@@ -25,9 +25,9 @@ import { useDailyReflections } from './hooks/useDailyReflections';
 import { getWeekStart, toDateString, getMonthKey } from './utils/dateUtils';
 import CalendarView from './components/CalendarView';
 import WeeklyView from './components/WeeklyView';
-import ProjectsView from './components/ProjectsView';
 import ListView from './components/ListView';
-import ProjectModal from './components/ProjectModal';
+import CategoryModal from './components/CategoryModal';
+// ProjectsView(구 프로젝트 탭)는 목록 뷰 카테고리로 대체됨 — 필요 시 복구
 import HabitTracker from './components/HabitTracker';
 import MonthlyGoalsView from './components/MonthlyGoalsView';
 import DailyReflectionView from './components/DailyReflectionView';
@@ -85,7 +85,7 @@ export default function App() {
     connected: googleConnected, loading: googleLoading, error: googleError,
     getGoogleEventsForDate, toggleGoogleEventDone, disconnect: disconnectGoogle,
   } = useGoogleCalendar(userId, googleRange.start, googleRange.end);
-  const { projects, addProject, updateProject, deleteProject, toggleTask, cycleEmailStatus, reorderProjects, togglePin, completeProject, uncompleteProject } = useProjects(userId);
+  const { projects, addProject, updateProject, deleteProject, completeProject, uncompleteProject } = useProjects(userId);
   const { habits, archivedHabits, addHabit, updateHabit, deleteHabit, toggleHabitDate, reorderHabits, archiveHabit, restoreHabit } = useHabits(userId);
   const { getForMonth: getMonthlyGoal, updateNotes: updateGoalNotes, addItem: addGoalItem, toggleItem: toggleGoalItem, deleteItem: deleteGoalItem, editItem: editGoalItem, reorderItems: reorderGoalItems } = useMonthlyGoals(userId);
   const {
@@ -201,14 +201,6 @@ export default function App() {
           >
             <span className="nav-icon">🗂️</span>
             <span className="nav-label">목록</span>
-          </button>
-          <button
-            className={`nav-item ${activeTab === 'projects' ? 'nav-item--active' : ''}`}
-            onClick={() => setActiveTab('projects')}
-            title="프로젝트"
-          >
-            <span className="nav-icon">📁</span>
-            <span className="nav-label">프로젝트</span>
           </button>
           <button
             className={`nav-item ${activeTab === 'habits' ? 'nav-item--active' : ''}`}
@@ -355,12 +347,13 @@ export default function App() {
             onSetItemProject={setProject}
             onEditProject={(p) => setProjectModal({ project: p })}
             onSaveProject={updateProject}
-            onAddCategory={async (name, type) => {
-              const p = await addProject({ type: type || 'sponsorship', title: name, startDate: '', deadline: '', tasks: [], goals: [], notes: '' });
+            onAddCategory={async (name, color) => {
+              const p = await addProject({ type: 'sponsorship', color, title: name, startDate: '', deadline: '', tasks: [], goals: [], notes: '' });
               return p?.id ?? null;
             }}
             onCompleteCategory={completeProject}
             onUncompleteCategory={uncompleteProject}
+            onDeleteCategory={deleteProject}
           />
         ) : activeTab === 'habits' ? (
           <HabitTracker
@@ -394,20 +387,7 @@ export default function App() {
             weekStats={getWeekStats(toDateString(new Date()))}
             onOpenDate={openReflection}
           />
-        ) : (
-          <ProjectsView
-            projects={projects}
-            onToggleTask={toggleTask}
-            onCycleEmail={cycleEmailStatus}
-            onAdd={addProject}
-            onEdit={updateProject}
-            onDelete={deleteProject}
-            onReorder={reorderProjects}
-            onTogglePin={togglePin}
-            onComplete={completeProject}
-            onUncomplete={uncompleteProject}
-          />
-        )}
+        ) : null}
         </ErrorBoundary>
       </main>
 
@@ -423,11 +403,12 @@ export default function App() {
       )}
 
       {projectModal && (
-        <ProjectModal
-          project={projectModal.project}
+        <CategoryModal
+          category={projectModal.project}
           onSave={(data) => {
-            if (projectModal.project) updateProject(projectModal.project.id, data);
-            else addProject(data);
+            const base = projectModal.project ?? { type: 'sponsorship', tasks: [], goals: [] };
+            if (projectModal.project) updateProject(projectModal.project.id, { ...base, ...data });
+            else addProject({ ...base, ...data });
             setProjectModal(null);
           }}
           onDelete={(id) => { deleteProject(id); setProjectModal(null); }}

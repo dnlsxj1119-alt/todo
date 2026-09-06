@@ -1,20 +1,24 @@
 import { useMemo, useState, useRef, useEffect } from 'react';
 import { toDateString } from '../utils/dateUtils';
-import { getProjectType, getTaskProgressPct, PROJECT_TYPES } from '../utils/projectTypes';
+import { getProjectType, getTaskProgressPct, CATEGORY_PALETTE } from '../utils/projectTypes';
+
+function catColor(p) {
+  return p.color || getProjectType(p.type).border;
+}
 
 function catDone(p) {
   return !!p.forceCompleted || ((p.tasks?.length ?? 0) > 0 && getTaskProgressPct(p.tasks) === 100);
 }
 
-// 새 카테고리엔 기존에 가장 적게 쓴 색(프로젝트 종류)을 배정
-function pickNewCatType(projects) {
+// 새 카테고리엔 팔레트에서 기존에 가장 적게 쓴 색을 배정
+function pickNewCatColor(projects) {
   const count = {};
-  projects.forEach(p => { count[p.type] = (count[p.type] || 0) + 1; });
-  let best = PROJECT_TYPES[0].key;
+  projects.forEach(p => { const c = catColor(p); count[c] = (count[c] || 0) + 1; });
+  let best = CATEGORY_PALETTE[0];
   let bestN = Infinity;
-  PROJECT_TYPES.forEach(t => {
-    const n = count[t.key] || 0;
-    if (n < bestN) { bestN = n; best = t.key; }
+  CATEGORY_PALETTE.forEach(c => {
+    const n = count[c] || 0;
+    if (n < bestN) { bestN = n; best = c; }
   });
   return best;
 }
@@ -63,7 +67,7 @@ const PRIO = [
 ];
 
 function catOf(p) {
-  return { id: p.id, name: p.title, color: getProjectType(p.type).border };
+  return { id: p.id, name: p.title, color: catColor(p) };
 }
 
 function buildRows(items, projects) {
@@ -91,14 +95,13 @@ function buildRows(items, projects) {
     });
 
   projects.forEach(p => {
-    const pt = getProjectType(p.type);
     (p.tasks ?? []).forEach(t => {
       rows.push({
         key: `p-${t.id}`,
         kind: 'task',
         raw: { project: p, task: t },
         title: t.label,
-        cat: { id: p.id, name: p.title, color: pt.border },
+        cat: catOf(p),
         expected: t.planned || null,
         due: t.deadline || null,
         time: null,
@@ -227,7 +230,7 @@ function CategoryMenu({ current, categories, onPick, onCreate, onClose }) {
           className={`lv-menu-opt ${current === c.id ? 'lv-menu-opt--on' : ''}`}
           onClick={() => { onPick(c.id); onClose(); }}
         >
-          <span className="lv-menu-dot" style={{ background: getProjectType(c.type).border }} />
+          <span className="lv-menu-dot" style={{ background: catColor(c) }} />
           {c.title}
         </button>
       ))}
@@ -350,7 +353,7 @@ export default function ListView({
   onItemClick, onSetItemStatus, onSetItemPriority, onSetItemProject,
   onAddItem, onUpdateItem, onDeleteItem,
   onEditProject, onSaveProject,
-  onAddCategory, onCompleteCategory, onUncompleteCategory,
+  onAddCategory, onCompleteCategory, onUncompleteCategory, onDeleteCategory,
 }) {
   const [filter, setFilterRaw] = useState(null); // null(전체) | 'done' | projectId
   const [datePop, setDatePop] = useState(null); // `${rowKey}:${field}`
@@ -384,6 +387,20 @@ export default function ListView({
       const db = b.expected || b.due || '0000';
       return da < db ? 1 : da > db ? -1 : 0; // 최근 완료가 위로
     });
+
+  // 완료 목록은 월별로 묶어서 표시
+  const doneByMonth = [];
+  doneRows.forEach(r => {
+    const d = r.expected || r.due;
+    const key = d ? d.slice(0, 7) : 'none';
+    let g = doneByMonth[doneByMonth.length - 1];
+    if (!g || g.key !== key) {
+      const [y, m] = key === 'none' ? [] : key.split('-');
+      g = { key, label: key === 'none' ? '날짜 없음' : `${+y}년 ${+m}월`, rows: [] };
+      doneByMonth.push(g);
+    }
+    g.rows.push(r);
+  });
 
   const passFilter = r => {
     if (r.status === 'done' && !justDone.has(r.key)) return false;
@@ -448,7 +465,7 @@ export default function ListView({
     const t = newCatName.trim();
     setAddingCat(false);
     setNewCatName('');
-    if (t) onAddCategory(t, pickNewCatType(projects));
+    if (t) onAddCategory(t, pickNewCatColor(projects));
   };
   const setRowTitle = (r, title) => {
     if (r.kind === 'item') onUpdateItem(r.raw.id, { title });
@@ -544,7 +561,7 @@ export default function ListView({
                   current={r.cat ? r.cat.id : null}
                   categories={activeCats}
                   onPick={id => setRowCategory(r, id)}
-                  onCreate={async name => { const id = await onAddCategory(name, pickNewCatType(projects)); if (id) setRowCategory(r, id); setCatPop(null); }}
+                  onCreate={async name => { const id = await onAddCategory(name, pickNewCatColor(projects)); if (id) setRowCategory(r, id); setCatPop(null); }}
                   onClose={() => setCatPop(null)}
                 />
               )}
@@ -595,18 +612,18 @@ export default function ListView({
           onClick={() => setFilter(viewingDone ? null : 'done')}
         >✓ 완료 <span className="lv-cat-ct">{doneCount}</span></button>
         {activeCats.map(p => {
-          const pt = getProjectType(p.type);
+          const cc = catColor(p);
           const on = filter === p.id;
           return (
             <button
               key={p.id}
               className={`lv-cat ${on ? 'lv-cat--on' : ''}`}
-              style={on ? { background: pt.border, borderColor: pt.border, color: '#fff' } : undefined}
+              style={on ? { background: cc, borderColor: cc, color: '#fff' } : undefined}
               onClick={() => setFilter(on ? null : p.id)}
               onDoubleClick={() => onEditProject(p)}
-              title="더블클릭: 이름·색 수정 / 완료 처리"
+              title="더블클릭: 이름·색 수정"
             >
-              <span className="lv-cat-dot" style={{ background: on ? '#fff' : pt.border }} />
+              <span className="lv-cat-dot" style={{ background: on ? '#fff' : cc }} />
               {p.title} <span className="lv-cat-ct">{catCounts[p.id] ?? 0}</span>
             </button>
           );
@@ -644,6 +661,15 @@ export default function ListView({
             <span>카테고리: <b>{sel.title}</b></span>
             <button onClick={() => onEditProject(sel)}>✏️ 이름·색</button>
             <button onClick={() => { onCompleteCategory(sel.id); setFilter(null); }}>✅ 완료 처리</button>
+            <button
+              className="lv-cat-actions--danger"
+              onClick={() => {
+                if (window.confirm(`'${sel.title}' 카테고리를 삭제할까요?\n(이 카테고리의 할일은 지워지지 않고 '카테고리 없음'이 됩니다)`)) {
+                  onDeleteCategory(sel.id);
+                  setFilter(null);
+                }
+              }}
+            >🗑 삭제</button>
           </div>
         );
       })()}
@@ -657,7 +683,7 @@ export default function ListView({
               onClick={() => setFilter(filter === p.id ? null : p.id)}
               onDoubleClick={() => onEditProject(p)}
             >
-              <span className="lv-cat-dot" style={{ background: getProjectType(p.type).border }} />
+              <span className="lv-cat-dot" style={{ background: catColor(p) }} />
               {p.title}
               <span
                 className="lv-cat-restore"
@@ -670,12 +696,14 @@ export default function ListView({
       )}
 
       {viewingDone ? (
-        <div className="lv-group">
-          <div className="lv-group-h"><b>완료</b><span className="lv-group-ct">{doneRows.length}</span></div>
-          {doneRows.length === 0
-            ? <div className="lv-empty">완료한 항목이 없습니다</div>
-            : doneRows.map(renderRow)}
-        </div>
+        doneRows.length === 0
+          ? <div className="lv-empty">완료한 항목이 없습니다</div>
+          : doneByMonth.map(g => (
+              <div className="lv-group" key={g.key}>
+                <div className="lv-group-h"><b>{g.label}</b><span className="lv-group-ct">{g.rows.length}</span></div>
+                {g.rows.map(renderRow)}
+              </div>
+            ))
       ) : (
         <>
           {filter === null && dueOnly.length > 0 && (
