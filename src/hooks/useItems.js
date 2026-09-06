@@ -198,9 +198,15 @@ export function useItems(userId) {
   }, []);
 
   const setProject = useCallback(async (id, projectId) => {
+    const prevItem = items.find(i => i.id === id);
     setItems(prev => prev.map(i => i.id === id ? { ...i, projectId } : i));
-    await supabase.from('items').update({ project_id: projectId }).eq('id', id);
-  }, []);
+    const { error } = await supabase.from('items').update({ project_id: projectId }).eq('id', id);
+    if (error) {
+      console.error('카테고리 저장 실패:', error);
+      window.alert('카테고리 저장 실패: ' + error.message);
+      setItems(prev => prev.map(i => i.id === id ? { ...i, projectId: prevItem?.projectId ?? null } : i));
+    }
+  }, [items]);
 
   const moveItem = useCallback(async (id, newDate, newTimeSlot) => {
     setItems(prev => prev.map(i => i.id === id ? { ...i, date: newDate, timeSlot: newTimeSlot } : i));
