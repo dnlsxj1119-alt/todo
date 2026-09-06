@@ -26,6 +26,8 @@ import { getWeekStart, toDateString, getMonthKey } from './utils/dateUtils';
 import CalendarView from './components/CalendarView';
 import WeeklyView from './components/WeeklyView';
 import ProjectsView from './components/ProjectsView';
+import ListView from './components/ListView';
+import ProjectModal from './components/ProjectModal';
 import HabitTracker from './components/HabitTracker';
 import MonthlyGoalsView from './components/MonthlyGoalsView';
 import DailyReflectionView from './components/DailyReflectionView';
@@ -60,6 +62,7 @@ export default function App() {
   const [reflectionModalDate, setReflectionModalDate] = useState(null);
   const [filterType, setFilterType] = useState(null);
   const [modal, setModal] = useState(null);
+  const [projectModal, setProjectModal] = useState(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(
     () => localStorage.getItem('sidebarCollapsed') === '1'
   );
@@ -192,11 +195,19 @@ export default function App() {
             <span className="nav-label">주간 일정</span>
           </button>
           <button
+            className={`nav-item ${activeTab === 'list' ? 'nav-item--active' : ''}`}
+            onClick={() => setActiveTab('list')}
+            title="목록"
+          >
+            <span className="nav-icon">🗂️</span>
+            <span className="nav-label">목록</span>
+          </button>
+          <button
             className={`nav-item ${activeTab === 'projects' ? 'nav-item--active' : ''}`}
             onClick={() => setActiveTab('projects')}
             title="프로젝트"
           >
-            <span className="nav-icon">🗂️</span>
+            <span className="nav-icon">📁</span>
             <span className="nav-label">프로젝트</span>
           </button>
           <button
@@ -331,6 +342,18 @@ export default function App() {
             getGoogleEventsForDate={getGoogleEventsForDate}
             onToggleGoogleEvent={toggleGoogleEventDone}
           />
+        ) : activeTab === 'list' ? (
+          <ListView
+            items={items}
+            projects={projects}
+            onItemClick={(it) => (it ? openEdit(it) : openAdd(toDateString(new Date())))}
+            onToggleItem={toggleComplete}
+            onAddItem={addItem}
+            onUpdateItem={updateItem}
+            onToggleTask={toggleTask}
+            onEditProject={(p) => setProjectModal({ project: p })}
+            onSaveProject={updateProject}
+          />
         ) : activeTab === 'habits' ? (
           <HabitTracker
             habits={habits}
@@ -388,6 +411,19 @@ export default function App() {
           onSave={handleSave}
           onDelete={handleDelete}
           onClose={closeModal}
+        />
+      )}
+
+      {projectModal && (
+        <ProjectModal
+          project={projectModal.project}
+          onSave={(data) => {
+            if (projectModal.project) updateProject(projectModal.project.id, data);
+            else addProject(data);
+            setProjectModal(null);
+          }}
+          onDelete={(id) => { deleteProject(id); setProjectModal(null); }}
+          onClose={() => setProjectModal(null)}
         />
       )}
 
