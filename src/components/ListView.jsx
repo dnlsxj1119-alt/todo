@@ -115,16 +115,18 @@ function buildRows(items, projects) {
 }
 
 function dateBucket(r) {
-  if (r.due && r.due < TODAY && r.status !== 'done') return 'overdue';
+  if (r.status !== 'done') {
+    if (r.due && r.due < TODAY) return 'overdue';
+    if (r.expected && r.expected < TODAY) return 'overdue';
+  }
   if (r.expected === TODAY || r.due === TODAY) return 'today';
   if (!r.expected) return 'unplanned';
-  if (r.expected < TODAY) return 'today';
   if (r.expected <= EOW) return 'week';
   return 'later';
 }
 
 const GROUPS = [
-  { key: 'overdue', label: '지난 마감', warn: true, add: false },
+  { key: 'overdue', label: '지난 (놓친 일정)', warn: true, add: false },
   { key: 'today', label: '오늘', add: true },
   { key: 'week', label: '이번 주', add: false },
   { key: 'later', label: '나중에', add: false },
@@ -471,6 +473,14 @@ export default function ListView({
     if (r.kind === 'item') onUpdateItem(r.raw.id, { title });
     else patchTask(r, { label: title });
   };
+  const clearOverdue = (list) => {
+    if (!list.length) return;
+    if (!window.confirm(`지난 항목 ${list.length}개의 날짜를 지우고 '미정'으로 보낼까요?\n(항목은 그대로 남아요)`)) return;
+    list.forEach(r => {
+      if (r.kind === 'item') onUpdateItem(r.raw.id, { date: '', dueDate: '' });
+      else patchTask(r, { planned: '', deadline: '' });
+    });
+  };
   const deleteRow = r => {
     if (r.kind === 'item') onDeleteItem(r.raw.id);
     else {
@@ -724,6 +734,11 @@ export default function ListView({
               <div className="lv-group" key={g.key}>
                 <div className={`lv-group-h ${g.warn ? 'lv-group-h--warn' : ''}`}>
                   <b>{g.label}</b><span className="lv-group-ct">{list.length}</span>
+                  {g.key === 'overdue' && list.length > 0 && (
+                    <button className="lv-group-action" onClick={() => clearOverdue(list)}>
+                      전부 미정으로
+                    </button>
+                  )}
                 </div>
                 {list.map(renderRow)}
                 {list.length === 0 && g.key !== 'unplanned' && <div className="lv-empty">비어 있음</div>}
