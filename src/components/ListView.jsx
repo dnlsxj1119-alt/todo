@@ -490,15 +490,15 @@ export default function ListView({
   const setRowCategory = (r, projectId) => {
     if (r.kind === 'item') onSetItemProject(r.raw.id, projectId);
   };
-  const reorderCats = (toId) => {
-    const fromId = dragCat;
+  const reorderCats = (toId, fromIdArg) => {
+    const fromId = fromIdArg ?? dragCat;
     setDragCat(null);
     setDragOverCat(null);
-    if (!fromId || fromId === toId || !onReorderCategories) return;
+    if (fromId == null || !onReorderCategories) return;
     const arr = [...activeCats];
-    const fi = arr.findIndex(p => p.id === fromId);
-    const ti = arr.findIndex(p => p.id === toId);
-    if (fi < 0 || ti < 0) return;
+    const fi = arr.findIndex(p => String(p.id) === String(fromId));
+    const ti = arr.findIndex(p => String(p.id) === String(toId));
+    if (fi < 0 || ti < 0 || fi === ti) return;
     const [m] = arr.splice(fi, 1);
     arr.splice(ti, 0, m);
     onReorderCategories([...arr, ...doneCats].map((p, i) => ({ ...p, sortOrder: i })));
@@ -701,10 +701,18 @@ export default function ListView({
               onDoubleClick={() => onEditProject(p)}
               title="드래그: 순서 변경 · 더블클릭: 이름·색 수정"
               draggable
-              onDragStart={() => setDragCat(p.id)}
-              onDragOver={e => { e.preventDefault(); if (dragCat && dragCat !== p.id) setDragOverCat(p.id); }}
+              onDragStart={e => {
+                setDragCat(p.id);
+                e.dataTransfer.effectAllowed = 'move';
+                try { e.dataTransfer.setData('text/plain', String(p.id)); } catch { /* noop */ }
+              }}
+              onDragOver={e => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; if (dragCat && dragCat !== p.id) setDragOverCat(p.id); }}
               onDragLeave={() => setDragOverCat(o => (o === p.id ? null : o))}
-              onDrop={e => { e.preventDefault(); reorderCats(p.id); }}
+              onDrop={e => {
+                e.preventDefault();
+                const fromId = dragCat ?? e.dataTransfer.getData('text/plain');
+                reorderCats(p.id, fromId);
+              }}
               onDragEnd={() => { setDragCat(null); setDragOverCat(null); }}
             >
               <span className="lv-cat-dot" style={{ background: on ? '#fff' : cc }} />

@@ -59,7 +59,14 @@ export function useProjects(userId) {
         if (payload.eventType === 'INSERT') {
           setProjects(prev => [...prev, toLocal(payload.new)]);
         } else if (payload.eventType === 'UPDATE') {
-          setProjects(prev => prev.map(p => p.id === payload.new.id ? toLocal(payload.new) : p));
+          const n = payload.new;
+          setProjects(prev => prev.map(p => {
+            if (p.id !== n.id) return p;
+            const next = toLocal(n);
+            // 실시간 페이로드에 새 컬럼(color)이 빠져 있으면 로컬 값 유지
+            if (!('color' in n)) next.color = p.color;
+            return next;
+          }));
         } else if (payload.eventType === 'DELETE') {
           setProjects(prev => prev.filter(p => p.id !== payload.old.id));
         }
