@@ -329,16 +329,15 @@ export default function WeeklyView({
 
   const days = getWeekDays(currentWeek);
 
-  // 이번 주에서 지난 날짜인데 아직 완료 안 한 할일 → 백로그로 (수동 버튼)
-  const todayStr = toDateString(new Date());
+  // 이 주에서 아직 완료 안 한 할일 → 백로그로 (수동 버튼)
+  const weekDateSet = new Set(days.map(d => toDateString(d)));
   const sweepTargets = items.filter(i =>
-    i.type === 'todo' && !i.completed && i.date &&
-    i.date < todayStr && days.some(d => toDateString(d) === i.date)
+    i.type === 'todo' && !i.completed && i.date && weekDateSet.has(i.date)
   );
   const sweepCount = sweepTargets.length;
   const sweepWeekTodos = () => {
     if (sweepCount === 0) return;
-    if (!window.confirm(`아직 안 끝낸 할일 ${sweepCount}개를 백로그로 보낼까요?\n(날짜만 지워지고 할일은 그대로 남아요)`)) return;
+    if (!window.confirm(`이 주의 미완료 할일 ${sweepCount}개를 백로그로 보낼까요?\n(날짜만 지워지고 할일은 그대로 남아요)`)) return;
     sweepTargets.forEach(i => moveItem(i.id, null, 'all'));
   };
   const { spanMap, covered } = useSpanData(items);
@@ -537,6 +536,11 @@ export default function WeeklyView({
         <div className="cal-title-group">
           <h2 className="cal-title">{formatWeekRange(currentWeek)}</h2>
           {!isCurrentWeek && <button className="today-btn" onClick={goThisWeek}>이번 주</button>}
+          {sweepCount > 0 && (
+            <button className="week-sweep-btn" onClick={sweepWeekTodos}>
+              ↩ 미완료 {sweepCount}개 백로그로
+            </button>
+          )}
         </div>
         <button className="nav-btn" onClick={nextWeek}>›</button>
       </div>
@@ -558,11 +562,6 @@ export default function WeeklyView({
                 <span className="week-backlog-title">📋 할일 백로그</span>
                 <button className="week-backlog-collapse-btn" onClick={toggleBacklog} aria-label="백로그 접기">‹</button>
               </div>
-              {sweepCount > 0 && (
-                <button className="backlog-sweep-btn" onClick={sweepWeekTodos}>
-                  ↩ 이번 주 못한 할일 {sweepCount}개 담기
-                </button>
-              )}
               <div className="week-backlog-list">
                 {backlogItems.filter(i => !filterType || i.type === filterType).length === 0
                   ? <div className="week-backlog-empty">이번 주 할일을 적어두고<br />날짜별로 드래그해 보세요</div>

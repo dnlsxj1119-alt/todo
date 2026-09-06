@@ -514,19 +514,16 @@ input, textarea, select { font-family: inherit; }
   flex: none;
 }
 .week-backlog-title { font-size: 13px; font-weight: 700; color: var(--text-primary); }
-.backlog-sweep-btn {
-  flex: none;
-  margin: 0 12px 8px;
-  padding: 7px 10px;
+.week-sweep-btn {
+  padding: 5px 11px;
   border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--bg);
+  border-radius: 999px;
+  background: var(--surface);
   color: var(--text-secondary);
   font-size: 11.5px;
   font-weight: 600;
-  text-align: left;
 }
-.backlog-sweep-btn:hover { border-color: var(--purple-mid); color: var(--purple-dark); background: var(--purple-light); }
+.week-sweep-btn:hover { border-color: var(--purple-mid); color: var(--purple-dark); background: var(--purple-light); }
 .week-backlog-collapse-btn {
   border: none;
   background: transparent;
