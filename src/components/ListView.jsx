@@ -44,6 +44,7 @@ function endOfWeekStr() {
   return toDateString(d);
 }
 const EOW = endOfWeekStr();
+const TOMORROW = addDays(TODAY, 1);
 
 function mdLabel(s) {
   const [, m, d] = s.split('-');
@@ -123,6 +124,7 @@ function dateBucket(r) {
     if (r.expected && r.expected < TODAY) return 'overdue';
   }
   if (r.expected === TODAY || r.due === TODAY) return 'today';
+  if (r.expected === TOMORROW || r.due === TOMORROW) return 'tomorrow';
   if (!r.expected) return 'unplanned';
   if (r.expected <= EOW) return 'week';
   return 'later';
@@ -131,6 +133,7 @@ function dateBucket(r) {
 const GROUPS = [
   { key: 'overdue', label: '지난 (놓친 일정)', warn: true, add: false },
   { key: 'today', label: '오늘', add: true },
+  { key: 'tomorrow', label: '내일', add: true },
   { key: 'week', label: '이번 주', add: false },
   { key: 'later', label: '나중에', add: false },
   { key: 'unplanned', label: '미정', add: false },
@@ -461,7 +464,7 @@ export default function ListView({
     return r.cat && r.cat.id === filter;
   };
 
-  const grouped = { overdue: [], today: [], week: [], later: [], unplanned: [] };
+  const grouped = { overdue: [], today: [], tomorrow: [], week: [], later: [], unplanned: [] };
   rows.filter(passFilter).forEach(r => {
     const b = dateBucket(r);
     if (grouped[b]) grouped[b].push(r);
@@ -600,8 +603,9 @@ export default function ListView({
 
   const quickAdd = (groupKey, title, dates) => {
     const projectId = filter && projects.some(p => p.id === filter) ? filter : null;
-    // 날짜를 직접 고르면 그 값 사용, 안 고르면: '오늘' 그룹은 오늘, 나머지는 미정('')
-    const date = (dates && dates.expected) || (groupKey === 'today' ? TODAY : '');
+    // 날짜를 직접 고르면 그 값 사용, 안 고르면 그룹 기본 날짜(오늘/내일), 그 외엔 미정('')
+    const groupDate = groupKey === 'today' ? TODAY : groupKey === 'tomorrow' ? TOMORROW : '';
+    const date = (dates && dates.expected) || groupDate;
     const dueDate = (dates && dates.due) || '';
     onAddItem({ type: 'todo', title, date, dueDate, timeSlot: 'all', projectId });
   };
@@ -918,6 +922,7 @@ export default function ListView({
                   <QuickAdd
                     placeholder={
                       g.key === 'today' ? '오늘 할 일 한 줄로 추가…' :
+                      g.key === 'tomorrow' ? '내일 할 일 한 줄로 추가…' :
                       g.key === 'week' ? '이번 주 안에 할 일…' :
                       g.key === 'later' ? '나중에 할 일…' :
                       '제목만 적어두기 (날짜는 나중에)…'
