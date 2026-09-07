@@ -132,8 +132,8 @@ function dateBucket(r) {
 }
 
 const GROUPS = [
-  { key: 'yesterday', label: '어제 (놓친 일정)', warn: true, add: false },
   { key: 'overdue', label: '지난 (놓친 일정)', warn: true, add: false },
+  { key: 'yesterday', label: '어제 (놓친 일정)', warn: true, add: false },
   { key: 'today', label: '오늘', add: true },
   { key: 'tomorrow', label: '내일', add: true },
   { key: 'week', label: '이번 주', add: false },
@@ -466,7 +466,7 @@ export default function ListView({
     return r.cat && r.cat.id === filter;
   };
 
-  const grouped = { yesterday: [], overdue: [], today: [], tomorrow: [], week: [], later: [], unplanned: [] };
+  const grouped = { overdue: [], yesterday: [], today: [], tomorrow: [], week: [], later: [], unplanned: [] };
   rows.filter(passFilter).forEach(r => {
     const b = dateBucket(r);
     if (grouped[b]) grouped[b].push(r);
