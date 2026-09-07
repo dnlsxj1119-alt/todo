@@ -45,6 +45,7 @@ function endOfWeekStr() {
 }
 const EOW = endOfWeekStr();
 const TOMORROW = addDays(TODAY, 1);
+const YESTERDAY = addDays(TODAY, -1);
 
 function mdLabel(s) {
   const [, m, d] = s.split('-');
@@ -120,8 +121,8 @@ function buildRows(items, projects) {
 
 function dateBucket(r) {
   if (r.status !== 'done') {
-    if (r.due && r.due < TODAY) return 'overdue';
-    if (r.expected && r.expected < TODAY) return 'overdue';
+    const past = [r.due, r.expected].filter(d => d && d < TODAY).sort();
+    if (past.length) return past[past.length - 1] === YESTERDAY ? 'yesterday' : 'overdue';
   }
   if (r.expected === TODAY || r.due === TODAY) return 'today';
   if (r.expected === TOMORROW || r.due === TOMORROW) return 'tomorrow';
@@ -131,6 +132,7 @@ function dateBucket(r) {
 }
 
 const GROUPS = [
+  { key: 'yesterday', label: '어제 (놓친 일정)', warn: true, add: false },
   { key: 'overdue', label: '지난 (놓친 일정)', warn: true, add: false },
   { key: 'today', label: '오늘', add: true },
   { key: 'tomorrow', label: '내일', add: true },
@@ -464,7 +466,7 @@ export default function ListView({
     return r.cat && r.cat.id === filter;
   };
 
-  const grouped = { overdue: [], today: [], tomorrow: [], week: [], later: [], unplanned: [] };
+  const grouped = { yesterday: [], overdue: [], today: [], tomorrow: [], week: [], later: [], unplanned: [] };
   rows.filter(passFilter).forEach(r => {
     const b = dateBucket(r);
     if (grouped[b]) grouped[b].push(r);
@@ -905,12 +907,12 @@ export default function ListView({
 
           {GROUPS.map(g => {
             const list = grouped[g.key];
-            if (g.key === 'overdue' && list.length === 0) return null;
+            if ((g.key === 'overdue' || g.key === 'yesterday') && list.length === 0) return null;
             return (
               <div className="lv-group" key={g.key}>
                 <div className={`lv-group-h ${g.warn ? 'lv-group-h--warn' : ''}`}>
                   <b>{g.label}</b><span className="lv-group-ct">{list.length}</span>
-                  {g.key === 'overdue' && list.length > 0 && (
+                  {(g.key === 'overdue' || g.key === 'yesterday') && list.length > 0 && (
                     <button className="lv-group-action" onClick={() => clearOverdue(list)}>
                       전부 미정으로
                     </button>
