@@ -131,7 +131,7 @@ const GROUPS = [
   { key: 'today', label: '오늘', add: true },
   { key: 'week', label: '이번 주', add: false },
   { key: 'later', label: '나중에', add: false },
-  { key: 'unplanned', label: '미정', add: true },
+  { key: 'unplanned', label: '미정', add: false },
 ];
 
 function QuickAdd({ placeholder, onAdd }) {
@@ -818,6 +818,13 @@ export default function ListView({
             })
       ) : (
         <>
+          <div className="lv-quicktop">
+            <QuickAdd
+              placeholder="날짜 미정으로 할 일 바로 추가…"
+              onAdd={t => quickAdd('unplanned', t)}
+            />
+          </div>
+
           {filter === null && dueOnly.length > 0 && (
             <div className="lv-duestrip">
               📕 마감만 잡히고 계획일 미정 {dueOnly.length}
