@@ -92,6 +92,7 @@ function buildRows(items, projects) {
         time: it.time || null,
         status,
         priority: it.priority || 0,
+        sortOrder: it.sortOrder ?? null,
       });
     });
 
@@ -108,6 +109,7 @@ function buildRows(items, projects) {
         time: null,
         status: t.status === 'done' ? 'done' : t.status === 'in_progress' ? 'doing' : 'todo',
         priority: t.priority || 0,
+        sortOrder: null,
       });
     });
   });
@@ -359,6 +361,7 @@ export default function ListView({
   onAddItem, onUpdateItem, onDeleteItem,
   onEditProject, onSaveProject,
   onAddCategory, onCompleteCategory, onUncompleteCategory, onDeleteCategory, onReorderCategories,
+  onReorderItems,
 }) {
   const [filter, setFilterRaw] = useState(null); // null(전체) | 'done' | projectId
   const [datePop, setDatePop] = useState(null); // `${rowKey}:${field}`
@@ -372,6 +375,8 @@ export default function ListView({
   const [openDoneGroups, setOpenDoneGroups] = useState(() => new Set());
   const [dragCat, setDragCat] = useState(null);
   const [dragOverCat, setDragOverCat] = useState(null);
+  const [dragRow, setDragRow] = useState(null); // row.key (할일 순서 드래그)
+  const [dragOverRow, setDragOverRow] = useState(null);
   const [pendingDel, setPendingDel] = useState({}); // rowKey -> row (되돌리기 대기)
   const delTimers = useRef({});
   useEffect(() => () => { Object.values(delTimers.current).forEach(clearTimeout); }, []);
@@ -447,6 +452,11 @@ export default function ListView({
   Object.values(grouped).forEach(list => {
     list.sort((a, b) => {
       if ((a.status === 'done') !== (b.status === 'done')) return a.status === 'done' ? 1 : -1;
+      // 드래그로 지정한 수동 순서가 있으면 우선 (없는 항목은 아래에서 중요도순)
+      const ao = a.sortOrder, bo = b.sortOrder;
+      if (ao != null && bo != null && ao !== bo) return ao - bo;
+      if (ao != null && bo == null) return -1;
+      if (ao == null && bo != null) return 1;
       if (a.priority !== b.priority) return b.priority - a.priority;
       const da = a.expected || a.due || '9999-99-99';
       const db = b.expected || b.due || '9999-99-99';
@@ -512,6 +522,21 @@ export default function ListView({
     const [m] = arr.splice(fi, 1);
     arr.splice(ti, 0, m);
     onReorderCategories([...arr, ...doneCats].map((p, i) => ({ ...p, sortOrder: i })));
+  };
+
+  // 할일(달력 항목)만 그룹 안에서 드래그로 순서 변경. 프로젝트 태스크는 대상 아님.
+  const reorderRows = (targetRow, groupList) => {
+    const fromKey = dragRow;
+    setDragRow(null);
+    setDragOverRow(null);
+    if (!fromKey || !onReorderItems || fromKey === targetRow.key) return;
+    const arr = groupList.filter(r => r.kind === 'item' && r.status !== 'done');
+    const fi = arr.findIndex(r => r.key === fromKey);
+    const ti = arr.findIndex(r => r.key === targetRow.key);
+    if (fi < 0 || ti < 0 || fi === ti) return;
+    const [m] = arr.splice(fi, 1);
+    arr.splice(ti, 0, m);
+    onReorderItems(arr.map((r, i) => ({ id: r.raw.id, sortOrder: i })));
   };
 
   const submitNewCat = () => {
@@ -591,7 +616,7 @@ export default function ListView({
     );
   };
 
-  const renderRow = r => {
+  const renderRow = (r, groupList) => {
     if (pendingDel[r.key]) {
       return (
         <div className="lv-row lv-row--deleting" key={r.key}>
@@ -601,8 +626,24 @@ export default function ListView({
       );
     }
     const prio = PRIO[r.priority];
+    const canDrag = !!groupList && !!onReorderItems && r.kind === 'item' && r.status !== 'done';
     return (
-      <div className={`lv-row ${r.status === 'done' ? 'lv-row--done' : ''}`} key={r.key}>
+      <div
+        className={`lv-row ${r.status === 'done' ? 'lv-row--done' : ''} ${dragRow === r.key ? 'lv-row--dragging' : ''} ${dragOverRow === r.key ? 'lv-row--dragover' : ''}`}
+        key={r.key}
+        onDragOver={canDrag ? (e => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; if (dragRow && dragRow !== r.key) setDragOverRow(r.key); }) : undefined}
+        onDragLeave={canDrag ? (() => setDragOverRow(o => (o === r.key ? null : o))) : undefined}
+        onDrop={canDrag ? (e => { e.preventDefault(); reorderRows(r, groupList); }) : undefined}
+      >
+        {canDrag && (
+          <span
+            className="lv-drag"
+            draggable
+            onDragStart={e => { setDragRow(r.key); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', r.key); }}
+            onDragEnd={() => { setDragRow(null); setDragOverRow(null); }}
+            title="드래그해서 순서 변경"
+          >⠿</span>
+        )}
         <span className="lv-prio-wrap">
           <button
             className="lv-prio-btn"
@@ -849,7 +890,7 @@ export default function ListView({
                     </button>
                   )}
                 </div>
-                {list.map(renderRow)}
+                {list.map(r => renderRow(r, list))}
                 {list.length === 0 && g.key !== 'unplanned' && <div className="lv-empty">비어 있음</div>}
                 {g.add && (
                   <QuickAdd

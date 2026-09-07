@@ -50,6 +50,7 @@ function toLocal(row) {
     completed: row.completed ?? false,
     dueDate: row.due_date ?? '',
     priority: row.priority ?? 0,
+    sortOrder: row.sort_order ?? null,
     status: row.status ?? (row.completed ? 'done' : 'todo'),
     projectId: row.project_id ?? null,
     googleEventId: row.google_event_id ?? null,
@@ -71,6 +72,7 @@ function toRow(data, userId) {
     completed: status === 'done',
     due_date: data.dueDate || null,
     priority: data.priority ?? 0,
+    sort_order: data.sortOrder ?? null,
     status,
     project_id: data.projectId ?? null,
     google_event_id: data.googleEventId ?? null,
@@ -112,6 +114,7 @@ export function useItems(userId) {
             if (!('project_id' in n)) next.projectId = i.projectId;
             if (!('due_date' in n)) next.dueDate = i.dueDate;
             if (!('priority' in n)) next.priority = i.priority;
+            if (!('sort_order' in n)) next.sortOrder = i.sortOrder;
             if (!('status' in n)) next.status = i.status;
             return next;
           }));
@@ -208,6 +211,15 @@ export function useItems(userId) {
     }
   }, [items]);
 
+  // 목록 드래그로 그룹 내 수동 순서 저장: order = [{ id, sortOrder }]
+  const reorderItems = useCallback(async (order) => {
+    const map = new Map(order.map(o => [o.id, o.sortOrder]));
+    setItems(prev => prev.map(i => (map.has(i.id) ? { ...i, sortOrder: map.get(i.id) } : i)));
+    await Promise.all(
+      order.map(o => supabase.from('items').update({ sort_order: o.sortOrder }).eq('id', o.id))
+    );
+  }, []);
+
   const moveItem = useCallback(async (id, newDate, newTimeSlot) => {
     setItems(prev => prev.map(i => i.id === id ? { ...i, date: newDate, timeSlot: newTimeSlot } : i));
     await supabase.from('items').update({ date: newDate, time_slot: newTimeSlot }).eq('id', id);
@@ -250,5 +262,5 @@ export function useItems(userId) {
   const getBacklogItems = useCallback(() =>
     items.filter(i => i.type === 'todo' && !i.date), [items]);
 
-  return { items, loading, addItem, addRecurringItems, updateItem, deleteItem, toggleComplete, setStatus, setPriority, setProject, moveItem, getItemsForDate, getItemsForCell, getBacklogItems };
+  return { items, loading, addItem, addRecurringItems, updateItem, deleteItem, toggleComplete, setStatus, setPriority, setProject, reorderItems, moveItem, getItemsForDate, getItemsForCell, getBacklogItems };
 }

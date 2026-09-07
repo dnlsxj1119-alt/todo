@@ -2269,6 +2269,14 @@ input, textarea, select { font-family: inherit; }
   border-radius: var(--radius-md); background: var(--surface); margin-bottom: 6px; box-shadow: var(--shadow-sm);
   transition: border-color var(--transition); }
 .lv-row:hover { border-color: var(--accent); }
+.lv-drag { position: absolute; left: -15px; top: 50%; transform: translateY(-50%);
+  cursor: grab; color: var(--text-muted); font-size: 12px; line-height: 1; padding: 6px 3px;
+  opacity: 0; transition: opacity var(--transition); user-select: none; }
+.lv-row:hover .lv-drag { opacity: 0.5; }
+.lv-drag:hover { opacity: 1; }
+.lv-drag:active { cursor: grabbing; }
+.lv-row--dragging { opacity: 0.4; }
+.lv-row--dragover { box-shadow: 0 -2px 0 var(--accent); }
 
 .lv-prio-wrap { position: relative; display: flex; align-self: stretch; }
 .lv-prio-btn { flex: 1; border: none; border-left: 5px solid transparent; padding: 0; cursor: pointer;
