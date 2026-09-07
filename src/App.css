@@ -2405,6 +2405,15 @@ input, textarea, select { font-family: inherit; }
 .lv-quick input::placeholder { color: var(--text-muted); }
 .lv-quicktop { margin-bottom: 12px; }
 .lv-quicktop .lv-quick { margin-bottom: 0; border-style: solid; background: var(--surface-2, rgba(127,127,127,.06)); }
+.lv-quick--dates { flex-wrap: wrap; }
+.lv-quick-dates { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.lv-quick-date { display: inline-flex; align-items: center; gap: 4px; font-size: 12px;
+  border: 1px solid var(--border); border-radius: var(--radius-sm, 6px); padding: 3px 6px; cursor: pointer; }
+.lv-quick-date input { border: none; background: none; outline: none; color: var(--text-primary);
+  font-size: 12px; width: 108px; cursor: pointer; }
+.lv-quick-go { border: 1px solid var(--accent); background: var(--accent); color: #fff;
+  font-size: 12px; padding: 4px 12px; border-radius: var(--radius-sm, 6px); cursor: pointer; }
+.lv-quick-go:hover { opacity: 0.9; }
 
 .lv-empty { font-size: 12.5px; color: var(--text-muted); padding: 12px; text-align: center;
   border: 1px dashed var(--border); border-radius: var(--radius-md); margin-bottom: 6px; }

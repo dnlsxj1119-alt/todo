@@ -136,17 +136,21 @@ const GROUPS = [
   { key: 'unplanned', label: '미정', add: false },
 ];
 
-function QuickAdd({ placeholder, onAdd }) {
+function QuickAdd({ placeholder, onAdd, withDates }) {
   const [val, setVal] = useState('');
+  const [expected, setExpected] = useState('');
+  const [due, setDue] = useState('');
   const composing = useRef(false);
   const submit = () => {
     const t = val.trim();
     if (!t) return;
-    onAdd(t);
+    onAdd(t, { expected, due });
     setVal('');
+    setExpected('');
+    setDue('');
   };
   return (
-    <div className="lv-quick">
+    <div className={`lv-quick ${withDates ? 'lv-quick--dates' : ''}`}>
       <span className="lv-quick-plus">+</span>
       <input
         value={val}
@@ -161,6 +165,19 @@ function QuickAdd({ placeholder, onAdd }) {
           submit();
         }}
       />
+      {withDates && (
+        <span className="lv-quick-dates">
+          <label className="lv-quick-date" title="계획일 (expected)">
+            <span>🗓</span>
+            <input type="date" value={expected} onChange={e => setExpected(e.target.value)} />
+          </label>
+          <label className="lv-quick-date" title="마감일 (due)">
+            <span>📕</span>
+            <input type="date" value={due} onChange={e => setDue(e.target.value)} />
+          </label>
+          <button type="button" className="lv-quick-go" onClick={submit}>추가</button>
+        </span>
+      )}
     </div>
   );
 }
@@ -581,10 +598,12 @@ export default function ListView({
     setPendingDel(p => { const n = { ...p }; delete n[key]; return n; });
   };
 
-  const quickAdd = (groupKey, title) => {
+  const quickAdd = (groupKey, title, dates) => {
     const projectId = filter && projects.some(p => p.id === filter) ? filter : null;
-    const date = groupKey === 'today' ? TODAY : '';
-    onAddItem({ type: 'todo', title, date, timeSlot: 'all', projectId });
+    // 날짜를 직접 고르면 그 값 사용, 안 고르면: '오늘' 그룹은 오늘, 나머지는 미정('')
+    const date = (dates && dates.expected) || (groupKey === 'today' ? TODAY : '');
+    const dueDate = (dates && dates.due) || '';
+    onAddItem({ type: 'todo', title, date, dueDate, timeSlot: 'all', projectId });
   };
 
   const dueOnly = rows
@@ -863,8 +882,9 @@ export default function ListView({
         <>
           <div className="lv-quicktop">
             <QuickAdd
-              placeholder="날짜 미정으로 할 일 바로 추가…"
-              onAdd={t => quickAdd('unplanned', t)}
+              withDates
+              placeholder="할 일 추가 — 날짜 안 고르면 미정으로…"
+              onAdd={(t, dates) => quickAdd('unplanned', t, dates)}
             />
           </div>
 
