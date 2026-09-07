@@ -452,12 +452,14 @@ export default function ListView({
   Object.values(grouped).forEach(list => {
     list.sort((a, b) => {
       if ((a.status === 'done') !== (b.status === 'done')) return a.status === 'done' ? 1 : -1;
-      // 드래그로 지정한 수동 순서가 있으면 우선 (없는 항목은 아래에서 중요도순)
+      // 1순위: 중요도(높음→낮음)
+      if (a.priority !== b.priority) return b.priority - a.priority;
+      // 2순위: 같은 중요도 안에서 드래그로 지정한 수동 순서
       const ao = a.sortOrder, bo = b.sortOrder;
       if (ao != null && bo != null && ao !== bo) return ao - bo;
       if (ao != null && bo == null) return -1;
       if (ao == null && bo != null) return 1;
-      if (a.priority !== b.priority) return b.priority - a.priority;
+      // 3순위: 날짜
       const da = a.expected || a.due || '9999-99-99';
       const db = b.expected || b.due || '9999-99-99';
       return da < db ? -1 : da > db ? 1 : 0;
@@ -641,7 +643,7 @@ export default function ListView({
             draggable
             onDragStart={e => { setDragRow(r.key); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', r.key); }}
             onDragEnd={() => { setDragRow(null); setDragOverRow(null); }}
-            title="드래그해서 순서 변경"
+            title="드래그해서 순서 변경 (같은 중요도 안에서)"
           >⠿</span>
         )}
         <span className="lv-prio-wrap">
