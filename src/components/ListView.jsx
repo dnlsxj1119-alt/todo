@@ -117,6 +117,7 @@ function buildRows(items, projects) {
         status,
         priority: it.priority || 0,
         sortOrder: it.sortOrder ?? null,
+        completedAt: it.completedAt ?? null,
       });
     });
 
@@ -134,6 +135,7 @@ function buildRows(items, projects) {
         status: t.status === 'done' ? 'done' : t.status === 'in_progress' ? 'doing' : 'todo',
         priority: t.priority || 0,
         sortOrder: null,
+        completedAt: t.completedAt ?? null,
       });
     });
   });
@@ -443,7 +445,15 @@ function buildClaudeText(rows, items, dayKeys) {
       const b = dateBucket(r, dayKeys);
       if (grouped[b]) grouped[b].push(r);
     });
-  const doneRows = rows.filter(r => r.status === 'done');
+  // 완료를 누른 시각(completedAt) 기준으로 최근 3일(그제·어제·오늘)만 추린다.
+  // 시각이 없는 항목은 이 기능이 생기기 전에 완료된 것이라 판단할 수 없어 제외한다.
+  const [ry, rm, rd] = addDays(today, -2).split('-').map(Number);
+  const recentFrom = new Date(ry, rm - 1, rd).toISOString(); // 그제 자정(로컬) 기준
+  const doneAll = rows.filter(r => r.status === 'done');
+  const doneRows = doneAll
+    .filter(r => r.completedAt && r.completedAt >= recentFrom)
+    .sort((a, b) => String(b.completedAt).localeCompare(String(a.completedAt)));
+  const doneOmitted = doneAll.length - doneRows.length;
   const lines = [];
   lines.push(`=== Claude 공유 (${today}) ===\n`);
   const scheduleLines = buildScheduleLines(items, today);
@@ -464,12 +474,18 @@ function buildClaudeText(rows, items, dayKeys) {
     });
   });
   if (doneRows.length) {
-    lines.push(`\n[✅ 완료] (${doneRows.length}개)`);
-    doneRows.slice(0, 20).forEach(r => {
+    lines.push(`\n[✅ 최근 완료] (최근 3일, ${doneRows.length}개)`);
+    doneRows.forEach(r => {
       const cat = r.cat ? ` #${r.cat.name}` : '';
-      lines.push(`  - ${r.title}${cat}`);
+      // completedAt 은 UTC ISO 라서 앞 10자를 그냥 자르면 새벽 시간대에 날짜가 하루 밀린다
+      const when = mdLabel(toDateString(new Date(r.completedAt)));
+      lines.push(`  - ${when} ${r.title}${cat}`);
     });
-    if (doneRows.length > 20) lines.push(`  ... 외 ${doneRows.length - 20}개`);
+  } else {
+    lines.push('\n[✅ 최근 완료] (최근 3일, 0개)');
+  }
+  if (doneOmitted > 0) {
+    lines.push(`  (그 밖의 완료 ${doneOmitted}개는 3일 밖이거나 완료 시각이 기록되기 전 항목이라 생략)`);
   }
   return lines.join('\n');
 }
@@ -541,13 +557,11 @@ export default function ListView({
 
   const viewingDone = filter === 'done';
 
+  // 최근 완료가 위로. 완료 시각이 있으면 그걸 쓰고, 없는(옛) 항목은 날짜로 폴백한다.
+  const doneSortKey = (r) => r.completedAt || r.expected || r.due || '0000';
   const doneRows = rows
     .filter(r => r.status === 'done' && !inDoneCat(r))
-    .sort((a, b) => {
-      const da = a.expected || a.due || '0000';
-      const db = b.expected || b.due || '0000';
-      return da < db ? 1 : da > db ? -1 : 0; // 최근 완료가 위로
-    });
+    .sort((a, b) => doneSortKey(b).localeCompare(doneSortKey(a)));
 
   // 완료 목록은 카테고리별로 묶어서 표시
   const doneByCategory = [];
@@ -609,8 +623,14 @@ export default function ListView({
   });
 
   const setRowStatus = (r, status) => {
-    if (r.kind === 'item') onSetItemStatus(r.raw.id, status);
-    else patchTask(r, { status: TASK_STATUS_MAP[status] });
+    if (r.kind === 'item') { onSetItemStatus(r.raw.id, status); return; }
+    // 태스크는 projects.tasks JSON 안에 있으므로 컬럼 추가 없이 완료 시각을 같이 담는다
+    const done = status === 'done';
+    const keep = done && r.raw.task.status === 'done' && r.raw.task.completedAt;
+    patchTask(r, {
+      status: TASK_STATUS_MAP[status],
+      completedAt: keep ? r.raw.task.completedAt : (done ? new Date().toISOString() : null),
+    });
   };
   const changeStatus = (r, status) => {
     setRowStatus(r, status);

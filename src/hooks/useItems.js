@@ -52,6 +52,7 @@ function toLocal(row) {
     priority: row.priority ?? 0,
     sortOrder: row.sort_order ?? null,
     status: row.status ?? (row.completed ? 'done' : 'todo'),
+    completedAt: row.completed_at ?? null,
     projectId: row.project_id ?? null,
     googleEventId: row.google_event_id ?? null,
   };
@@ -74,9 +75,31 @@ function toRow(data, userId) {
     priority: data.priority ?? 0,
     sort_order: data.sortOrder ?? null,
     status,
+    completed_at: data.completedAt ?? null,
     project_id: data.projectId ?? null,
     google_event_id: data.googleEventId ?? null,
   };
+}
+
+// 마이그레이션(20260909_item_completed_at.sql)을 아직 실행하지 않은 환경에서
+// completed_at 을 쓰면 '컬럼 없음' 오류로 완료 처리 자체가 막힌다.
+// 그 경우엔 completed_at 만 빼고 한 번 더 시도해서 최소한 상태 변경은 되게 한다.
+function isMissingColumnError(error, column) {
+  if (!error) return false;
+  if (error.code === '42703' || error.code === 'PGRST204') return true;
+  const msg = String(error.message ?? '');
+  return msg.includes(column) && /column|schema/i.test(msg);
+}
+
+async function updateItemRow(id, patch) {
+  const { error } = await supabase.from('items').update(patch).eq('id', id);
+  if (!error) return null;
+  if ('completed_at' in patch && isMissingColumnError(error, 'completed_at')) {
+    const { completed_at: _omit, ...rest } = patch;
+    const retry = await supabase.from('items').update(rest).eq('id', id);
+    return retry.error ?? null;
+  }
+  return error;
 }
 
 export function useItems(userId) {
@@ -117,6 +140,7 @@ export function useItems(userId) {
             if (!('priority' in n)) next.priority = i.priority;
             if (!('sort_order' in n)) next.sortOrder = i.sortOrder;
             if (!('status' in n)) next.status = i.status;
+            if (!('completed_at' in n)) next.completedAt = i.completedAt;
             return next;
           }));
         } else if (payload.eventType === 'DELETE') {
@@ -180,6 +204,11 @@ export function useItems(userId) {
     // 기존 슬롯을 그대로 유지한다. (예전엔 undefined 가 되어 'morning' 으로 초기화됐다)
     const slot = data.timeSlot || (data.time ? getTimeSlotFromTime(data.time) : undefined);
     const merged = { ...prev, ...data, timeSlot: slot ?? prev?.timeSlot ?? 'morning' };
+    // 모달에서 상태를 바꿨을 때도 완료 시각을 맞춰준다 (전환이 있을 때만)
+    const wasDone = prev?.status === 'done';
+    const nowDone = (merged.status ?? (merged.completed ? 'done' : 'todo')) === 'done';
+    if (nowDone && !wasDone) merged.completedAt = new Date().toISOString();
+    else if (!nowDone && wasDone) merged.completedAt = null;
     // 구글 동기화는 네트워크 왕복이라 먼저 화면에 반영해두고(응답 지연 체감 제거),
     // 동기화로 googleEventId 가 새로 생기면 그것만 덧붙인다.
     setItems(prevItems => prevItems.map(i => i.id === id ? merged : i));
@@ -187,7 +216,7 @@ export function useItems(userId) {
     if (synced.googleEventId !== merged.googleEventId) {
       setItems(prevItems => prevItems.map(i => i.id === id ? { ...i, googleEventId: synced.googleEventId } : i));
     }
-    const { error } = await supabase.from('items').update(toRow(synced, userId)).eq('id', id);
+    const error = await updateItemRow(id, toRow(synced, userId));
     if (error) console.error('[updateItem]', error);
   }, [userId, items]);
 
@@ -212,15 +241,24 @@ export function useItems(userId) {
     if (!item) return;
     const done = !item.completed;
     const status = done ? 'done' : 'todo';
-    setItems(prev => prev.map(i => i.id === id ? { ...i, completed: done, status } : i));
-    const { error } = await supabase.from('items').update({ completed: done, status }).eq('id', id);
+    const completedAt = done ? new Date().toISOString() : null;
+    setItems(prev => prev.map(i => i.id === id ? { ...i, completed: done, status, completedAt } : i));
+    const error = await updateItemRow(id, { completed: done, status, completed_at: completedAt });
     if (error) console.error('[toggleComplete]', error);
   }, [items]);
 
   // 상태 직접 지정: todo / doing / done
   const setStatus = useCallback(async (id, status) => {
-    setItems(prev => prev.map(i => i.id === id ? { ...i, status, completed: status === 'done' } : i));
-    const { error } = await supabase.from('items').update({ status, completed: status === 'done' }).eq('id', id);
+    const done = status === 'done';
+    // 완료로 바꿀 때만 시각을 새로 찍고, 완료를 되돌리면 비운다.
+    // (이미 완료였던 항목을 다시 완료로 눌러도 원래 시각을 유지)
+    const completedAt = done ? new Date().toISOString() : null;
+    setItems(prev => prev.map(i => {
+      if (i.id !== id) return i;
+      const keep = done && i.status === 'done' && i.completedAt;
+      return { ...i, status, completed: done, completedAt: keep ? i.completedAt : completedAt };
+    }));
+    const error = await updateItemRow(id, { status, completed: done, completed_at: completedAt });
     if (error) console.error('[setStatus]', error);
   }, []);
 
