@@ -399,7 +399,39 @@ function DatePop({ value, label, today, onChange, onClose }) {
   );
 }
 
-function buildClaudeText(rows, dayKeys) {
+// 🟢일정은 목록 뷰에 안 나오지만(달력/주간뷰 담당), 계획을 세울 땐
+// 이미 시간이 잡힌 약속을 알아야 하므로 오늘·내일·모레 3일치만 따로 붙인다.
+function buildScheduleLines(items, today) {
+  const days = [today, addDays(today, 1), addDays(today, 2)];
+  const dayLabel = ['오늘', '내일', '모레'];
+  const lines = [];
+  let any = false;
+  days.forEach((ds, i) => {
+    const onDay = (items ?? [])
+      .filter(it => it.type === 'schedule' && (
+        it.date === ds || (it.endDate && it.date < ds && it.endDate >= ds)
+      ))
+      // 시간 없는(종일) 일정을 먼저, 그 다음 시간순
+      .sort((a, b) => (a.time || '').localeCompare(b.time || ''));
+    if (!onDay.length) return;
+    any = true;
+    lines.push(`  ${ds} (${dayLabel[i]})`);
+    onDay.forEach(it => {
+      const done = it.completed ? '✓ ' : '';
+      const span = it.endDate && it.endDate > it.date ? ` (${it.date}~${it.endDate})` : '';
+      if (it.date !== ds) {
+        // 이어지는 날은 시작 시각이 그 날의 정보가 아니므로 시간을 붙이지 않는다
+        lines.push(`    - ${done}↩ ${it.title}${span}`);
+        return;
+      }
+      const time = it.time ? (it.endTime ? `${it.time}–${it.endTime} ` : `${it.time} `) : '';
+      lines.push(`    - ${done}${time}${it.title}${span}`);
+    });
+  });
+  return any ? lines : null;
+}
+
+function buildClaudeText(rows, items, dayKeys) {
   const { today } = dayKeys;
   const LABEL = { overdue: '🔴 지난 (놓친 일정)', yesterday: '🟠 어제 (놓친 일정)', today: '📌 오늘', tomorrow: '📅 내일', week: '📆 이번 주', later: '⏳ 나중에', unplanned: '📥 미정' };
   const STATUS_LABEL = { todo: '안 함', doing: '하는 중', done: '완료' };
@@ -414,6 +446,11 @@ function buildClaudeText(rows, dayKeys) {
   const doneRows = rows.filter(r => r.status === 'done');
   const lines = [];
   lines.push(`=== Claude 공유 (${today}) ===\n`);
+  const scheduleLines = buildScheduleLines(items, today);
+  if (scheduleLines) {
+    lines.push('\n[🟢 일정] (오늘~모레)');
+    lines.push(...scheduleLines);
+  }
   Object.entries(grouped).forEach(([key, list]) => {
     if (!list.length && key !== 'today') return;
     lines.push(`\n[${LABEL[key]}] (${list.length}개)`);
@@ -478,7 +515,7 @@ export default function ListView({
   const rows = useMemo(() => buildRows(items, projects), [items, projects]);
 
   const copyForClaude = () => {
-    const text = buildClaudeText(rows, dayKeys);
+    const text = buildClaudeText(rows, items, dayKeys);
     // 클립보드는 보안 컨텍스트(https/localhost)와 권한이 필요해서 실패할 수 있다.
     // 조용히 넘어가면 눌러도 아무 일도 없는 것처럼 보이므로 알려준다.
     navigator.clipboard?.writeText(text)
