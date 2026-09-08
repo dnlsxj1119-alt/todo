@@ -601,22 +601,48 @@ export default function ListView({
     if (r.kind === 'item') onUpdateItem(r.raw.id, { title });
     else patchTask(r, { label: title });
   };
-  const clearOverdue = (list) => {
-    if (!list.length) return;
-    if (!window.confirm(`지난 항목 ${list.length}개의 날짜를 지우고 '미정'으로 보낼까요?\n(항목은 그대로 남아요)`)) return;
-    list.filter(r => r.kind === 'item').forEach(r => onUpdateItem(r.raw.id, { date: '', dueDate: '' }));
-    // 같은 카테고리의 태스크를 하나씩 저장하면 저장할 때마다 태스크 배열 전체를
-    // 같은(낡은) 값으로 덮어써서 마지막 하나만 반영됐다 → 카테고리별로 한 번에 반영한다.
+  // 프로젝트 태스크를 하나씩 저장하면 저장할 때마다 태스크 배열 전체를 같은(낡은) 값으로
+  // 덮어써서 마지막 하나만 반영된다 → 카테고리별로 모아 한 번에 반영한다.
+  const patchTasksBulk = (taskRows, patchOf) => {
     const byProject = new Map();
-    list.filter(r => r.kind === 'task').forEach(r => {
+    taskRows.forEach(r => {
       const p = r.raw.project;
       if (!byProject.has(p.id)) byProject.set(p.id, { project: p, ids: new Set() });
       byProject.get(p.id).ids.add(r.raw.task.id);
     });
     byProject.forEach(({ project, ids }) => {
-      const tasks = (project.tasks ?? []).map(t => (ids.has(t.id) ? { ...t, planned: '', deadline: '' } : t));
+      const tasks = (project.tasks ?? []).map(t => (ids.has(t.id) ? { ...t, ...patchOf(t) } : t));
       onSaveProject(project.id, { ...project, tasks });
     });
+  };
+
+  const clearOverdue = (list) => {
+    if (!list.length) return;
+    if (!window.confirm(`지난 항목 ${list.length}개의 날짜를 지우고 '미정'으로 보낼까요?\n(항목은 그대로 남아요)`)) return;
+    list.filter(r => r.kind === 'item').forEach(r => onUpdateItem(r.raw.id, { date: '', dueDate: '' }));
+    patchTasksBulk(list.filter(r => r.kind === 'task'), () => ({ planned: '', deadline: '' }));
+  };
+
+  // 지난/어제 항목을 오늘로 다시 잡기.
+  // 마감일이 지난 채로 남으면 그룹 분류상 계속 '지난'에 남으므로,
+  // 이미 지나간 마감일만 오늘로 맞춘다 (아직 안 지난 마감일은 그대로 둔다).
+  const moveOverdueToToday = (list) => {
+    if (!list.length) return;
+    const pastDue = list.filter(r => r.due && r.due < TODAY).length;
+    const note = pastDue > 0
+      ? `\n(계획일을 오늘로 옮기고, 이미 지난 마감일 ${pastDue}개도 오늘로 맞춥니다)`
+      : '\n(계획일만 오늘로 옮기고 마감일은 그대로 둡니다)';
+    if (!window.confirm(`지난 항목 ${list.length}개를 오늘로 옮길까요?${note}`)) return;
+    list.filter(r => r.kind === 'item').forEach(r => {
+      const patch = { date: TODAY };
+      if (r.due && r.due < TODAY) patch.dueDate = TODAY;
+      onUpdateItem(r.raw.id, patch);
+    });
+    patchTasksBulk(list.filter(r => r.kind === 'task'), t => (
+      t.deadline && t.deadline < TODAY
+        ? { planned: TODAY, deadline: TODAY }
+        : { planned: TODAY }
+    ));
   };
   const deleteRow = r => {
     if (r.kind === 'item') { onDeleteItem(r.raw.id); return; }
@@ -953,9 +979,14 @@ export default function ListView({
                 <div className={`lv-group-h ${g.warn ? 'lv-group-h--warn' : ''}`}>
                   <b>{g.label}</b><span className="lv-group-ct">{list.length}</span>
                   {(g.key === 'overdue' || g.key === 'yesterday') && list.length > 0 && (
-                    <button className="lv-group-action" onClick={() => clearOverdue(list)}>
-                      전부 미정으로
-                    </button>
+                    <>
+                      <button className="lv-group-action" onClick={() => moveOverdueToToday(list)}>
+                        전부 오늘로
+                      </button>
+                      <button className="lv-group-action lv-group-action--next" onClick={() => clearOverdue(list)}>
+                        전부 미정으로
+                      </button>
+                    </>
                   )}
                 </div>
                 {list.map(r => renderRow(r, list))}
