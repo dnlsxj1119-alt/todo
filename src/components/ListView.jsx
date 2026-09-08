@@ -399,6 +399,44 @@ function DatePop({ value, label, today, onChange, onClose }) {
   );
 }
 
+function buildClaudeText(rows, dayKeys) {
+  const { today } = dayKeys;
+  const LABEL = { overdue: '🔴 지난 (놓친 일정)', yesterday: '🟠 어제 (놓친 일정)', today: '📌 오늘', tomorrow: '📅 내일', week: '📆 이번 주', later: '⏳ 나중에', unplanned: '📥 미정' };
+  const STATUS_LABEL = { todo: '안 함', doing: '하는 중', done: '완료' };
+  const PRIO_LABEL = ['', '낮음', '보통', '높음'];
+  const grouped = { overdue: [], yesterday: [], today: [], tomorrow: [], week: [], later: [], unplanned: [] };
+  rows
+    .filter(r => r.status !== 'done')
+    .forEach(r => {
+      const b = dateBucket(r, dayKeys);
+      if (grouped[b]) grouped[b].push(r);
+    });
+  const doneRows = rows.filter(r => r.status === 'done');
+  const lines = [];
+  lines.push(`=== Claude 공유 (${today}) ===\n`);
+  Object.entries(grouped).forEach(([key, list]) => {
+    if (!list.length && key !== 'today') return;
+    lines.push(`\n[${LABEL[key]}] (${list.length}개)`);
+    if (!list.length) { lines.push('  (비어 있음)'); return; }
+    list.forEach(r => {
+      const prio = r.priority ? ` [중요도:${PRIO_LABEL[r.priority]}]` : '';
+      const cat = r.cat ? ` #${r.cat.name}` : '';
+      const exp = r.expected ? ` 계획:${r.expected}` : '';
+      const due = r.due ? ` 마감:${r.due}` : '';
+      lines.push(`  - [${STATUS_LABEL[r.status]}] ${r.title}${cat}${prio}${exp}${due}`);
+    });
+  });
+  if (doneRows.length) {
+    lines.push(`\n[✅ 완료] (${doneRows.length}개)`);
+    doneRows.slice(0, 20).forEach(r => {
+      const cat = r.cat ? ` #${r.cat.name}` : '';
+      lines.push(`  - ${r.title}${cat}`);
+    });
+    if (doneRows.length > 20) lines.push(`  ... 외 ${doneRows.length - 20}개`);
+  }
+  return lines.join('\n');
+}
+
 export default function ListView({
   items, projects,
   onItemClick, onSetItemStatus, onSetItemPriority, onSetItemProject,
@@ -408,6 +446,8 @@ export default function ListView({
   onReorderItems,
 }) {
   const dayKeys = useDayKeys();
+  const [copied, setCopied] = useState(false);
+
   // 4.5초 뒤 실행되는 삭제 타이머처럼, 나중에 실행되는 코드가
   // 그 사이 바뀐 최신 카테고리를 읽을 수 있게 미러를 둔다.
   const projectsRef = useRef(projects);
@@ -436,6 +476,21 @@ export default function ListView({
   const setFilter = f => { setFilterRaw(f); setJustDone(new Set()); };
 
   const rows = useMemo(() => buildRows(items, projects), [items, projects]);
+
+  const copyForClaude = () => {
+    const text = buildClaudeText(rows, dayKeys);
+    // 클립보드는 보안 컨텍스트(https/localhost)와 권한이 필요해서 실패할 수 있다.
+    // 조용히 넘어가면 눌러도 아무 일도 없는 것처럼 보이므로 알려준다.
+    navigator.clipboard?.writeText(text)
+      .then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      })
+      .catch(err => {
+        console.error('[copyForClaude]', err);
+        window.alert('클립보드 복사에 실패했어요. 브라우저의 클립보드 권한을 확인해 주세요.');
+      });
+  };
 
   const activeCats = projects.filter(p => !catDone(p));
   const doneCats = projects.filter(catDone);
@@ -819,7 +874,17 @@ export default function ListView({
           <h2 className="lv-title">목록</h2>
           <p className="lv-sub">달력 할일 + 프로젝트 태스크 · 날짜·중요도·상태를 목록에서 바로 수정</p>
         </div>
-        <button className="btn btn--primary" onClick={() => onItemClick(null)}>+ 새 할일</button>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <button
+            className="btn btn--ghost"
+            onClick={copyForClaude}
+            title="현재 할 일 목록을 Claude에게 공유할 텍스트로 복사"
+            style={{ fontSize: '13px' }}
+          >
+            {copied ? '✅ 복사됨!' : '📋 Claude에게 공유'}
+          </button>
+          <button className="btn btn--primary" onClick={() => onItemClick(null)}>+ 새 할일</button>
+        </div>
       </div>
 
       <div className="lv-cats">
