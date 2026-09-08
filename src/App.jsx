@@ -100,8 +100,8 @@ export default function App() {
   const openReflection = useCallback((ds) => setReflectionModalDate(ds), []);
   const closeReflection = useCallback(() => setReflectionModalDate(null), []);
 
-  const openAdd = useCallback((defaultDate, defaultSlot) => {
-    setModal({ mode: 'add', defaultDate, defaultSlot });
+  const openAdd = useCallback((defaultDate, defaultSlot, defaultType) => {
+    setModal({ mode: 'add', defaultDate, defaultSlot, defaultType });
   }, []);
 
   const openEdit = useCallback((item) => {
@@ -355,7 +355,7 @@ export default function App() {
           <ListView
             items={items}
             projects={projects}
-            onItemClick={(it) => (it ? openEdit(it) : openAdd(toDateString(new Date())))}
+            onItemClick={(it) => (it ? openEdit(it) : openAdd(toDateString(new Date()), undefined, 'todo'))}
             onSetItemStatus={setStatus}
             onSetItemPriority={setPriority}
             onAddItem={addItem}
@@ -416,6 +416,8 @@ export default function App() {
           item={modal.item}
           defaultDate={modal.defaultDate}
           defaultSlot={modal.defaultSlot}
+          defaultType={modal.defaultType}
+          projects={projects}
           onSave={handleSave}
           onDelete={handleDelete}
           onClose={closeModal}

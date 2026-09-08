@@ -820,8 +820,10 @@ input, textarea, select { font-family: inherit; }
 }
 .field-input:focus { border-color: var(--purple-mid); box-shadow: 0 0 0 3px rgba(127,119,221,0.12); }
 .field-textarea { resize: vertical; min-height: 60px; }
-.field-row { display: flex; gap: 10px; }
-.field-group--half { flex: 1; }
+/* 좁은 화면에서 두 칸이 찌그러져 마감일 입력칸이 모달 밖으로 잘리던 문제 →
+   min-width:0 으로 줄어들게 하고, 더 좁아지면 아래로 줄바꿈한다 */
+.field-row { display: flex; gap: 10px; flex-wrap: wrap; }
+.field-group--half { flex: 1 1 190px; min-width: 0; }
 .field-group--third { flex: 1; min-width: 0; }
 
 /* Type tabs */
@@ -2464,6 +2466,11 @@ input, textarea, select { font-family: inherit; }
   .lv-quick-date input { width: 100%; min-width: 0; }
   .lv-quick-go { flex-shrink: 0; }
 }
+
+/* 항목 모달의 카테고리 선택 — 고른 카테고리 색을 점으로 함께 보여준다 */
+.item-cat-row { display: flex; align-items: center; gap: 8px; }
+.item-cat-row .field-input { flex: 1; min-width: 0; }
+.item-cat-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; border: 1px solid rgba(0,0,0,.08); }
 
 /* 세그먼트 버튼 (모달의 중요도 / 상태) */
 .seg { display: flex; gap: 4px; }

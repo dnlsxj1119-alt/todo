@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { getTimeSlotFromTime, getSpanCount, TIME_SLOTS, getRecurrenceDates } from '../utils/dateUtils';
+import { getProjectType } from '../utils/projectTypes';
 import TimePicker from './TimePicker';
 
 const TYPE_CONFIG = {
@@ -18,7 +19,7 @@ const REPEAT_OPTIONS = [
 
 const WEEKDAY_LABELS = ['일', '월', '화', '수', '목', '금', '토'];
 
-export default function ItemModal({ item, defaultDate, defaultSlot, onSave, onDelete, onClose }) {
+export default function ItemModal({ item, defaultDate, defaultSlot, defaultType, projects = [], onSave, onDelete, onClose }) {
   const isEdit = !!item;
   // 주간뷰에서 특정 시간대 칸을 더블클릭해 열었으면 그 시간대를 기본값으로 쓴다.
   // ('all'(전체 행)처럼 시간대가 아닌 값은 무시)
@@ -30,7 +31,8 @@ export default function ItemModal({ item, defaultDate, defaultSlot, onSave, onDe
   const endDateManuallySet = useRef(!!item?.endDate);
 
   const [form, setForm] = useState({
-    type: item?.type ?? 'schedule',
+    // 목록 탭의 '+ 새 할일' 처럼 여는 곳에 따라 기본 종류를 다르게 쓸 수 있게 한다
+    type: item?.type ?? (TYPE_CONFIG[defaultType] ? defaultType : 'schedule'),
     title: item?.title ?? '',
     description: item?.description ?? '',
     date: item?.date ?? defaultDate ?? '',
@@ -144,6 +146,13 @@ export default function ItemModal({ item, defaultDate, defaultSlot, onSave, onDe
     });
   };
 
+  // 카테고리 선택 후보. 완료 처리한 카테고리는 목록에서 감춰지므로 후보에서 빼되,
+  // 이미 그 카테고리로 지정된 항목을 편집할 때는 그대로 보이도록 남긴다.
+  const catColor = (p) => p.color || getProjectType(p.type).border;
+  const sameId = (a, b) => a != null && b != null && String(a) === String(b);
+  const categoryOptions = projects.filter(p => !p.forceCompleted || sameId(p.id, form.projectId));
+  const selectedCategory = projects.find(p => sameId(p.id, form.projectId)) ?? null;
+
   const needsTime = true;
   const startSlot = TIME_SLOTS.find(s => s.key === form.timeSlot);
   const endSlot = form.endTime ? TIME_SLOTS.find(s => s.key === getTimeSlotFromTime(form.endTime)) : null;
@@ -253,6 +262,39 @@ export default function ItemModal({ item, defaultDate, defaultSlot, onSave, onDe
                   ))}
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* 카테고리 (할일 / 매우중요) — 새 카테고리 만들기는 목록 탭에서 */}
+          {form.type !== 'schedule' && (
+            <div className="field-group">
+              <label className="field-label" htmlFor="item-category">카테고리</label>
+              <div className="item-cat-row">
+                <span
+                  className="item-cat-dot"
+                  style={{ background: selectedCategory ? catColor(selectedCategory) : 'var(--border)' }}
+                />
+                <select
+                  id="item-category"
+                  className="field-input"
+                  value={form.projectId == null ? '' : String(form.projectId)}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    // 원래 id 값(bigint)을 그대로 쓰도록 목록에서 찾아 넣는다
+                    set('projectId', v === '' ? null : (projects.find(p => String(p.id) === v)?.id ?? null));
+                  }}
+                >
+                  <option value="">없음</option>
+                  {categoryOptions.map(p => (
+                    <option key={p.id} value={String(p.id)}>{p.title}</option>
+                  ))}
+                </select>
+              </div>
+              {categoryOptions.length === 0 && (
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
+                  카테고리는 목록 탭에서 만들 수 있어요
+                </div>
+              )}
             </div>
           )}
 
