@@ -310,7 +310,7 @@ export default function App() {
             onToggle={toggleComplete}
             filterType={filterType}
             projects={projects}
-            onProjectClick={() => setActiveTab('projects')}
+            onProjectClick={() => setActiveTab('list')}
             getGoogleEventsForDate={getGoogleEventsForDate}
             onToggleGoogleEvent={toggleGoogleEventDone}
           />
@@ -328,7 +328,7 @@ export default function App() {
             habits={habits}
             onToggleHabit={toggleHabitDate}
             projects={projects}
-            onProjectClick={() => setActiveTab('projects')}
+            onProjectClick={() => setActiveTab('list')}
             backlogItems={getBacklogItems()}
             onAddBacklogItem={addBacklogItem}
             getGoogleEventsForDate={getGoogleEventsForDate}
@@ -398,6 +398,7 @@ export default function App() {
         <ItemModal
           item={modal.item}
           defaultDate={modal.defaultDate}
+          defaultSlot={modal.defaultSlot}
           onSave={handleSave}
           onDelete={handleDelete}
           onClose={closeModal}

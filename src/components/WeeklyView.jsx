@@ -639,9 +639,19 @@ export default function WeeklyView({
           const googleEvents = getGoogleEventsForDate?.(ds) ?? [];
           const googleAllDay = googleEvents.filter(e => e.allDay);
           const allRow = getItemsForCell(ds, 'all').filter(it => !filterType || it.type === filterType);
+          // 여러 날에 걸친 일정은 슬롯마다 '이어짐'으로 잡히는데,
+          // 아젠다(모바일)에서는 같은 항목이 4줄로 중복돼 보이므로 하루에 한 번만 표시한다.
+          const seenCont = new Set();
           const slotRows = TIME_SLOTS.map(slot => ({
             slot,
-            slotItems: getItemsForCell(ds, slot.key).filter(it => !filterType || it.type === filterType),
+            slotItems: getItemsForCell(ds, slot.key)
+              .filter(it => !filterType || it.type === filterType)
+              .filter(it => {
+                if (it.date === ds) return true;
+                if (seenCont.has(it.id)) return false;
+                seenCont.add(it.id);
+                return true;
+              }),
             slotGoogle: googleEvents.filter(e => !e.allDay && getTimeSlotFromTime(e.time) === slot.key),
           }));
           const dayHabits = habits?.filter(h => habitAppliesToDate(h, ds)) ?? [];

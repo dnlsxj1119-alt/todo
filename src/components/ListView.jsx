@@ -1,5 +1,5 @@
 import { useMemo, useState, useRef, useEffect } from 'react';
-import { toDateString } from '../utils/dateUtils';
+import { toDateString, addDays } from '../utils/dateUtils';
 import { getProjectType, CATEGORY_PALETTE } from '../utils/projectTypes';
 
 function catColor(p) {
@@ -30,22 +30,44 @@ function pickNewCatColor(projects) {
    - 중요도, 3단계 상태(안 함 / 하는 중 / 완료)
    - 지난 마감·오늘·미정(받은칸)·이번주·나중에 자동 그룹 */
 
-const TODAY = toDateString(new Date());
-
-function addDays(dateStr, n) {
-  const d = new Date(dateStr);
-  d.setDate(d.getDate() + n);
-  return toDateString(d);
-}
+// 오늘/어제/내일/주말 기준 날짜. 모듈 로드 시점에 한 번만 계산하면
+// 앱을 켜둔 채 자정을 넘겼을 때 '오늘' 그룹이 어제 날짜로 남는다 → 매번 다시 계산한다.
 function endOfWeekStr() {
   const d = new Date();
   const fromMon = (d.getDay() + 6) % 7;
   d.setDate(d.getDate() + (6 - fromMon));
   return toDateString(d);
 }
-const EOW = endOfWeekStr();
-const TOMORROW = addDays(TODAY, 1);
-const YESTERDAY = addDays(TODAY, -1);
+
+function computeDayKeys() {
+  const today = toDateString(new Date());
+  return {
+    today,
+    tomorrow: addDays(today, 1),
+    yesterday: addDays(today, -1),
+    eow: endOfWeekStr(),
+  };
+}
+
+// 자정을 넘기거나, 탭을 다시 열었을 때 날짜 기준을 갱신한다.
+function useDayKeys() {
+  const [keys, setKeys] = useState(computeDayKeys);
+  useEffect(() => {
+    const check = () => setKeys(prev => {
+      const next = computeDayKeys();
+      return prev.today === next.today ? prev : next;
+    });
+    const id = setInterval(check, 60000);
+    document.addEventListener('visibilitychange', check);
+    window.addEventListener('focus', check);
+    return () => {
+      clearInterval(id);
+      document.removeEventListener('visibilitychange', check);
+      window.removeEventListener('focus', check);
+    };
+  }, []);
+  return keys;
+}
 
 function mdLabel(s) {
   const [, m, d] = s.split('-');
@@ -119,15 +141,15 @@ function buildRows(items, projects) {
   return rows;
 }
 
-function dateBucket(r) {
+function dateBucket(r, { today, tomorrow, yesterday, eow }) {
   if (r.status !== 'done') {
-    const past = [r.due, r.expected].filter(d => d && d < TODAY).sort();
-    if (past.length) return past[past.length - 1] === YESTERDAY ? 'yesterday' : 'overdue';
+    const past = [r.due, r.expected].filter(d => d && d < today).sort();
+    if (past.length) return past[past.length - 1] === yesterday ? 'yesterday' : 'overdue';
   }
-  if (r.expected === TODAY || r.due === TODAY) return 'today';
-  if (r.expected === TOMORROW || r.due === TOMORROW) return 'tomorrow';
+  if (r.expected === today || r.due === today) return 'today';
+  if (r.expected === tomorrow || r.due === tomorrow) return 'tomorrow';
   if (!r.expected) return 'unplanned';
-  if (r.expected <= EOW) return 'week';
+  if (r.expected <= eow) return 'week';
   return 'later';
 }
 
@@ -349,7 +371,7 @@ function InlineTitle({ value, onSave }) {
   );
 }
 
-function DatePop({ value, label, onChange, onClose }) {
+function DatePop({ value, label, today, onChange, onClose }) {
   const ref = useRef(null);
   const inputRef = useRef(null);
   usePopClose(ref, onClose);
@@ -369,8 +391,8 @@ function DatePop({ value, label, onChange, onClose }) {
         onChange={e => { onChange(e.target.value || null); onClose(); }}
       />
       <div className="lv-date-pop-row">
-        <button onClick={() => { onChange(TODAY); onClose(); }}>오늘</button>
-        <button onClick={() => { onChange(addDays(TODAY, 1)); onClose(); }}>내일</button>
+        <button onClick={() => { onChange(today); onClose(); }}>오늘</button>
+        <button onClick={() => { onChange(addDays(today, 1)); onClose(); }}>내일</button>
         <button onClick={() => { onChange(null); onClose(); }}>지우기</button>
       </div>
     </div>
@@ -385,6 +407,8 @@ export default function ListView({
   onAddCategory, onCompleteCategory, onUncompleteCategory, onDeleteCategory, onReorderCategories,
   onReorderItems,
 }) {
+  const dayKeys = useDayKeys();
+  const { today: TODAY, tomorrow: TOMORROW } = dayKeys;
   const [filter, setFilterRaw] = useState(null); // null(전체) | 'done' | projectId
   const [datePop, setDatePop] = useState(null); // `${rowKey}:${field}`
   const [statusPop, setStatusPop] = useState(null); // rowKey
@@ -468,7 +492,7 @@ export default function ListView({
 
   const grouped = { overdue: [], yesterday: [], today: [], tomorrow: [], week: [], later: [], unplanned: [] };
   rows.filter(passFilter).forEach(r => {
-    const b = dateBucket(r);
+    const b = dateBucket(r, dayKeys);
     if (grouped[b]) grouped[b].push(r);
   });
   Object.values(grouped).forEach(list => {
@@ -635,6 +659,7 @@ export default function ListView({
           <DatePop
             value={val}
             label={label}
+            today={TODAY}
             onChange={v => setRowDate(r, field, v)}
             onClose={() => setDatePop(null)}
           />

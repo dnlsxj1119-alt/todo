@@ -116,7 +116,8 @@ export function useDailyReflections(userId) {
 
   // 이번 주(월~일) 배운 점 개수 + 오늘까지의 연속 작성일수
   const getWeekStats = useCallback((referenceDate) => {
-    const ref = new Date(referenceDate);
+    const [ry, rm, rd] = referenceDate.split('-').map(Number);
+    const ref = new Date(ry, rm - 1, rd);
     const day = ref.getDay();
     const mondayOffset = day === 0 ? -6 : 1 - day;
     const monday = new Date(ref);
@@ -132,6 +133,8 @@ export function useDailyReflections(userId) {
 
     let streak = 0;
     let cursor = toDateString(new Date());
+    // 오늘 아직 안 적었을 때 지금까지 쌓인 연속 기록이 0으로 보이지 않도록 어제부터 센다
+    if (!hasContent(reflectionsByDate[cursor])) cursor = addDays(cursor, -1);
     while (hasContent(reflectionsByDate[cursor])) {
       streak += 1;
       cursor = addDays(cursor, -1);

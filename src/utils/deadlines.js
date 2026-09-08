@@ -6,7 +6,8 @@ export function buildDeadlineMap(projects) {
     map[date].push(entry);
   };
   (projects ?? []).forEach(p => {
-    const isCompleted = p.tasks?.length > 0 && p.tasks.every(t => t.status === 'done');
+    // 카테고리를 '완료 처리'했거나 태스크가 전부 끝났으면 마감 칩도 완료로 표시
+    const isCompleted = !!p.forceCompleted || (p.tasks?.length > 0 && p.tasks.every(t => t.status === 'done'));
     if (p.deadline) {
       add(p.deadline, { key: `proj-${p.id}`, type: 'project', project: p, title: p.title, done: isCompleted });
     }

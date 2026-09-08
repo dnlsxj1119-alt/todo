@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 
 function toLocal(row) {
@@ -38,6 +38,9 @@ function toRow(data, userId) {
 export function useProjects(userId) {
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
+  // 저장 시 항상 최신 프로젝트 전체 값을 기준으로 합치기 위한 미러
+  const projectsRef = useRef([]);
+  projectsRef.current = projects;
 
   useEffect(() => {
     if (!userId) return;
@@ -45,7 +48,8 @@ export function useProjects(userId) {
       .from('projects')
       .select('*')
       .order('created_at', { ascending: true })
-      .then(({ data }) => {
+      .then(({ data, error }) => {
+        if (error) console.error('[projects load]', error);
         if (data) setProjects(data.map(toLocal).sort((a, b) => a.sortOrder - b.sortOrder));
         setLoading(false);
       });
@@ -87,8 +91,12 @@ export function useProjects(userId) {
   }, [userId]);
 
   const updateProject = useCallback(async (id, data) => {
+    // toRow 는 모든 컬럼을 통째로 덮어쓰므로, 일부 필드만 넘어온 경우
+    // 기존 값과 합쳐서 저장해야 나머지 컬럼이 비워지지 않는다.
+    const current = projectsRef.current.find(p => p.id === id);
+    const merged = current ? { ...current, ...data } : data;
     setProjects(prev => prev.map(p => p.id === id ? { ...p, ...data } : p));
-    await supabase.from('projects').update(toRow(data, userId)).eq('id', id);
+    await supabase.from('projects').update(toRow(merged, userId)).eq('id', id);
   }, [userId]);
 
   const deleteProject = useCallback(async (id) => {

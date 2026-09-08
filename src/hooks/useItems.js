@@ -89,7 +89,8 @@ export function useItems(userId) {
       .from('items')
       .select('*')
       .order('created_at', { ascending: true })
-      .then(({ data }) => {
+      .then(({ data, error }) => {
+        if (error) console.error('[items load]', error);
         if (data) setItems(data.map(toLocal));
         setLoading(false);
       });
@@ -164,8 +165,10 @@ export function useItems(userId) {
 
   const updateItem = useCallback(async (id, data) => {
     const prev = items.find(i => i.id === id);
+    // 부분 수정(제목만/날짜만 등)에서는 data 에 timeSlot/time 이 없으므로
+    // 기존 슬롯을 그대로 유지한다. (예전엔 undefined 가 되어 'morning' 으로 초기화됐다)
     const slot = data.timeSlot || (data.time ? getTimeSlotFromTime(data.time) : undefined);
-    const merged = { ...prev, ...data, timeSlot: slot ?? data.timeSlot };
+    const merged = { ...prev, ...data, timeSlot: slot ?? prev?.timeSlot ?? 'morning' };
     const synced = await applyGoogleSync(userId, prev, merged);
     setItems(prevItems => prevItems.map(i => i.id === id ? synced : i));
     await supabase.from('items').update(toRow(synced, userId)).eq('id', id);

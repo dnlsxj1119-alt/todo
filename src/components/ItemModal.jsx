@@ -18,8 +18,12 @@ const REPEAT_OPTIONS = [
 
 const WEEKDAY_LABELS = ['일', '월', '화', '수', '목', '금', '토'];
 
-export default function ItemModal({ item, defaultDate, onSave, onDelete, onClose }) {
+export default function ItemModal({ item, defaultDate, defaultSlot, onSave, onDelete, onClose }) {
   const isEdit = !!item;
+  // 주간뷰에서 특정 시간대 칸을 더블클릭해 열었으면 그 시간대를 기본값으로 쓴다.
+  // ('all'(전체 행)처럼 시간대가 아닌 값은 무시)
+  const initialSlot = item?.timeSlot
+    ?? (TIME_SLOTS.some(s => s.key === defaultSlot) ? defaultSlot : 'morning');
   const overlayRef = useRef(null);
   // 종료 날짜를 사용자가 직접 입력한 적이 있으면 시간 기반 자동 다음날 계산을 건너뜀
   const endDateManuallySet = useRef(!!item?.endDate);
@@ -36,7 +40,7 @@ export default function ItemModal({ item, defaultDate, onSave, onDelete, onClose
     priority: item?.priority ?? 0,
     status: item?.status ?? (item?.completed ? 'done' : 'todo'),
     projectId: item?.projectId ?? null,
-    timeSlot: item?.timeSlot ?? 'morning',
+    timeSlot: initialSlot,
     completed: item?.completed ?? false,
     repeat: 'none',
     repeatEndDate: '',
@@ -52,7 +56,7 @@ export default function ItemModal({ item, defaultDate, onSave, onDelete, onClose
   const set = (key, val) => setForm(f => ({ ...f, [key]: val }));
 
   const handleTypeChange = (type) => {
-    setForm(f => ({ ...f, type, time: '', endTime: '', timeSlot: 'morning' }));
+    setForm(f => ({ ...f, type, time: '', endTime: '', timeSlot: initialSlot }));
   };
 
   const handleTimeChange = (val) => {
