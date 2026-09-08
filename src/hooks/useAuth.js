@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
+import { writeStored, removeStoredByPrefix } from '../utils/safeStorage';
 
 export const GOOGLE_CALENDAR_TOKEN_KEY = 'google_calendar_token';
 export const GOOGLE_CALENDAR_REFRESH_KEY = 'google_calendar_refresh_token';
@@ -21,21 +22,19 @@ export function useAuth() {
         // Google 캘린더 조회 권한으로 로그인한 경우, 세션 시작 시점에만 내려오는
         // provider_token(구글 access token)을 붙잡아 다음 API 호출에 쓸 수 있게 저장
         if (session?.provider_token) {
-          localStorage.setItem(googleCalendarTokenKey(session.user.id), JSON.stringify({
+          writeStored(googleCalendarTokenKey(session.user.id), JSON.stringify({
             token: session.provider_token,
             expiresAt: Date.now() + 55 * 60 * 1000, // 구글 access token은 보통 1시간 유효
           }));
         }
         // refresh token은 만료가 없어서, access token이 끊겨도 이걸로 서버에서 재발급받아 재로그인 없이 연동 유지
         if (session?.provider_refresh_token) {
-          localStorage.setItem(googleCalendarRefreshKey(session.user.id), session.provider_refresh_token);
+          writeStored(googleCalendarRefreshKey(session.user.id), session.provider_refresh_token);
         }
       }
       if (event === 'SIGNED_OUT') {
         // 이 브라우저에 남아있는 구글 캘린더 토큰을 전부 정리 (공유 컴퓨터 대비)
-        Object.keys(localStorage)
-          .filter(k => k.startsWith(GOOGLE_CALENDAR_TOKEN_KEY) || k.startsWith(GOOGLE_CALENDAR_REFRESH_KEY))
-          .forEach(k => localStorage.removeItem(k));
+        removeStoredByPrefix(GOOGLE_CALENDAR_TOKEN_KEY, GOOGLE_CALENDAR_REFRESH_KEY);
       }
     });
 

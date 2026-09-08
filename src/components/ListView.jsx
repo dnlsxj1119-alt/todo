@@ -408,6 +408,10 @@ export default function ListView({
   onReorderItems,
 }) {
   const dayKeys = useDayKeys();
+  // 4.5초 뒤 실행되는 삭제 타이머처럼, 나중에 실행되는 코드가
+  // 그 사이 바뀐 최신 카테고리를 읽을 수 있게 미러를 둔다.
+  const projectsRef = useRef(projects);
+  projectsRef.current = projects;
   const { today: TODAY, tomorrow: TOMORROW } = dayKeys;
   const [filter, setFilterRaw] = useState(null); // null(전체) | 'done' | projectId
   const [datePop, setDatePop] = useState(null); // `${rowKey}:${field}`
@@ -600,17 +604,27 @@ export default function ListView({
   const clearOverdue = (list) => {
     if (!list.length) return;
     if (!window.confirm(`지난 항목 ${list.length}개의 날짜를 지우고 '미정'으로 보낼까요?\n(항목은 그대로 남아요)`)) return;
-    list.forEach(r => {
-      if (r.kind === 'item') onUpdateItem(r.raw.id, { date: '', dueDate: '' });
-      else patchTask(r, { planned: '', deadline: '' });
+    list.filter(r => r.kind === 'item').forEach(r => onUpdateItem(r.raw.id, { date: '', dueDate: '' }));
+    // 같은 카테고리의 태스크를 하나씩 저장하면 저장할 때마다 태스크 배열 전체를
+    // 같은(낡은) 값으로 덮어써서 마지막 하나만 반영됐다 → 카테고리별로 한 번에 반영한다.
+    const byProject = new Map();
+    list.filter(r => r.kind === 'task').forEach(r => {
+      const p = r.raw.project;
+      if (!byProject.has(p.id)) byProject.set(p.id, { project: p, ids: new Set() });
+      byProject.get(p.id).ids.add(r.raw.task.id);
+    });
+    byProject.forEach(({ project, ids }) => {
+      const tasks = (project.tasks ?? []).map(t => (ids.has(t.id) ? { ...t, planned: '', deadline: '' } : t));
+      onSaveProject(project.id, { ...project, tasks });
     });
   };
   const deleteRow = r => {
-    if (r.kind === 'item') onDeleteItem(r.raw.id);
-    else {
-      const p = r.raw.project;
-      onSaveProject(p.id, { ...p, tasks: (p.tasks ?? []).filter(t => t.id !== r.raw.task.id) });
-    }
+    if (r.kind === 'item') { onDeleteItem(r.raw.id); return; }
+    // 되돌리기 대기(4.5초) 뒤에 실행되므로, 클릭 당시 스냅샷이 아니라 지금의 카테고리를 기준으로
+    // 태스크를 지운다. (같은 카테고리 태스크를 연달아 지우면 먼저 지운 게 되살아났다)
+    const snapshot = r.raw.project;
+    const current = projectsRef.current.find(p => String(p.id) === String(snapshot.id)) ?? snapshot;
+    onSaveProject(current.id, { ...current, tasks: (current.tasks ?? []).filter(t => t.id !== r.raw.task.id) });
   };
   // X 클릭 = 바로 삭제하되 4.5초간 '되돌리기' 가능
   const softDelete = r => {
@@ -636,8 +650,9 @@ export default function ListView({
     onAddItem({ type: 'todo', title, date, dueDate, timeSlot: 'all', projectId });
   };
 
+  // 완료 처리한 카테고리의 항목은 아카이브 취급이므로 마감 안내 줄에서도 제외한다
   const dueOnly = rows
-    .filter(r => r.due && !r.expected && r.status !== 'done')
+    .filter(r => r.due && !r.expected && r.status !== 'done' && !inDoneCat(r))
     .sort((a, b) => (a.due < b.due ? -1 : 1));
 
   const datePill = (r, field) => {

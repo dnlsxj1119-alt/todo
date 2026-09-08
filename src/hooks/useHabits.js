@@ -70,12 +70,14 @@ export function useHabits(userId) {
 
   const updateHabit = useCallback(async (id, data) => {
     setHabits(prev => prev.map(h => h.id === id ? { ...h, ...data } : h));
-    await supabase.from('habits').update({ title: data.title, frequency: data.frequency, color: data.color }).eq('id', id);
+    const { error } = await supabase.from('habits').update({ title: data.title, frequency: data.frequency, color: data.color }).eq('id', id);
+    if (error) console.error('[updateHabit]', error);
   }, []);
 
   const deleteHabit = useCallback(async (id) => {
     setHabits(prev => prev.filter(h => h.id !== id));
-    await supabase.from('habits').delete().eq('id', id);
+    const { error } = await supabase.from('habits').delete().eq('id', id);
+    if (error) console.error('[deleteHabit]', error);
   }, []);
 
   const toggleHabitDate = useCallback(async (id, dateStr) => {
@@ -86,7 +88,8 @@ export function useHabits(userId) {
       ? dates.filter(d => d !== dateStr)
       : [...dates, dateStr];
     setHabits(prev => prev.map(h => h.id === id ? { ...h, completedDates: newDates } : h));
-    await supabase.from('habits').update({ completed_dates: newDates }).eq('id', id);
+    const { error } = await supabase.from('habits').update({ completed_dates: newDates }).eq('id', id);
+    if (error) console.error('[toggleHabitDate]', error);
   }, [allHabits]);
 
   const reorderHabits = useCallback(async (reordered) => {
@@ -94,19 +97,23 @@ export function useHabits(userId) {
       const archived = prev.filter(h => h.archived);
       return [...reordered, ...archived];
     });
-    await Promise.all(
+    const results = await Promise.all(
       reordered.map((h, i) => supabase.from('habits').update({ sort_order: i }).eq('id', h.id))
     );
+    const failed = results.find(r => r?.error);
+    if (failed) console.error('[reorderHabits]', failed.error);
   }, []);
 
   const archiveHabit = useCallback(async (id) => {
     setHabits(prev => prev.map(h => h.id === id ? { ...h, archived: true } : h));
-    await supabase.from('habits').update({ archived: true }).eq('id', id);
+    const { error } = await supabase.from('habits').update({ archived: true }).eq('id', id);
+    if (error) console.error('[archiveHabit]', error);
   }, []);
 
   const restoreHabit = useCallback(async (id) => {
     setHabits(prev => prev.map(h => h.id === id ? { ...h, archived: false } : h));
-    await supabase.from('habits').update({ archived: false }).eq('id', id);
+    const { error } = await supabase.from('habits').update({ archived: false }).eq('id', id);
+    if (error) console.error('[restoreHabit]', error);
   }, []);
 
   const habits = allHabits.filter(h => !h.archived);

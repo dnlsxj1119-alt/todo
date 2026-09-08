@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { CATEGORY_PALETTE } from '../utils/projectTypes';
 
 export default function CategoryModal({ category, onSave, onDelete, onClose }) {
@@ -17,11 +17,18 @@ export default function CategoryModal({ category, onSave, onDelete, onClose }) {
   }, [onClose]);
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+  const titleRef = useRef(null);
 
   const submit = (e) => {
     e.preventDefault();
-    if (!form.title.trim()) return;
-    onSave(form);
+    // 공백만 입력했을 때 조용히 무시되지 않도록 안내 + 이름은 앞뒤 공백 제거해 저장
+    const title = form.title.trim();
+    if (!title) {
+      if (titleRef.current) { titleRef.current.value = ''; titleRef.current.reportValidity(); }
+      setForm(f => ({ ...f, title: '' }));
+      return;
+    }
+    onSave({ ...form, title });
   };
 
   return (
@@ -35,7 +42,7 @@ export default function CategoryModal({ category, onSave, onDelete, onClose }) {
         <form onSubmit={submit} className="modal-form">
           <div className="field-group">
             <label className="field-label" htmlFor="cat-title">이름 *</label>
-            <input id="cat-title" className="field-input" type="text" value={form.title} autoFocus
+            <input id="cat-title" ref={titleRef} className="field-input" type="text" value={form.title} autoFocus
               placeholder="카테고리 이름" onChange={(e) => set('title', e.target.value)} required />
           </div>
 

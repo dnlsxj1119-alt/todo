@@ -1,8 +1,19 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { getWeekDays, toDateString, isToday, formatWeekRange, getWeekStart, DAY_NAMES_WEEK } from '../utils/dateUtils';
 import { habitAppliesToDate } from '../hooks/useHabits';
 
 const FREQ_LABELS = { daily: '매일', weekday: '평일', weekend: '주말' };
+
+// 다른 모달들과 동작을 맞춘다 (습관/보관함 모달은 Escape 로 닫히지 않았다)
+function useEscapeClose(onClose) {
+  const ref = useRef(onClose);
+  ref.current = onClose;
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape') ref.current(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+}
 const PRESET_COLORS = ['#6366F1', '#EC4899', '#10B981', '#F59E0B', '#3B82F6', '#EF4444', '#8B5CF6', '#14B8A6'];
 
 function HabitModal({ habit, onSave, onDelete, onArchive, onClose }) {
@@ -13,6 +24,20 @@ function HabitModal({ habit, onSave, onDelete, onArchive, onClose }) {
     color: habit?.color ?? PRESET_COLORS[0],
   });
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+  const titleRef = useRef(null);
+  useEscapeClose(onClose);
+
+  // 공백만 입력했을 때 조용히 무시되지 않도록 안내 + 이름은 앞뒤 공백 제거해 저장
+  const submit = (e) => {
+    e.preventDefault();
+    const title = form.title.trim();
+    if (!title) {
+      if (titleRef.current) { titleRef.current.value = ''; titleRef.current.reportValidity(); }
+      setForm(f => ({ ...f, title: '' }));
+      return;
+    }
+    onSave({ ...form, title });
+  };
 
   return (
     <div className="modal-overlay" onClick={(e) => { if (e.target.classList.contains('modal-overlay')) onClose(); }}>
@@ -21,10 +46,10 @@ function HabitModal({ habit, onSave, onDelete, onArchive, onClose }) {
           <h2>{isEdit ? '습관 수정' : '새 습관'}</h2>
           <button className="modal-close" onClick={onClose}>✕</button>
         </div>
-        <form onSubmit={(e) => { e.preventDefault(); if (form.title.trim()) onSave(form); }} className="modal-form">
+        <form onSubmit={submit} className="modal-form">
           <div className="field-group">
             <label className="field-label">습관 이름</label>
-            <input className="field-input" type="text" value={form.title}
+            <input className="field-input" ref={titleRef} type="text" value={form.title}
               onChange={e => set('title', e.target.value)} placeholder="매일 30분 운동" autoFocus required />
           </div>
 
@@ -80,6 +105,7 @@ function HabitModal({ habit, onSave, onDelete, onArchive, onClose }) {
 }
 
 function ArchiveModal({ habits, onRestore, onClose }) {
+  useEscapeClose(onClose);
   return (
     <div className="modal-overlay" onClick={(e) => { if (e.target.classList.contains('modal-overlay')) onClose(); }}>
       <div className="modal-panel" style={{ maxWidth: 420 }}>

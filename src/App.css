@@ -345,7 +345,10 @@ input, textarea, select { font-family: inherit; }
 
 .cal-grid {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
+  /* 1fr 은 최소폭이 내용(min-content)이라, 띄어쓰기 없는 긴 제목이 있으면
+     그 열만 넓어지고 다른 열이 찌그러져 요일 헤더와 날짜 칸이 어긋났다.
+     minmax(0, 1fr) 로 항상 7등분 고정. */
+  grid-template-columns: repeat(7, minmax(0, 1fr));
 }
 
 .cal-grid--header {
@@ -371,6 +374,10 @@ input, textarea, select { font-family: inherit; }
 
 .cal-cell {
   min-height: 96px;
+  min-width: 0;
+  /* 칸을 펼쳤을 때 내용이 칸 밖으로 흘러 다음 주 칸 위에 겹쳐 그려지면서
+     마지막 칩들과 '접기' 버튼을 누를 수 없었다 → 칸 안에서 스크롤되게 한다 */
+  overflow: hidden;
   border-right: 1px solid var(--border-light);
   border-bottom: 1px solid var(--border-light);
   padding: 6px 6px 4px;
@@ -405,7 +412,15 @@ input, textarea, select { font-family: inherit; }
   color: #fff !important;
 }
 
-.chip-stack { display: flex; flex-direction: column; gap: 2px; }
+.chip-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
 
 /* Item chips */
 .chip {
@@ -2436,6 +2451,12 @@ input, textarea, select { font-family: inherit; }
   .lv-row-more { opacity: 1; }
   /* 터치 기기엔 hover 가 없어서 ✕ 삭제 버튼이 아예 보이지 않던 문제 */
   .lv-row-x { opacity: 0.7; }
+  /* 상단 빠른추가의 날짜 줄이 고정폭(335px)이라 좁은 화면에서
+     '추가' 버튼이 화면 밖으로 잘려 눌리지 않던 문제 → 줄바꿈/축소 허용 */
+  .lv-quick-dates { flex-wrap: wrap; flex-shrink: 1; width: 100%; }
+  .lv-quick-date { flex: 1 1 120px; min-width: 0; }
+  .lv-quick-date input { width: 100%; min-width: 0; }
+  .lv-quick-go { flex-shrink: 0; }
 }
 
 /* 세그먼트 버튼 (모달의 중요도 / 상태) */
@@ -2450,3 +2471,19 @@ input, textarea, select { font-family: inherit; }
 .seg-btn--on[data-prio="3"] { background: #D9534F; }
 .seg-btn--on[data-status="doing"] { background: #E0942A; }
 .seg-btn--on[data-status="done"] { background: var(--green-mid); }
+
+/* ===================== 터치 기기 보정 =====================
+   hover 가 없는 기기(휴대폰/태블릿)에서는 hover 로만 나타나는 조작 버튼이
+   투명하게 남아 사실상 쓸 수 없었다 (목표 항목 수정/삭제, 회고 성과 삭제,
+   체크박스 종류 토글, 목록 행 삭제 등) → 항상 보이도록 한다.
+   드래그 손잡이(⠿)는 터치에서 HTML5 드래그가 동작하지 않으므로 그대로 숨긴다. */
+@media (hover: none) {
+  .goal-item-edit,
+  .goal-item-del,
+  .refl-item-del { opacity: 0.65; }
+  .goals-checklist-type-toggle { opacity: 0.45; }
+  .lv-row-x { opacity: 0.7; }
+  .lv-row-more { opacity: 1; }
+  .lv-d--empty,
+  .lv-pill--empty { opacity: 0.75; }
+}

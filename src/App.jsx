@@ -23,6 +23,7 @@ import { useHabits } from './hooks/useHabits';
 import { useMonthlyGoals } from './hooks/useMonthlyGoals';
 import { useDailyReflections } from './hooks/useDailyReflections';
 import { getWeekStart, toDateString, getMonthKey } from './utils/dateUtils';
+import { readStored, writeStored } from './utils/safeStorage';
 import CalendarView from './components/CalendarView';
 import WeeklyView from './components/WeeklyView';
 import ListView from './components/ListView';
@@ -64,13 +65,13 @@ export default function App() {
   const [modal, setModal] = useState(null);
   const [projectModal, setProjectModal] = useState(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(
-    () => localStorage.getItem('sidebarCollapsed') === '1'
+    () => readStored('sidebarCollapsed') === '1'
   );
 
   const toggleSidebar = () => {
     setSidebarCollapsed(prev => {
       const next = !prev;
-      localStorage.setItem('sidebarCollapsed', next ? '1' : '0');
+      writeStored('sidebarCollapsed', next ? '1' : '0');
       return next;
     });
   };

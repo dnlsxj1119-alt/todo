@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { getMonthWeekRanges, toDateString, formatMonthYear } from '../utils/dateUtils';
+import { readStored, writeStored } from '../utils/safeStorage';
 
 const COL_COUNT = 3;
 
@@ -44,10 +45,29 @@ function NotesChecklist({ initialNotes, onSave }) {
   const total = nonEmpty.length;
   const pct = total ? Math.round((done / total) * 100) : 0;
 
+  // 마지막으로 부모에 넘긴 내용 (같은 내용을 반복 저장하지 않도록)
+  const lastSentRef = useRef(null);
+  if (lastSentRef.current === null) lastSentRef.current = serializeChecklistText(lines);
+
+  const save = (next) => {
+    const text = serializeChecklistText(next);
+    if (text === lastSentRef.current) return;
+    lastSentRef.current = text;
+    onSave(text);
+  };
+
   const commit = (next) => {
     setLines(next);
-    onSave(serializeChecklistText(next));
+    save(next);
   };
+
+  // 탭 이동/앱 종료처럼 blur 없이 사라질 때는 onBlur 저장이 실행되지 않아
+  // 마지막으로 타이핑한 줄이 사라졌다 → 언마운트 시에도 한 번 저장한다.
+  const linesRef = useRef(lines);
+  linesRef.current = lines;
+  const saveRef = useRef(save);
+  saveRef.current = save;
+  useEffect(() => () => { saveRef.current(linesRef.current); }, []);
 
   const toggleLine = (id) => {
     commit(lines.map(l => l.id === id ? { ...l, done: !l.done } : l));
@@ -61,7 +81,7 @@ function NotesChecklist({ initialNotes, onSave }) {
     setLines(prev => prev.map(l => l.id === id ? { ...l, text } : l));
   };
 
-  const saveAll = () => onSave(serializeChecklistText(lines));
+  const saveAll = () => save(lines);
 
   const addLineAfter = (id) => {
     const idx = lines.findIndex(l => l.id === id);
@@ -248,7 +268,7 @@ export default function MonthlyGoalsView({ currentMonth, setCurrentMonth, goal, 
   const [editingId, setEditingId] = useState(null);
   const [editText, setEditText] = useState('');
   const [notesWidth, setNotesWidth] = useState(() => {
-    const saved = Number(localStorage.getItem(NOTES_WIDTH_KEY));
+    const saved = Number(readStored(NOTES_WIDTH_KEY));
     return saved >= NOTES_WIDTH_MIN && saved <= NOTES_WIDTH_MAX ? saved : NOTES_WIDTH_DEFAULT;
   });
   const goalsBodyRef = useRef(null);
@@ -272,7 +292,7 @@ export default function MonthlyGoalsView({ currentMonth, setCurrentMonth, goal, 
       document.body.style.userSelect = '';
       const finalWidth = resizeRef.current.current;
       setNotesWidth(finalWidth);
-      localStorage.setItem(NOTES_WIDTH_KEY, String(finalWidth));
+      writeStored(NOTES_WIDTH_KEY, String(finalWidth));
     };
     document.body.style.cursor = 'col-resize';
     document.body.style.userSelect = 'none';

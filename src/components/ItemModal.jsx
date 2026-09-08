@@ -25,6 +25,7 @@ export default function ItemModal({ item, defaultDate, defaultSlot, onSave, onDe
   const initialSlot = item?.timeSlot
     ?? (TIME_SLOTS.some(s => s.key === defaultSlot) ? defaultSlot : 'morning');
   const overlayRef = useRef(null);
+  const titleRef = useRef(null);
   // 종료 날짜를 사용자가 직접 입력한 적이 있으면 시간 기반 자동 다음날 계산을 건너뜀
   const endDateManuallySet = useRef(!!item?.endDate);
 
@@ -56,7 +57,17 @@ export default function ItemModal({ item, defaultDate, defaultSlot, onSave, onDe
   const set = (key, val) => setForm(f => ({ ...f, [key]: val }));
 
   const handleTypeChange = (type) => {
-    setForm(f => ({ ...f, type, time: '', endTime: '', timeSlot: initialSlot }));
+    // 이미 선택된 종류를 다시 누르면 입력해둔 시간이 지워지던 문제 → 아무것도 하지 않음
+    if (type === form.type) return;
+    // 종류를 바꾸면 그 종류에 입력칸이 없는 값이 화면에서 사라진 채 남아서 저장됐다.
+    // (일정의 '종료 날짜' 를 넣고 할일/매우중요로 바꾸면 며칠에 걸친 유령 항목이 생김)
+    endDateManuallySet.current = false;
+    setForm(f => ({
+      ...f, type,
+      time: '', endTime: '', timeSlot: initialSlot,
+      endDate: '',
+      dueDate: type === 'schedule' ? '' : f.dueDate,
+    }));
   };
 
   const handleTimeChange = (val) => {
@@ -93,14 +104,21 @@ export default function ItemModal({ item, defaultDate, defaultSlot, onSave, onDe
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!form.title.trim()) return;
+    // 공백만 입력하면 required 검사는 통과하지만 저장이 조용히 무시돼 원인을 알 수 없었다
+    // → 값을 비워 브라우저 기본 안내를 띄운다. 저장되는 제목도 앞뒤 공백을 없앤다.
+    const title = form.title.trim();
+    if (!title) {
+      if (titleRef.current) { titleRef.current.value = ''; titleRef.current.reportValidity(); }
+      setForm(f => ({ ...f, title: '' }));
+      return;
+    }
     const timeSlot = form.type === 'todo' ? 'all' : form.timeSlot;
     if (!isEdit && form.date && form.repeat !== 'none' && form.repeatEndDate) {
       const occurrenceDates = getRecurrenceDates(form.date, form.repeatEndDate, form.repeat, form.repeatDays);
-      onSave({ ...form, timeSlot, occurrenceDates });
+      onSave({ ...form, title, timeSlot, occurrenceDates });
       return;
     }
-    onSave({ ...form, timeSlot });
+    onSave({ ...form, title, timeSlot });
   };
 
   const occurrenceCount = !isEdit && form.date && form.repeat !== 'none' && form.repeatEndDate
@@ -165,7 +183,7 @@ export default function ItemModal({ item, defaultDate, defaultSlot, onSave, onDe
           {/* Title */}
           <div className="field-group">
             <label className="field-label" htmlFor="title">제목 *</label>
-            <input id="title" className="field-input" type="text"
+            <input id="title" ref={titleRef} className="field-input" type="text"
               placeholder="무엇을 해야 하나요?" value={form.title}
               onChange={(e) => set('title', e.target.value)} autoFocus required />
           </div>
@@ -290,7 +308,18 @@ export default function ItemModal({ item, defaultDate, defaultSlot, onSave, onDe
                   ))}
                 </div>
               )}
-              {form.repeat !== 'none' && form.repeatEndDate && (form.repeat !== 'weekday' || form.repeatDays.length > 0) && (
+              {form.repeat !== 'none' && !form.date && (
+                /* 날짜가 없으면 반복이 조용히 무시되고 1개만 생기던 문제 → 이유를 알려준다 */
+                <div style={{ fontSize: 11, color: 'var(--red-mid, #D9534F)', marginTop: 4 }}>
+                  {form.type === 'schedule' ? '시작 날짜' : '계획일'}을 정해야 반복 일정이 만들어집니다
+                </div>
+              )}
+              {form.repeat === 'weekday' && form.date && form.repeatDays.length === 0 && (
+                <div style={{ fontSize: 11, color: 'var(--red-mid, #D9534F)', marginTop: 4 }}>
+                  요일을 하나 이상 선택해 주세요
+                </div>
+              )}
+              {form.repeat !== 'none' && form.date && form.repeatEndDate && (form.repeat !== 'weekday' || form.repeatDays.length > 0) && (
                 <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
                   총 {occurrenceCount}개 일정이 생성됩니다{occurrenceCount >= 200 ? ' (최대 200개까지 생성)' : ''}
                 </div>

@@ -57,13 +57,20 @@ export function useMonthlyGoals(userId) {
   const getForMonth = useCallback((month) => goalsByMonth[month] ?? { month, notes: '', items: [] },
     [goalsByMonth]);
 
+  // 한 동작에서 저장이 연달아 일어날 때 낡은 값 기준으로 계산해 앞선 저장이
+  // 되돌아가는 것을 막는다 (렌더 전에도 최신 값을 읽을 수 있게 미러 보관)
+  const dataRef = useRef(goalsByMonth);
+  dataRef.current = goalsByMonth;
+  const readCurrent = (month) => dataRef.current[month] ?? { month, notes: '', items: [] };
+
   // 빠르게 연속으로 upsert가 호출될 때 네트워크 응답 순서가 뒤바뀌어
   // 최신 내용이 이전 내용에 덮어써지지 않도록 요청을 순서대로 처리한다
   const upsertQueueRef = useRef(Promise.resolve());
 
   const upsert = useCallback((month, patch) => {
-    const current = goalsByMonth[month] ?? { month, notes: '', items: [] };
+    const current = readCurrent(month);
     const next = { ...current, ...patch };
+    dataRef.current = { ...dataRef.current, [month]: next };
     setGoalsByMonth(prev => ({ ...prev, [month]: next }));
     pendingRef.current[month] = (pendingRef.current[month] ?? 0) + 1;
     const run = async () => {
@@ -75,33 +82,29 @@ export function useMonthlyGoals(userId) {
     };
     upsertQueueRef.current = upsertQueueRef.current.then(run, run);
     return upsertQueueRef.current;
-  }, [userId, goalsByMonth]);
+  }, [userId]);
 
   const updateNotes = useCallback((month, notes) => upsert(month, { notes }), [upsert]);
 
   const addItem = useCallback((month, week, col, text) => {
-    const current = goalsByMonth[month] ?? { month, notes: '', items: [] };
     const item = { id: crypto.randomUUID(), week, col, text, completed: false };
-    return upsert(month, { items: [...current.items, item] });
-  }, [goalsByMonth, upsert]);
+    return upsert(month, { items: [...readCurrent(month).items, item] });
+  }, [upsert]);
 
   const toggleItem = useCallback((month, itemId) => {
-    const current = goalsByMonth[month] ?? { month, notes: '', items: [] };
-    const items = current.items.map(i => i.id === itemId ? { ...i, completed: !i.completed } : i);
+    const items = readCurrent(month).items.map(i => i.id === itemId ? { ...i, completed: !i.completed } : i);
     return upsert(month, { items });
-  }, [goalsByMonth, upsert]);
+  }, [upsert]);
 
   const deleteItem = useCallback((month, itemId) => {
-    const current = goalsByMonth[month] ?? { month, notes: '', items: [] };
-    const items = current.items.filter(i => i.id !== itemId);
+    const items = readCurrent(month).items.filter(i => i.id !== itemId);
     return upsert(month, { items });
-  }, [goalsByMonth, upsert]);
+  }, [upsert]);
 
   const editItem = useCallback((month, itemId, text) => {
-    const current = goalsByMonth[month] ?? { month, notes: '', items: [] };
-    const items = current.items.map(i => i.id === itemId ? { ...i, text } : i);
+    const items = readCurrent(month).items.map(i => i.id === itemId ? { ...i, text } : i);
     return upsert(month, { items });
-  }, [goalsByMonth, upsert]);
+  }, [upsert]);
 
   const reorderItems = useCallback((month, items) => upsert(month, { items }), [upsert]);
 

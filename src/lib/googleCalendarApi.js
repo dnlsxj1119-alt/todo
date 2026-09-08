@@ -1,10 +1,11 @@
 import { googleCalendarTokenKey, googleCalendarRefreshKey } from '../hooks/useAuth';
 import { addDays } from '../utils/dateUtils';
 import { supabase } from './supabase';
+import { readStored, writeStored } from '../utils/safeStorage';
 
 export function readToken(userId) {
   try {
-    const raw = localStorage.getItem(googleCalendarTokenKey(userId));
+    const raw = readStored(googleCalendarTokenKey(userId));
     if (!raw) return null;
     const parsed = JSON.parse(raw);
     if (!parsed?.token || parsed.expiresAt < Date.now()) return null;
@@ -15,7 +16,7 @@ export function readToken(userId) {
 }
 
 export function hasRefreshToken(userId) {
-  return !!localStorage.getItem(googleCalendarRefreshKey(userId));
+  return !!readStored(googleCalendarRefreshKey(userId));
 }
 
 export function isGoogleConnected(userId) {
@@ -25,7 +26,7 @@ export function isGoogleConnected(userId) {
 // access token이 만료됐을 때, 저장해둔 refresh token으로 서버(Edge Function)에서
 // 새 access token을 조용히 재발급받는다 (사용자가 다시 로그인할 필요 없음)
 export async function refreshAccessToken(userId) {
-  const refreshToken = localStorage.getItem(googleCalendarRefreshKey(userId));
+  const refreshToken = readStored(googleCalendarRefreshKey(userId));
   if (!refreshToken) return null;
   try {
     const { data, error } = await supabase.functions.invoke('refresh-google-token', {
@@ -33,7 +34,7 @@ export async function refreshAccessToken(userId) {
     });
     if (error || !data?.access_token) return null;
     const expiresAt = Date.now() + Math.max(60, (data.expires_in ?? 3300) - 120) * 1000;
-    localStorage.setItem(googleCalendarTokenKey(userId), JSON.stringify({ token: data.access_token, expiresAt }));
+    writeStored(googleCalendarTokenKey(userId), JSON.stringify({ token: data.access_token, expiresAt }));
     return data.access_token;
   } catch {
     return null;

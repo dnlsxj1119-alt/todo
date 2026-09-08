@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { googleCalendarTokenKey, googleCalendarRefreshKey } from './useAuth';
 import { readToken, hasRefreshToken, getValidToken, fetchWithAuth } from '../lib/googleCalendarApi';
+import { readStored, writeStored, removeStored } from '../utils/safeStorage';
 
 // 구글 이벤트는 구글 쪽에 완료 상태가 없어서, 완료 표시는 로컬에만 저장 (사용자별)
 function completedStorageKey(userId) {
@@ -9,7 +10,7 @@ function completedStorageKey(userId) {
 
 function readCompletedSet(userId) {
   try {
-    const raw = localStorage.getItem(completedStorageKey(userId));
+    const raw = readStored(completedStorageKey(userId));
     if (!raw) return new Set();
     return new Set(JSON.parse(raw));
   } catch {
@@ -60,7 +61,7 @@ export function useGoogleCalendar(userId, rangeStart, rangeEnd) {
     setCompletedIds(prev => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id); else next.add(id);
-      localStorage.setItem(completedStorageKey(userId), JSON.stringify([...next]));
+      writeStored(completedStorageKey(userId), JSON.stringify([...next]));
       return next;
     });
   }, [userId]);
@@ -116,8 +117,8 @@ export function useGoogleCalendar(userId, rangeStart, rangeEnd) {
       } catch (e) {
         if (cancelled) return;
         if (e.code === 401) {
-          localStorage.removeItem(googleCalendarTokenKey(userId));
-          localStorage.removeItem(googleCalendarRefreshKey(userId));
+          removeStored(googleCalendarTokenKey(userId));
+          removeStored(googleCalendarRefreshKey(userId));
           setConnected(false);
           setError('구글 로그인이 만료됐어요. 다시 연결해 주세요.');
         } else {
@@ -133,8 +134,8 @@ export function useGoogleCalendar(userId, rangeStart, rangeEnd) {
   }, [userId, connected, rangeStart, rangeEnd]);
 
   const disconnect = useCallback(() => {
-    localStorage.removeItem(googleCalendarTokenKey(userId));
-    localStorage.removeItem(googleCalendarRefreshKey(userId));
+    removeStored(googleCalendarTokenKey(userId));
+    removeStored(googleCalendarRefreshKey(userId));
     setConnected(false);
     setEvents([]);
   }, [userId]);

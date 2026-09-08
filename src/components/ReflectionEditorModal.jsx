@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { toDateString, addDays } from '../utils/dateUtils';
 
 const LEARNING_PLACEHOLDERS = [
@@ -22,6 +22,17 @@ function ReflectionList({ items, placeholders, onAdd, onEdit, onDelete }) {
   const [editingId, setEditingId] = useState(null);
   const [editText, setEditText] = useState('');
   const placeholder = `+ ${placeholders[items.length % placeholders.length]}`;
+
+  // 입력 중에 blur 없이 모달이 닫히거나 날짜가 바뀌면(Escape 등) 적어둔 성과가 사라졌다.
+  // blur 저장과 같은 규칙으로, 사라질 때 한 번 저장한다.
+  const textRef = useRef(text);
+  textRef.current = text;
+  const onAddRef = useRef(onAdd);
+  onAddRef.current = onAdd;
+  useEffect(() => () => {
+    const pending = textRef.current.trim();
+    if (pending) onAddRef.current(pending);
+  }, []);
 
   const submit = (e) => {
     e.preventDefault();
@@ -109,6 +120,16 @@ export default function ReflectionEditorModal({
   const changeDate = (newDate) => { flush(); setDate(newDate); };
   const confirmAndClose = () => { flush(); onClose(); };
 
+  // 모달을 열면 포커스가 body 에 남아 오버레이의 onKeyDown 이 안 걸린다
+  // → 다른 모달들과 같이 window 에서 Escape 를 받는다 (닫기 전 입력값 저장 포함)
+  const closeRef = useRef(confirmAndClose);
+  closeRef.current = confirmAndClose;
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape') closeRef.current(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
   return (
     <div
       className="modal-overlay"
@@ -139,6 +160,7 @@ export default function ReflectionEditorModal({
           <div className="refl-section">
             <div className="refl-section-title">오늘의 성과</div>
             <ReflectionList
+              key={date}
               items={reflection.learnings}
               placeholders={LEARNING_PLACEHOLDERS}
               onAdd={(text) => onAddLearning(date, text)}

@@ -131,11 +131,17 @@ export function useItems(userId) {
   const addItem = useCallback(async (data) => {
     const slot = data.timeSlot || (data.time ? getTimeSlotFromTime(data.time) : 'morning');
     const synced = await applyGoogleSync(userId, null, { ...data, timeSlot: slot });
-    const { data: inserted } = await supabase
+    const { data: inserted, error } = await supabase
       .from('items')
       .insert(toRow(synced, userId))
       .select()
       .single();
+    // 저장이 실패하면 화면에도 아무것도 안 남아 입력한 내용이 조용히 사라진다 → 알린다
+    if (error) {
+      console.error('[addItem]', error);
+      window.alert('저장 실패: ' + error.message);
+      return;
+    }
     if (inserted) {
       setItems(prev => prev.some(i => i.id === inserted.id) ? prev : [...prev, toLocal(inserted)]);
     }
@@ -154,7 +160,12 @@ export function useItems(userId) {
     }));
     const synced = await Promise.all(occurrences.map(o => applyGoogleSync(userId, null, o)));
     const rows = synced.map(o => toRow(o, userId));
-    const { data: inserted } = await supabase.from('items').insert(rows).select();
+    const { data: inserted, error } = await supabase.from('items').insert(rows).select();
+    if (error) {
+      console.error('[addRecurringItems]', error);
+      window.alert('반복 일정 저장 실패: ' + error.message);
+      return;
+    }
     if (inserted) {
       setItems(prev => [
         ...prev,
@@ -169,15 +180,28 @@ export function useItems(userId) {
     // 기존 슬롯을 그대로 유지한다. (예전엔 undefined 가 되어 'morning' 으로 초기화됐다)
     const slot = data.timeSlot || (data.time ? getTimeSlotFromTime(data.time) : undefined);
     const merged = { ...prev, ...data, timeSlot: slot ?? prev?.timeSlot ?? 'morning' };
+    // 구글 동기화는 네트워크 왕복이라 먼저 화면에 반영해두고(응답 지연 체감 제거),
+    // 동기화로 googleEventId 가 새로 생기면 그것만 덧붙인다.
+    setItems(prevItems => prevItems.map(i => i.id === id ? merged : i));
     const synced = await applyGoogleSync(userId, prev, merged);
-    setItems(prevItems => prevItems.map(i => i.id === id ? synced : i));
-    await supabase.from('items').update(toRow(synced, userId)).eq('id', id);
+    if (synced.googleEventId !== merged.googleEventId) {
+      setItems(prevItems => prevItems.map(i => i.id === id ? { ...i, googleEventId: synced.googleEventId } : i));
+    }
+    const { error } = await supabase.from('items').update(toRow(synced, userId)).eq('id', id);
+    if (error) console.error('[updateItem]', error);
   }, [userId, items]);
 
   const deleteItem = useCallback(async (id) => {
     const item = items.find(i => i.id === id);
     setItems(prev => prev.filter(i => i.id !== id));
-    await supabase.from('items').delete().eq('id', id);
+    const { error } = await supabase.from('items').delete().eq('id', id);
+    if (error) {
+      // 삭제가 실패했는데 화면에서만 사라지면 새로고침 때 되살아나 혼란스럽다 → 즉시 복구
+      console.error('[deleteItem]', error);
+      if (item) setItems(prev => prev.some(i => i.id === id) ? prev : [...prev, item]);
+      window.alert('삭제 실패: ' + error.message);
+      return;
+    }
     if (item?.googleEventId) {
       deleteGoogleEvent(userId, item.googleEventId).catch(err => console.error('구글 캘린더 이벤트 삭제 실패', err));
     }
@@ -189,18 +213,21 @@ export function useItems(userId) {
     const done = !item.completed;
     const status = done ? 'done' : 'todo';
     setItems(prev => prev.map(i => i.id === id ? { ...i, completed: done, status } : i));
-    await supabase.from('items').update({ completed: done, status }).eq('id', id);
+    const { error } = await supabase.from('items').update({ completed: done, status }).eq('id', id);
+    if (error) console.error('[toggleComplete]', error);
   }, [items]);
 
   // 상태 직접 지정: todo / doing / done
   const setStatus = useCallback(async (id, status) => {
     setItems(prev => prev.map(i => i.id === id ? { ...i, status, completed: status === 'done' } : i));
-    await supabase.from('items').update({ status, completed: status === 'done' }).eq('id', id);
+    const { error } = await supabase.from('items').update({ status, completed: status === 'done' }).eq('id', id);
+    if (error) console.error('[setStatus]', error);
   }, []);
 
   const setPriority = useCallback(async (id, priority) => {
     setItems(prev => prev.map(i => i.id === id ? { ...i, priority } : i));
-    await supabase.from('items').update({ priority }).eq('id', id);
+    const { error } = await supabase.from('items').update({ priority }).eq('id', id);
+    if (error) console.error('[setPriority]', error);
   }, []);
 
   const setProject = useCallback(async (id, projectId) => {
@@ -218,14 +245,17 @@ export function useItems(userId) {
   const reorderItems = useCallback(async (order) => {
     const map = new Map(order.map(o => [o.id, o.sortOrder]));
     setItems(prev => prev.map(i => (map.has(i.id) ? { ...i, sortOrder: map.get(i.id) } : i)));
-    await Promise.all(
+    const results = await Promise.all(
       order.map(o => supabase.from('items').update({ sort_order: o.sortOrder }).eq('id', o.id))
     );
+    const failed = results.find(r => r?.error);
+    if (failed) console.error('[reorderItems]', failed.error);
   }, []);
 
   const moveItem = useCallback(async (id, newDate, newTimeSlot) => {
     setItems(prev => prev.map(i => i.id === id ? { ...i, date: newDate, timeSlot: newTimeSlot } : i));
-    await supabase.from('items').update({ date: newDate, time_slot: newTimeSlot }).eq('id', id);
+    const { error } = await supabase.from('items').update({ date: newDate, time_slot: newTimeSlot }).eq('id', id);
+    if (error) console.error('[moveItem]', error);
   }, []);
 
   const getItemsForDate = useCallback((dateStr) =>

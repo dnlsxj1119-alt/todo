@@ -7,6 +7,7 @@ import {
 } from '../utils/dateUtils';
 import { habitAppliesToDate } from '../hooks/useHabits';
 import { buildDeadlineMap } from '../utils/deadlines';
+import { readStored, writeStored } from '../utils/safeStorage';
 
 const TYPE_COLOR = {
   todo:      'week-card--purple',
@@ -270,10 +271,10 @@ export default function WeeklyView({
   const [dragItemType, setDragItemType] = useState(null);
   const [dragOverBacklog, setDragOverBacklog] = useState(false);
   const [backlogCollapsed, setBacklogCollapsed] = useState(
-    () => localStorage.getItem(BACKLOG_COLLAPSED_KEY) === '1'
+    () => readStored(BACKLOG_COLLAPSED_KEY) === '1'
   );
   const [backlogWidth, setBacklogWidth] = useState(() => {
-    const saved = Number(localStorage.getItem(BACKLOG_WIDTH_KEY));
+    const saved = Number(readStored(BACKLOG_WIDTH_KEY));
     return saved >= BACKLOG_WIDTH_MIN && saved <= BACKLOG_WIDTH_MAX ? saved : BACKLOG_WIDTH_DEFAULT;
   });
   const weekBodyRef = useRef(null);
@@ -282,7 +283,7 @@ export default function WeeklyView({
   const toggleBacklog = () => {
     setBacklogCollapsed(prev => {
       const next = !prev;
-      localStorage.setItem(BACKLOG_COLLAPSED_KEY, next ? '1' : '0');
+      writeStored(BACKLOG_COLLAPSED_KEY, next ? '1' : '0');
       return next;
     });
   };
@@ -305,7 +306,7 @@ export default function WeeklyView({
       document.body.style.userSelect = '';
       const finalWidth = backlogResizeRef.current.current;
       setBacklogWidth(finalWidth);
-      localStorage.setItem(BACKLOG_WIDTH_KEY, String(finalWidth));
+      writeStored(BACKLOG_WIDTH_KEY, String(finalWidth));
     };
     document.body.style.cursor = 'col-resize';
     document.body.style.userSelect = 'none';
@@ -393,11 +394,16 @@ export default function WeeklyView({
     if (span > 1) {
       const startIdx = TIME_SLOT_ORDER.indexOf(slotKey);
       let slotTop = SLOT_HEIGHTS[slotKey] + 1;
+      // 여러 날에 걸친 일정은 모든 슬롯에서 '이어짐'으로 잡히므로, 스팬 셀에 슬롯 수만큼
+      // 중복 추가되어 카드가 겹쳐 그려지고 React key 도 중복됐다 → id 기준으로 한 번만 담는다.
+      const seenIds = new Set(allItems.map(x => x.id));
       for (let i = 1; i < span; i++) {
         const nextSlot = TIME_SLOT_ORDER[startIdx + i];
         const extra = getItemsForCell(ds, nextSlot).filter(x => !filterType || x.type === filterType);
         // 스케줄/교육 항목은 getCardStyle이 시간 기준으로 위치를 잡아준다
-        allItems = [...allItems, ...extra.filter(x => x.type !== 'todo')];
+        const extraCards = extra.filter(x => x.type !== 'todo' && !seenIds.has(x.id));
+        extraCards.forEach(x => seenIds.add(x.id));
+        allItems = [...allItems, ...extraCards];
         const todos = extra.filter(x => x.type === 'todo');
         if (todos.length) {
           const minPx = Math.min(...todos.map(t => timeToSlotPx(t.time, nextSlot)));

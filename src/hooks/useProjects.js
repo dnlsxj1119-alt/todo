@@ -61,7 +61,8 @@ export function useProjects(userId) {
       .channel('projects-realtime')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'projects' }, (payload) => {
         if (payload.eventType === 'INSERT') {
-          setProjects(prev => [...prev, toLocal(payload.new)]);
+          // 낙관적 추가와 실시간 echo 가 겹쳐 같은 카테고리가 두 번 들어가지 않게 (key 중복도 방지)
+          setProjects(prev => prev.some(p => p.id === payload.new.id) ? prev : [...prev, toLocal(payload.new)]);
         } else if (payload.eventType === 'UPDATE') {
           const n = payload.new;
           setProjects(prev => prev.map(p => {
@@ -81,8 +82,13 @@ export function useProjects(userId) {
   }, [userId]);
 
   const addProject = useCallback(async (data) => {
-    const { data: inserted } = await supabase
+    const { data: inserted, error } = await supabase
       .from('projects').insert(toRow(data, userId)).select().single();
+    if (error) {
+      console.error('[addProject]', error);
+      window.alert('카테고리 추가 실패: ' + error.message);
+      return null;
+    }
     if (inserted) {
       setProjects(prev => prev.some(p => p.id === inserted.id) ? prev : [...prev, toLocal(inserted)]);
       return toLocal(inserted);
@@ -96,12 +102,14 @@ export function useProjects(userId) {
     const current = projectsRef.current.find(p => p.id === id);
     const merged = current ? { ...current, ...data } : data;
     setProjects(prev => prev.map(p => p.id === id ? { ...p, ...data } : p));
-    await supabase.from('projects').update(toRow(merged, userId)).eq('id', id);
+    const { error } = await supabase.from('projects').update(toRow(merged, userId)).eq('id', id);
+    if (error) console.error('[updateProject]', error);
   }, [userId]);
 
   const deleteProject = useCallback(async (id) => {
     setProjects(prev => prev.filter(p => p.id !== id));
-    await supabase.from('projects').delete().eq('id', id);
+    const { error } = await supabase.from('projects').delete().eq('id', id);
+    if (error) console.error('[deleteProject]', error);
   }, []);
 
   const toggleTask = useCallback(async (projectId, taskId) => {
@@ -128,12 +136,14 @@ export function useProjects(userId) {
 
   const completeProject = useCallback(async (projectId) => {
     setProjects(prev => prev.map(p => p.id === projectId ? { ...p, forceCompleted: true } : p));
-    await supabase.from('projects').update({ force_completed: true }).eq('id', projectId);
+    const { error } = await supabase.from('projects').update({ force_completed: true }).eq('id', projectId);
+    if (error) console.error('[completeProject]', error);
   }, []);
 
   const uncompleteProject = useCallback(async (projectId) => {
     setProjects(prev => prev.map(p => p.id === projectId ? { ...p, forceCompleted: false } : p));
-    await supabase.from('projects').update({ force_completed: false }).eq('id', projectId);
+    const { error } = await supabase.from('projects').update({ force_completed: false }).eq('id', projectId);
+    if (error) console.error('[uncompleteProject]', error);
   }, []);
 
   const togglePin = useCallback(async (id) => {
@@ -146,9 +156,11 @@ export function useProjects(userId) {
 
   const reorderProjects = useCallback(async (reordered) => {
     setProjects(reordered);
-    await Promise.all(
+    const results = await Promise.all(
       reordered.map((p, i) => supabase.from('projects').update({ sort_order: i }).eq('id', p.id))
     );
+    const failed = results.find(r => r?.error);
+    if (failed) console.error('[reorderProjects]', failed.error);
   }, []);
 
   return { projects, loading, addProject, updateProject, deleteProject, toggleTask, cycleEmailStatus, reorderProjects, togglePin, completeProject, uncompleteProject };

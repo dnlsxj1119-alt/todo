@@ -65,13 +65,20 @@ export function useDailyReflections(userId) {
 
   const getForDate = useCallback((date) => reflectionsByDate[date] ?? empty(date), [reflectionsByDate]);
 
+  // 한 번의 동작에서 여러 항목이 연달아 저장될 때(예: 모달 닫으면서 성과 + 잘한 선택 동시 저장)
+  // 각 호출이 렌더 이전의 낡은 값을 기준으로 계산해 먼저 저장한 내용이 되돌아가는 걸 막는다.
+  const dataRef = useRef(reflectionsByDate);
+  dataRef.current = reflectionsByDate;
+  const readCurrent = (date) => dataRef.current[date] ?? empty(date);
+
   // 빠르게 연속으로 upsert가 호출될 때 네트워크 응답 순서가 뒤바뀌어
   // 최신 내용이 이전 내용에 덮어써지지 않도록 요청을 순서대로 처리한다
   const upsertQueueRef = useRef(Promise.resolve());
 
   const upsert = useCallback((date, patch) => {
-    const current = reflectionsByDate[date] ?? empty(date);
+    const current = readCurrent(date);
     const next = { ...current, ...patch };
+    dataRef.current = { ...dataRef.current, [date]: next };
     setReflectionsByDate(prev => ({ ...prev, [date]: next }));
     pendingRef.current[date] = (pendingRef.current[date] ?? 0) + 1;
     const run = async () => {
@@ -91,25 +98,22 @@ export function useDailyReflections(userId) {
     };
     upsertQueueRef.current = upsertQueueRef.current.then(run, run);
     return upsertQueueRef.current;
-  }, [userId, reflectionsByDate]);
+  }, [userId]);
 
   const addLearning = useCallback((date, text) => {
-    const current = reflectionsByDate[date] ?? empty(date);
     const item = { id: crypto.randomUUID(), text };
-    return upsert(date, { learnings: [...current.learnings, item] });
-  }, [reflectionsByDate, upsert]);
+    return upsert(date, { learnings: [...readCurrent(date).learnings, item] });
+  }, [upsert]);
 
   const editLearning = useCallback((date, id, text) => {
-    const current = reflectionsByDate[date] ?? empty(date);
-    const learnings = current.learnings.map(i => i.id === id ? { ...i, text } : i);
+    const learnings = readCurrent(date).learnings.map(i => i.id === id ? { ...i, text } : i);
     return upsert(date, { learnings });
-  }, [reflectionsByDate, upsert]);
+  }, [upsert]);
 
   const deleteLearning = useCallback((date, id) => {
-    const current = reflectionsByDate[date] ?? empty(date);
-    const learnings = current.learnings.filter(i => i.id !== id);
+    const learnings = readCurrent(date).learnings.filter(i => i.id !== id);
     return upsert(date, { learnings });
-  }, [reflectionsByDate, upsert]);
+  }, [upsert]);
 
   const updateBestChoice = useCallback((date, text) => upsert(date, { bestChoice: text }), [upsert]);
   const updateTomorrowPlan = useCallback((date, text) => upsert(date, { tomorrowPlan: text }), [upsert]);
