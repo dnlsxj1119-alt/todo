@@ -457,10 +457,9 @@ function buildClaudeText(rows, items, dayKeys) {
   const lines = [];
   lines.push(`=== Claude 공유 (${today}) ===\n`);
   const scheduleLines = buildScheduleLines(items, today);
-  if (scheduleLines) {
-    lines.push('\n[🟢 일정] (오늘~모레)');
-    lines.push(...scheduleLines);
-  }
+  lines.push('\n[🟢 일정] (오늘~모레)');
+  if (scheduleLines) lines.push(...scheduleLines);
+  else lines.push('  (없음)');
   Object.entries(grouped).forEach(([key, list]) => {
     if (!list.length && key !== 'today') return;
     lines.push(`\n[${LABEL[key]}] (${list.length}개)`);

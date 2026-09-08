@@ -36,10 +36,11 @@ import ReflectionEditorModal from './components/ReflectionEditorModal';
 import ItemModal from './components/ItemModal';
 import './App.css';
 
+// '매우중요'는 중요도로 대체돼 필터에서 뺐다.
+// 이미 만들어 둔 매우중요 항목은 '전체'와 목록 뷰에 그대로 보인다.
 const FILTER_OPTIONS = [
   { key: null,        label: '전체',   emoji: '📋' },
   { key: 'todo',      label: '할일',   emoji: '🟣' },
-  { key: 'education', label: '매우중요', emoji: '🔴' },
   { key: 'schedule',  label: '일정',   emoji: '🟢' },
 ];
 

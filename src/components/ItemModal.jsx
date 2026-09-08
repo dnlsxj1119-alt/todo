@@ -3,11 +3,16 @@ import { getTimeSlotFromTime, getSpanCount, TIME_SLOTS, getRecurrenceDates } fro
 import { getProjectType } from '../utils/projectTypes';
 import TimePicker from './TimePicker';
 
+// education('매우중요')는 새로 만들 때는 못 고르게 했지만(중요도로 대체),
+// 이미 만들어 둔 항목을 그대로 보고 편집할 수 있어야 하므로 정의는 남겨 둔다.
 const TYPE_CONFIG = {
   schedule:  { label: '일정',   emoji: '🟢', color: 'green' },
   education: { label: '매우중요', emoji: '🔴', color: 'red' },
   todo:      { label: '할일',   emoji: '🟣', color: 'purple' },
 };
+
+// 새로 만들 때 고를 수 있는 종류
+const SELECTABLE_TYPES = ['schedule', 'todo'];
 
 const REPEAT_OPTIONS = [
   { key: 'none',    label: '반복 안함' },
@@ -32,7 +37,7 @@ export default function ItemModal({ item, defaultDate, defaultSlot, defaultType,
 
   const [form, setForm] = useState({
     // 목록 탭의 '+ 새 할일' 처럼 여는 곳에 따라 기본 종류를 다르게 쓸 수 있게 한다
-    type: item?.type ?? (TYPE_CONFIG[defaultType] ? defaultType : 'schedule'),
+    type: item?.type ?? (SELECTABLE_TYPES.includes(defaultType) ? defaultType : 'schedule'),
     title: item?.title ?? '',
     description: item?.description ?? '',
     date: item?.date ?? defaultDate ?? '',
@@ -153,6 +158,12 @@ export default function ItemModal({ item, defaultDate, defaultSlot, defaultType,
   const categoryOptions = projects.filter(p => !p.forceCompleted || sameId(p.id, form.projectId));
   const selectedCategory = projects.find(p => sameId(p.id, form.projectId)) ?? null;
 
+  // 옛 종류('매우중요')로 저장된 항목을 편집할 때는 그 탭도 보여줘야
+  // 지금 종류가 무엇인지 보이고, 할일로 바꿀 수도 있다.
+  const typeTabs = (SELECTABLE_TYPES.includes(form.type) || !TYPE_CONFIG[form.type])
+    ? SELECTABLE_TYPES
+    : [...SELECTABLE_TYPES, form.type];
+
   const needsTime = true;
   const startSlot = TIME_SLOTS.find(s => s.key === form.timeSlot);
   const endSlot = form.endTime ? TIME_SLOTS.find(s => s.key === getTimeSlotFromTime(form.endTime)) : null;
@@ -179,13 +190,17 @@ export default function ItemModal({ item, defaultDate, defaultSlot, defaultType,
           <div className="field-group">
             <label className="field-label">종류</label>
             <div className="type-tabs">
-              {Object.entries(TYPE_CONFIG).map(([key, cfg]) => (
-                <button key={key} type="button"
-                  className={`type-tab type-tab--${cfg.color} ${form.type === key ? 'active' : ''}`}
-                  onClick={() => handleTypeChange(key)}>
-                  {cfg.emoji} {cfg.label}
-                </button>
-              ))}
+              {typeTabs.map(key => {
+                const cfg = TYPE_CONFIG[key];
+                if (!cfg) return null;
+                return (
+                  <button key={key} type="button"
+                    className={`type-tab type-tab--${cfg.color} ${form.type === key ? 'active' : ''}`}
+                    onClick={() => handleTypeChange(key)}>
+                    {cfg.emoji} {cfg.label}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
