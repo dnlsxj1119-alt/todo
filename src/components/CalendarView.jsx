@@ -8,13 +8,22 @@ const TYPE_COLOR = {
   schedule:  'chip--green',
 };
 
-function ItemChip({ item, onClick, onToggle }) {
+function ItemChip({ item, onClick, onToggle, onDragStart }) {
   const timeEl = !item._isCont && item.time && <span className="chip-time">{item.time}</span>;
   const titleEl = <span className="chip-title">{item._isCont ? `↩ ${item.title}` : item.title}</span>;
+  // 이어짐(↩) 칩은 시작일 칩을 끌어야 하므로 드래그 대상이 아니다
+  const canDrag = !!onDragStart && !item._isCont;
   return (
     <div
-      className={`chip ${TYPE_COLOR[item.type]} ${item.completed ? 'chip--done' : ''}`}
+      className={`chip ${TYPE_COLOR[item.type]} ${item.completed ? 'chip--done' : ''} ${canDrag ? 'chip--draggable' : ''}`}
       onClick={(e) => { e.stopPropagation(); onClick(item); }}
+      draggable={canDrag}
+      onDragStart={canDrag ? (e) => {
+        e.dataTransfer.setData('itemId', String(item.id));
+        e.dataTransfer.effectAllowed = 'move';
+        onDragStart(item);
+      } : undefined}
+      title={canDrag ? '드래그해서 날짜 옮기기' : undefined}
     >
       <span
         className="chip-check"
@@ -88,8 +97,12 @@ function DeadlineChip({ entry, onClick }) {
   );
 }
 
-export default function CalendarView({ currentMonth, setCurrentMonth, getItemsForDate, onItemClick, onDayClick, onDateNumClick, reflectionDates, onToggle, filterType, projects = [], onProjectClick, getGoogleEventsForDate, onToggleGoogleEvent }) {
+export default function CalendarView({ currentMonth, setCurrentMonth, getItemsForDate, onItemClick, onDayClick, onDateNumClick, reflectionDates, onToggle, filterType, projects = [], onProjectClick, getGoogleEventsForDate, onToggleGoogleEvent, onMoveItem }) {
   const [expanded, setExpanded] = useState({});
+  // 항목을 다른 날짜 칸으로 끌어다 옮기기 (데스크톱 전용 — 터치에선 HTML5 드래그가 동작하지 않음)
+  const [dragInfo, setDragInfo] = useState(null); // { id, from }
+  const [dragOverDate, setDragOverDate] = useState(null);
+  const endDrag = () => { setDragInfo(null); setDragOverDate(null); };
 
   const year = currentMonth.getFullYear();
   const month = currentMonth.getMonth();
@@ -109,7 +122,7 @@ export default function CalendarView({ currentMonth, setCurrentMonth, getItemsFo
   const deadlineMap = useMemo(() => buildDeadlineMap(projects), [projects]);
 
   return (
-    <div className="calendar-view">
+    <div className="calendar-view" onDragEnd={endDrag}>
       {/* Header */}
       <div className="cal-nav">
         <button className="nav-btn" onClick={prevMonth} aria-label="이전 달">‹</button>
@@ -148,11 +161,28 @@ export default function CalendarView({ currentMonth, setCurrentMonth, getItemsFo
           const hidden = totalCount - visibleCombined.length - visibleDeadlines.length;
           const dow = date.getDay();
 
+          const isDragOver = dragOverDate === ds;
+
           return (
             <div
               key={ds}
-              className={`cal-cell ${!isCurrentMonth ? 'cal-cell--other' : ''} ${today ? 'cal-cell--today' : ''} ${dow === 0 ? 'cal-cell--sun' : dow === 6 ? 'cal-cell--sat' : ''}`}
+              className={`cal-cell ${!isCurrentMonth ? 'cal-cell--other' : ''} ${today ? 'cal-cell--today' : ''} ${dow === 0 ? 'cal-cell--sun' : dow === 6 ? 'cal-cell--sat' : ''} ${isDragOver ? 'cal-cell--drag-over' : ''}`}
               onClick={() => onDayClick(ds)}
+              onDragOver={onMoveItem ? (e) => {
+                // 앱 항목을 끌고 있는 경우에만 드롭을 허용한다 (외부 드래그는 무시)
+                if (!dragInfo || dragInfo.from === ds) return;
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+                if (dragOverDate !== ds) setDragOverDate(ds);
+              } : undefined}
+              onDragLeave={onMoveItem ? () => setDragOverDate(prev => (prev === ds ? null : prev)) : undefined}
+              onDrop={onMoveItem ? (e) => {
+                e.preventDefault();
+                const rawId = e.dataTransfer.getData('itemId') || (dragInfo ? String(dragInfo.id) : '');
+                const from = dragInfo?.from;
+                endDrag();
+                if (rawId && from !== ds) onMoveItem(rawId, ds);
+              } : undefined}
             >
               <span
                 className={`cal-date-num ${today ? 'today-num' : ''} ${reflectionDates?.has(ds) ? 'cal-date-num--has-reflection' : ''}`}
@@ -177,6 +207,7 @@ export default function CalendarView({ currentMonth, setCurrentMonth, getItemsFo
                         item={entry.data}
                         onClick={onItemClick}
                         onToggle={onToggle}
+                        onDragStart={onMoveItem ? (it) => setDragInfo({ id: it.id, from: ds }) : undefined}
                       />
                 ))}
                 {!isExpanded && hidden > 0 && (

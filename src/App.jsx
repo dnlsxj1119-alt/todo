@@ -22,7 +22,7 @@ import { useProjects } from './hooks/useProjects';
 import { useHabits } from './hooks/useHabits';
 import { useMonthlyGoals } from './hooks/useMonthlyGoals';
 import { useDailyReflections } from './hooks/useDailyReflections';
-import { getWeekStart, toDateString, getMonthKey } from './utils/dateUtils';
+import { getWeekStart, toDateString, getMonthKey, addDays } from './utils/dateUtils';
 import { readStored, writeStored } from './utils/safeStorage';
 import CalendarView from './components/CalendarView';
 import WeeklyView from './components/WeeklyView';
@@ -132,6 +132,21 @@ export default function App() {
   const addBacklogItem = useCallback((title) => {
     addItem({ type: 'todo', title, date: '', timeSlot: 'all' });
   }, [addItem]);
+
+  // 월간 달력에서 항목을 다른 날짜 칸으로 끌어다 옮기기.
+  // 시간·시간대·나머지 값은 그대로 두고 날짜만 옮기며,
+  // 여러 날에 걸친 일정은 기간이 유지되도록 종료일도 같은 간격으로 옮긴다.
+  // (updateItem 을 쓰므로 구글 캘린더에 쓴 일정도 함께 갱신된다)
+  const moveItemToDate = useCallback((rawId, newDate) => {
+    const item = items.find(i => String(i.id) === String(rawId));
+    if (!item || !newDate || item.date === newDate) return;
+    const patch = { date: newDate };
+    if (item.date && item.endDate && item.endDate > item.date) {
+      const spanDays = Math.round((new Date(item.endDate) - new Date(item.date)) / 86400000);
+      patch.endDate = addDays(newDate, spanDays);
+    }
+    updateItem(item.id, patch);
+  }, [items, updateItem]);
 
   if (authLoading) {
     return (
@@ -314,6 +329,7 @@ export default function App() {
             onProjectClick={() => setActiveTab('list')}
             getGoogleEventsForDate={getGoogleEventsForDate}
             onToggleGoogleEvent={toggleGoogleEventDone}
+            onMoveItem={moveItemToDate}
           />
         ) : activeTab === 'week' ? (
           <WeeklyView

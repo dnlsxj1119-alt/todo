@@ -388,6 +388,10 @@ input, textarea, select { font-family: inherit; }
   gap: 2px;
 }
 .cal-cell:hover { background: #FAFBFF; }
+/* 달력에서 항목을 끌어다 놓을 대상 칸 표시 (주간뷰와 같은 스타일) */
+.cal-cell--drag-over { background: var(--purple-light) !important; outline: 2px dashed var(--purple-mid); outline-offset: -2px; }
+.chip--draggable { cursor: grab; }
+.chip--draggable:active { cursor: grabbing; }
 .cal-cell--other { background: #FBFBFB; }
 .cal-cell--other .cal-date-num { color: var(--text-muted); }
 .cal-cell--today { background: #F5F3FF; }
