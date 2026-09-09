@@ -580,8 +580,15 @@ export default function ListView({
 
   const rows = useMemo(() => buildRows(items, projects), [items, projects]);
 
+  const activeCats = projects.filter(p => !catDone(p));
+  const doneCats = projects.filter(catDone);
+  const doneCatIds = new Set(doneCats.map(p => p.id));
+  // 완료된 카테고리에 속한 항목은 '완료' 탭에서 제외 (카테고리와 함께 아카이브됨)
+  const inDoneCat = r => r.cat && doneCatIds.has(r.cat.id);
+
   const copyForClaude = () => {
-    const text = buildClaudeText(rows, items, dayKeys);
+    // 완료 처리한 카테고리는 아카이브 취급이라 화면에서도 숨기므로 공유에서도 제외한다
+    const text = buildClaudeText(rows.filter(r => !inDoneCat(r)), items, dayKeys);
     // 클립보드는 보안 컨텍스트(https/localhost)와 권한이 필요해서 실패할 수 있다.
     // 조용히 넘어가면 눌러도 아무 일도 없는 것처럼 보이므로 알려준다.
     navigator.clipboard?.writeText(text)
@@ -594,12 +601,6 @@ export default function ListView({
         window.alert('클립보드 복사에 실패했어요. 브라우저의 클립보드 권한을 확인해 주세요.');
       });
   };
-
-  const activeCats = projects.filter(p => !catDone(p));
-  const doneCats = projects.filter(catDone);
-  const doneCatIds = new Set(doneCats.map(p => p.id));
-  // 완료된 카테고리에 속한 항목은 '완료' 탭에서 제외 (카테고리와 함께 아카이브됨)
-  const inDoneCat = r => r.cat && doneCatIds.has(r.cat.id);
 
   const doneCount = rows.filter(r => r.status === 'done' && !inDoneCat(r)).length;
   const catCounts = {};
