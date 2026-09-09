@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { getTimeSlotFromTime, getSpanCount, TIME_SLOTS, getRecurrenceDates } from '../utils/dateUtils';
+import { getTimeSlotFromTime, getSpanCount, TIME_SLOTS, getRecurrenceDates, addDays } from '../utils/dateUtils';
 import { getProjectType } from '../utils/projectTypes';
 import TimePicker from './TimePicker';
 
@@ -78,35 +78,34 @@ export default function ItemModal({ item, defaultDate, defaultSlot, defaultType,
     }));
   };
 
+  // 같은 날인데 종료시간이 시작시간보다 이르거나 같으면 시간 범위가 뒤집힌다.
+  // 이건 취향이 아니라 잘못된 상태라서, 종료 날짜를 직접 건드린 적이 있어도 다음날로 올린다.
+  // (예전엔 종료일 칸을 한 번 비우면 자동 계산이 꺼져서 09:00~08:00 같은 값이 그대로 저장됐다.)
+  const fixedEndDate = (f) => {
+    if (!f.date || !f.time || !f.endTime) return f.endDate;
+    const sameDay = !f.endDate || f.endDate <= f.date;
+    return sameDay && f.endTime <= f.time ? addDays(f.date, 1) : f.endDate;
+  };
+
   const handleTimeChange = (val) => {
     const slot = val ? getTimeSlotFromTime(val) : 'morning';
     setForm(f => {
       // 종료시간은 처음 입력값을 유지하고, 다음날 여부만 다시 계산
-      let endDate = f.endDate;
-      if (!endDateManuallySet.current) {
-        endDate = '';
-        if (val && f.endTime && f.date && f.endTime <= val) {
-          const next = new Date(f.date);
-          next.setDate(next.getDate() + 1);
-          endDate = next.toISOString().slice(0, 10);
-        }
-      }
-      return { ...f, time: val, timeSlot: slot, endDate };
+      const next = { ...f, time: val, timeSlot: slot };
+      if (!endDateManuallySet.current) next.endDate = '';
+      next.endDate = fixedEndDate(next);
+      return next;
     });
   };
 
   const handleEndTimeChange = (val) => {
     setForm(f => {
-      // 사용자가 종료 날짜를 직접 입력한 적이 있으면 자동 계산하지 않고 그대로 둠
-      if (endDateManuallySet.current) return { ...f, endTime: val };
-      // 종료시간이 시작시간보다 이르면 자동으로 다음날, 아니면 당일(빈값)로 매번 다시 계산
-      let endDate = '';
-      if (val && f.time && f.date && val <= f.time) {
-        const next = new Date(f.date);
-        next.setDate(next.getDate() + 1);
-        endDate = next.toISOString().slice(0, 10);
-      }
-      return { ...f, endTime: val, endDate };
+      // 종료시간이 시작시간보다 이르면 자동으로 다음날, 아니면 당일(빈값)로 매번 다시 계산.
+      // 사용자가 종료 날짜를 직접 입력한 적이 있으면 그 값을 지우지는 않는다.
+      const next = { ...f, endTime: val };
+      if (!endDateManuallySet.current) next.endDate = '';
+      next.endDate = fixedEndDate(next);
+      return next;
     });
   };
 
@@ -121,12 +120,14 @@ export default function ItemModal({ item, defaultDate, defaultSlot, defaultType,
       return;
     }
     const timeSlot = form.type === 'todo' ? 'all' : form.timeSlot;
+    // 화면에서 이미 맞춰 두지만, 저장되는 값에서도 뒤집힌 시간 범위를 한 번 더 막는다
+    const endDate = fixedEndDate(form);
     if (!isEdit && form.date && form.repeat !== 'none' && form.repeatEndDate) {
       const occurrenceDates = getRecurrenceDates(form.date, form.repeatEndDate, form.repeat, form.repeatDays);
-      onSave({ ...form, title, timeSlot, occurrenceDates });
+      onSave({ ...form, title, timeSlot, endDate, occurrenceDates });
       return;
     }
-    onSave({ ...form, title, timeSlot });
+    onSave({ ...form, title, timeSlot, endDate });
   };
 
   const occurrenceCount = !isEdit && form.date && form.repeat !== 'none' && form.repeatEndDate

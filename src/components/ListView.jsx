@@ -159,7 +159,12 @@ function dateBucket(r, { today, tomorrow, yesterday, eow }) {
   }
   if (r.expected === today || r.due === today) return 'today';
   if (r.expected === tomorrow || r.due === tomorrow) return 'tomorrow';
-  if (!r.expected) return 'unplanned';
+  // 계획일이 없어도 마감일이 있으면 '미정'이 아니다.
+  // 예전엔 '자소서 14일 마감'처럼 마감일만 적은 항목이 맨 아래 미정에 묻혀서 기한을 못 봤다.
+  if (!r.expected) {
+    if (!r.due) return 'unplanned';
+    return r.due <= eow ? 'week' : 'later';
+  }
   if (r.expected <= eow) return 'week';
   return 'later';
 }
@@ -496,7 +501,21 @@ function buildScheduleLines(items, today) {
   return any ? lines : null;
 }
 
-function buildClaudeText(rows, items, dayKeys) {
+// 카테고리(프로젝트) 자체의 마감 기한. 달력의 🏁 칩으로만 쓰여서 공유 텍스트엔 빠져 있었다.
+// 큰 일의 마감은 계획을 세울 때 가장 중요한 정보라 따로 싣는다.
+function buildCategoryDeadlineLines(categories, today) {
+  const list = (categories ?? [])
+    .filter(c => c.deadline)
+    .sort((a, b) => a.deadline.localeCompare(b.deadline));
+  if (!list.length) return null;
+  return list.map(c => {
+    const days = Math.round((new Date(c.deadline) - new Date(today)) / 86400000);
+    const when = days < 0 ? `${-days}일 지남` : days === 0 ? '오늘' : `${days}일 남음`;
+    return `  - ${c.title} · ${mdLabel(c.deadline)} (${when})`;
+  });
+}
+
+function buildClaudeText(rows, items, categories, dayKeys) {
   const { today } = dayKeys;
   const LABEL = { overdue: '🔴 지난 (놓친 일정)', yesterday: '🟠 어제 (놓친 일정)', today: '📌 오늘', tomorrow: '📅 내일', week: '📆 이번 주', later: '⏳ 나중에', unplanned: '📥 미정' };
   const STATUS_LABEL = { todo: '안 함', doing: '하는 중', done: '완료' };
@@ -518,11 +537,16 @@ function buildClaudeText(rows, items, dayKeys) {
     .sort((a, b) => String(b.completedAt).localeCompare(String(a.completedAt)));
   const doneOmitted = doneAll.length - doneRows.length;
   const lines = [];
-  lines.push(`=== Claude 공유 (${today}) ===\n`);
+  lines.push(`=== Claude 공유 (${today}) ===`);
   const scheduleLines = buildScheduleLines(items, today);
   lines.push('\n[🟢 일정] (오늘~모레)');
   if (scheduleLines) lines.push(...scheduleLines);
   else lines.push('  (없음)');
+  const catDeadlineLines = buildCategoryDeadlineLines(categories, today);
+  if (catDeadlineLines) {
+    lines.push('\n[🏁 카테고리 마감]');
+    lines.push(...catDeadlineLines);
+  }
   Object.entries(grouped).forEach(([key, list]) => {
     if (!list.length && key !== 'today') return;
     lines.push(`\n[${LABEL[key]}] (${list.length}개)`);
@@ -597,7 +621,9 @@ export default function ListView({
 
   const copyForClaude = () => {
     // 완료 처리한 카테고리는 아카이브 취급이라 화면에서도 숨기므로 공유에서도 제외한다
-    const text = buildClaudeText(rows.filter(r => !inDoneCat(r)), items, dayKeys);
+    // (할일·태스크뿐 아니라 일정과 카테고리 마감도 같은 기준으로 뺀다)
+    const liveItems = items.filter(i => !i.projectId || !doneCatIds.has(i.projectId));
+    const text = buildClaudeText(rows.filter(r => !inDoneCat(r)), liveItems, activeCats, dayKeys);
     // 클립보드는 보안 컨텍스트(https/localhost)와 권한이 필요해서 실패할 수 있다.
     // 조용히 넘어가면 눌러도 아무 일도 없는 것처럼 보이므로 알려준다.
     navigator.clipboard?.writeText(text)
@@ -770,11 +796,24 @@ export default function ListView({
     });
   };
 
+  // 계획일을 지워 '미정'으로 보낸다.
+  // 마감일은 이미 지난 것만 지운다 — 아직 안 지난 마감일(예: 자소서 14일 마감)까지 지우면
+  // 사용자가 적어 둔 기한이 조용히 사라진다. 그런 항목은 마감일 기준 그룹으로 옮겨 간다.
   const clearOverdue = (list) => {
     if (!list.length) return;
-    if (!window.confirm(`지난 항목 ${list.length}개의 날짜를 지우고 '미정'으로 보낼까요?\n(항목은 그대로 남아요)`)) return;
-    list.filter(r => r.kind === 'item').forEach(r => onUpdateItem(r.raw.id, { date: '', dueDate: '' }));
-    patchTasksBulk(list.filter(r => r.kind === 'task'), () => ({ planned: '', deadline: '' }));
+    const keepDue = list.filter(r => r.due && r.due >= TODAY).length;
+    const note = keepDue > 0
+      ? `\n(아직 안 지난 마감일 ${keepDue}개는 그대로 둬서, 그 항목은 마감일 그룹으로 옮겨져요)`
+      : '\n(항목은 그대로 남아요)';
+    if (!window.confirm(`지난 항목 ${list.length}개의 계획일을 지울까요?${note}`)) return;
+    list.filter(r => r.kind === 'item').forEach(r => {
+      const patch = { date: '' };
+      if (r.due && r.due < TODAY) patch.dueDate = '';
+      onUpdateItem(r.raw.id, patch);
+    });
+    patchTasksBulk(list.filter(r => r.kind === 'task'), t => (
+      t.deadline && t.deadline < TODAY ? { planned: '', deadline: '' } : { planned: '' }
+    ));
   };
 
   // 지난/어제 항목을 오늘로 다시 잡기.

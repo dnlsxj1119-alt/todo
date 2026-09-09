@@ -154,7 +154,10 @@ export default function ReflectionEditorModal({
               max={todayStr}
               onChange={(e) => e.target.value && changeDate(e.target.value)}
             />
-            <button className="nav-btn" onClick={() => changeDate(addDays(date, 1))} aria-label="다음 날">›</button>
+            {/* 회고는 지난 일을 적는 것이라 날짜 입력칸도 max={오늘} 이다.
+                그런데 이 버튼엔 제한이 없어서 내일·모레 회고를 쓸 수 있었다 → 오늘이면 막는다. */}
+            <button className="nav-btn" onClick={() => changeDate(addDays(date, 1))}
+              disabled={date >= todayStr} aria-label="다음 날">›</button>
           </div>
 
           <div className="refl-section">

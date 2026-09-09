@@ -334,6 +334,9 @@ input, textarea, select { font-family: inherit; }
   line-height: 1;
 }
 .nav-btn:hover { background: var(--bg); color: var(--text-primary); }
+/* 못 누르는 상태를 눈으로 알 수 있게 (회고의 '다음 날' 은 오늘 이후로 못 간다) */
+.nav-btn:disabled { opacity: 0.3; cursor: default; }
+.nav-btn:disabled:hover { background: none; color: var(--text-secondary); }
 
 /* ===================== Calendar View ===================== */
 .calendar-view {
@@ -2075,6 +2078,9 @@ input, textarea, select { font-family: inherit; }
 
 /* 월간 격자에 성과 미리보기 */
 .refl-cell { cursor: pointer; }
+/* 미래 날짜 칸은 열 수 없다 → 누를 수 있는 것처럼 보이지 않게 한다 */
+.refl-cell--future { cursor: default; }
+.refl-cell--future .cal-date-num { opacity: 0.45; }
 .refl-cell-body { display: flex; flex-direction: column; gap: 2px; margin-top: 1px; }
 .refl-cell-more { font-size: 10px; color: var(--text-muted); padding-left: 3px; }
 .refl-cell-learn {

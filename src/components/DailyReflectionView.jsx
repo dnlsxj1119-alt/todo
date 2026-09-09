@@ -45,6 +45,8 @@ export default function DailyReflectionView({ currentMonth, setCurrentMonth, get
           const r = getReflection(ds);
           const dow = date.getDay();
           const todayCell = isToday(date);
+          // 아직 오지 않은 날의 회고는 쓸 수 없다 (모달의 날짜 입력칸도 오늘까지만 허용)
+          const future = ds > todayStr;
 
           // 성과는 있는 만큼 다 보여주고(최대 5개 + 더보기), 없으면 잘한 선택으로 대체
           const VISIBLE_MAX = 5;
@@ -56,8 +58,8 @@ export default function DailyReflectionView({ currentMonth, setCurrentMonth, get
           return (
             <div
               key={ds}
-              className={`cal-cell refl-cell ${!inMonth ? 'cal-cell--other' : ''} ${todayCell ? 'cal-cell--today' : ''} ${dow === 0 ? 'cal-cell--sun' : dow === 6 ? 'cal-cell--sat' : ''}`}
-              onClick={() => onOpenDate(ds)}
+              className={`cal-cell refl-cell ${future ? 'refl-cell--future' : ''} ${!inMonth ? 'cal-cell--other' : ''} ${todayCell ? 'cal-cell--today' : ''} ${dow === 0 ? 'cal-cell--sun' : dow === 6 ? 'cal-cell--sat' : ''}`}
+              onClick={() => { if (!future) onOpenDate(ds); }}
             >
               <span className={`cal-date-num ${todayCell ? 'today-num' : ''} ${hasAnyContent ? 'cal-date-num--has-reflection' : ''}`}>{date.getDate()}</span>
               {(visibleLearnings.length > 0 || showChoiceFallback) && (

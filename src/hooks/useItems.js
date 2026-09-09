@@ -251,16 +251,16 @@ export function useItems(userId) {
   const setStatus = useCallback(async (id, status) => {
     const done = status === 'done';
     // 완료로 바꿀 때만 시각을 새로 찍고, 완료를 되돌리면 비운다.
-    // (이미 완료였던 항목을 다시 완료로 눌러도 원래 시각을 유지)
-    const completedAt = done ? new Date().toISOString() : null;
-    setItems(prev => prev.map(i => {
-      if (i.id !== id) return i;
-      const keep = done && i.status === 'done' && i.completedAt;
-      return { ...i, status, completed: done, completedAt: keep ? i.completedAt : completedAt };
-    }));
+    // 이미 완료였던 항목을 다시 완료로 눌러도 원래 시각을 유지한다.
+    // 화면과 DB 에 같은 값을 써야 한다 — 예전엔 로컬만 원래 시각을 유지하고
+    // DB 로는 새 시각을 보내서 새로고침하면 완료 시각이 바뀌었다.
+    const prev = items.find(i => i.id === id);
+    const keep = done && prev?.status === 'done' && prev?.completedAt;
+    const completedAt = done ? (keep || new Date().toISOString()) : null;
+    setItems(prevItems => prevItems.map(i => i.id === id ? { ...i, status, completed: done, completedAt } : i));
     const error = await updateItemRow(id, { status, completed: done, completed_at: completedAt });
     if (error) console.error('[setStatus]', error);
-  }, []);
+  }, [items]);
 
   const setPriority = useCallback(async (id, priority) => {
     setItems(prev => prev.map(i => i.id === id ? { ...i, priority } : i));
