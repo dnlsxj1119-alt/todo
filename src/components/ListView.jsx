@@ -91,6 +91,15 @@ const PRIO = [
   { label: '높음', color: '#D9534F' },
 ];
 
+// 중요도는 1(낮음)/2(보통)/3(높음)만 유효하고 그 외는 '없음'.
+// 옛 '우선순위' 시절의 다른 척도 값(4 이상 등)이 남아 있으면 PRIO[4] 가 undefined 라
+// 막대가 투명해져 '중요도 없음'처럼 보이는데, 정렬에서는 높음(3)보다 위로 올라갔다.
+// 화면·정렬에서만 정규화한다 (DB 값은 그대로 둠 — 사용자가 다시 고르면 정상 값으로 저장됨).
+function normPrio(v) {
+  const n = Number(v);
+  return n === 1 || n === 2 || n === 3 ? n : 0;
+}
+
 function catOf(p) {
   return { id: p.id, name: p.title, color: catColor(p) };
 }
@@ -115,7 +124,7 @@ function buildRows(items, projects) {
         due: it.dueDate || null,
         time: it.time || null,
         status,
-        priority: it.priority || 0,
+        priority: normPrio(it.priority),
         sortOrder: it.sortOrder ?? null,
         completedAt: it.completedAt ?? null,
       });
@@ -133,7 +142,7 @@ function buildRows(items, projects) {
         due: t.deadline || null,
         time: null,
         status: t.status === 'done' ? 'done' : t.status === 'in_progress' ? 'doing' : 'todo',
-        priority: t.priority || 0,
+        priority: normPrio(t.priority),
         sortOrder: null,
         completedAt: t.completedAt ?? null,
       });
