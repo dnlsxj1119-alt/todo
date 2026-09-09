@@ -84,6 +84,23 @@ function itemToGoogleEvent(item) {
   return body;
 }
 
+// PATCH 는 보내지 않은 필드를 그대로 남긴다. 그런데 구글 이벤트의 start/end 는
+// `date`(종일) 와 `dateTime`(시간 지정) 중 하나만 있어야 한다.
+// 그래서 종일 → 시간 지정으로 바꾸면 기존 `date` 가 남아 둘이 함께 있는 잘못된 값이 되고,
+// 구글이 400 을 내거나 예전 종일 일정 그대로 남는다
+// (실제로 "시간 없이 만든 일정에 시간을 넣었는데 구글엔 그대로"인 문제가 났다).
+// → 쓰지 않는 쪽을 null 로 명시해서 지운다. 생성(POST)에는 붙이지 않는다.
+function clearUnusedTimeFields(body) {
+  if (!body) return body;
+  const fix = (v) => {
+    if (!v) return v;
+    if (v.dateTime) return { ...v, date: null };
+    if (v.date) return { ...v, dateTime: null, timeZone: null };
+    return v;
+  };
+  return { ...body, start: fix(body.start), end: fix(body.end) };
+}
+
 const EVENTS_BASE = 'https://www.googleapis.com/calendar/v3/calendars/primary/events';
 
 export async function createGoogleEvent(userId, item) {
@@ -103,7 +120,7 @@ export async function createGoogleEvent(userId, item) {
 export async function updateGoogleEvent(userId, eventId, item) {
   const token = await getValidToken(userId);
   if (!token) return null;
-  const body = itemToGoogleEvent(item);
+  const body = clearUnusedTimeFields(itemToGoogleEvent(item));
   if (!body) return null;
   const url = `${EVENTS_BASE}/${encodeURIComponent(eventId)}`;
   const res = await fetchWithAuth(url, token, userId, {
@@ -115,7 +132,11 @@ export async function updateGoogleEvent(userId, eventId, item) {
     // 구글 쪽에서 이미 삭제된 이벤트라면 새로 생성
     return createGoogleEvent(userId, item);
   }
-  if (!res.ok) throw new Error(`구글 캘린더 수정 실패 (${res.status})`);
+  // 왜 실패했는지 모르면 손댈 수가 없어서 응답 본문까지 남긴다
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '');
+    throw new Error(`구글 캘린더 수정 실패 (${res.status}) ${detail}`.trim());
+  }
   return res.json();
 }
 

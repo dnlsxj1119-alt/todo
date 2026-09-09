@@ -1,4 +1,4 @@
-import { useMemo, useState, useRef, useEffect } from 'react';
+import { useMemo, useState, useRef, useEffect, useLayoutEffect } from 'react';
 import { toDateString, addDays } from '../utils/dateUtils';
 import { getProjectType, CATEGORY_PALETTE } from '../utils/projectTypes';
 
@@ -279,7 +279,47 @@ function QuickAdd({ placeholder, onAdd, withDates, categories = [], defaultProje
   );
 }
 
+// 팝업 메뉴는 기본적으로 누른 버튼 아래로 열린다. 그런데 화면 아래쪽 행에서 열면
+// 스크롤 컨테이너에 잘려서 '완료' 같은 항목을 아예 고를 수 없었다
+// (세로 568px 짧은 휴대폰에서 목록 마지막 행들이 특히 그랬다).
+// → 아래에 자리가 없고 위가 더 넓으면 위로 열고, 좌우로 삐져나가면 화면 안으로 당긴다.
+function useKeepOnScreen(ref) {
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    // 매 렌더마다 다시 재는 값이라 먼저 초기화한다 (안 그러면 이전 보정이 누적된다)
+    el.style.top = '';
+    el.style.bottom = '';
+    el.style.transform = '';
+    el.style.maxHeight = '';
+    el.style.overflowY = '';
+    const anchor = el.offsetParent ?? el.parentElement;
+    if (!anchor) return;
+    const a = anchor.getBoundingClientRect();
+    const h = el.getBoundingClientRect().height;
+    const pad = 8;
+    const below = window.innerHeight - a.bottom;
+    const above = a.top;
+    if (h + pad > below && above > below) {
+      el.style.top = 'auto';
+      el.style.bottom = 'calc(100% + 5px)';
+    }
+    // transform 은 left/right 어느 쪽으로 붙어 있어도 동작한다
+    const r = el.getBoundingClientRect();
+    if (r.right > window.innerWidth - pad) el.style.transform = `translateX(${Math.round(window.innerWidth - pad - r.right)}px)`;
+    else if (r.left < pad) el.style.transform = `translateX(${Math.round(pad - r.left)}px)`;
+    // 위아래 어느 쪽에도 다 안 들어가는 경우(휴대폰 가로 화면처럼 세로가 짧을 때)
+    // 메뉴 자체를 화면 높이에 맞추고 안에서 스크롤하게 한다
+    const room = Math.max(above, below) - pad * 2;
+    if (h > room && room > 80) {
+      el.style.maxHeight = `${Math.round(room)}px`;
+      el.style.overflowY = 'auto';
+    }
+  });
+}
+
 function usePopClose(ref, onClose) {
+  useKeepOnScreen(ref);
   useEffect(() => {
     const h = e => { if (ref.current && !ref.current.contains(e.target)) onClose(); };
     document.addEventListener('mousedown', h);

@@ -2517,4 +2517,53 @@ input, textarea, select { font-family: inherit; }
   .lv-row-more { opacity: 1; }
   .lv-d--empty,
   .lv-pill--empty { opacity: 0.75; }
+
+  /* ---- 눌리는 영역 ----
+     손끝으로 정확히 누르기 어려운 크기였다: 달/주 이동 ‹ › 가 17x22px,
+     주간뷰 아젠다의 완료 동그라미가 16x16px, 목록 행의 날짜·⋯·✕ 칩이 21px 높이.
+     좌우로 여유가 있는 단독 버튼은 가로·세로 모두 키우고,
+     행 안에 촘촘히 붙은 칩은 **세로만** 키운다 —
+     가로로 키우면 옆 칩 위를 덮어서 옆 버튼이 안 눌린다. */
+  .nav-btn {
+    min-width: 40px;
+    min-height: 40px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .today-btn { min-height: 34px; display: inline-flex; align-items: center; }
+  .modal-close {
+    min-width: 40px;
+    min-height: 40px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .week-backlog-collapse-btn { min-width: 34px; min-height: 34px; }
+  .week-sweep-btn { min-height: 34px; }
+  .agenda-add-btn { min-width: 40px; min-height: 34px; }
+  /* 달력 칸은 한 주가 화면에 다 들어가야 해서 아주 촘촘하다.
+     '더보기'를 크게 키우면 정작 칩이 들어갈 자리를 먹으니, 칸 폭을 다 쓰는 데까지만 넓힌다. */
+  .show-more-btn { min-height: 20px; width: 100%; }
+  .lv-quick-go { min-height: 36px; }
+  .lv-group-action { min-height: 32px; }
+  .lv-quick-prio,
+  .lv-quick-pick > .lv-pill--btn { min-height: 30px; }
+  .refl-add-btn { min-height: 34px; }
+
+  /* 아젠다(모바일 주간뷰) 카드의 완료 동그라미 — 세로 목록이라 키울 여유가 있다 */
+  .card-check { min-width: 24px; min-height: 24px; display: inline-flex;
+    align-items: center; justify-content: center; }
+
+  /* 목록 행 안의 칩: 세로만 */
+  .lv-ck-btn { min-height: 34px; }
+  .lv-d,
+  .lv-meta .lv-pill--btn { padding-top: 7px; padding-bottom: 7px; }
+  /* ✕ / ⋯ 는 가로도 좁았다. 패딩으로 키우면 (겹치는 게 아니라) 옆 칩을 밀어내므로
+     서로의 영역을 덮지 않는다. .lv-meta 가 줄바꿈되니 넘칠 일도 없다. */
+  .lv-row-x { padding: 9px 11px; }
+  .lv-row-more { padding: 9px 10px; }
+  /* '마감만 잡히고 계획일 미정' 줄의 칩도 눌러서 항목을 여는 버튼이다 */
+  .lv-duestrip-chips span { padding-top: 7px; padding-bottom: 7px; }
+  .goals-checklist-type-toggle { min-width: 30px; min-height: 30px; }
 }
