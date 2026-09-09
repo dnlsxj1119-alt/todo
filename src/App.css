@@ -2441,6 +2441,15 @@ input, textarea, select { font-family: inherit; }
 .lv-quicktop .lv-quick { margin-bottom: 0; border-style: solid; background: var(--surface-2, rgba(127,127,127,.06)); }
 .lv-quick--dates { flex-wrap: wrap; }
 .lv-quick-dates { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+/* 빠른추가의 중요도 / 카테고리 선택 */
+.lv-quick-meta { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.lv-quick-pick { position: relative; display: flex; }
+.lv-quick-prio { font-size: 12px; font-weight: 600; color: var(--text-muted); white-space: nowrap;
+  padding: 3px 10px; border: 1px solid var(--border); border-radius: 20px;
+  background: var(--surface); cursor: pointer; }
+.lv-quick-prio:hover { border-color: var(--accent); }
+/* 빠른추가 안에서는 행 hover 가 없으니 '+ 카테고리' 를 항상 보이게 */
+.lv-quick-meta .lv-pill--empty { opacity: 1; }
 .lv-quick-date { display: inline-flex; align-items: center; gap: 4px; font-size: 12px;
   border: 1px solid var(--border); border-radius: var(--radius-sm, 6px); padding: 3px 6px; cursor: pointer; }
 .lv-quick-date input { border: none; background: none; outline: none; color: var(--text-primary);
@@ -2461,6 +2470,9 @@ input, textarea, select { font-family: inherit; }
   .lv-row-x { opacity: 0.7; }
   /* 상단 빠른추가의 날짜 줄이 고정폭(335px)이라 좁은 화면에서
      '추가' 버튼이 화면 밖으로 잘려 눌리지 않던 문제 → 줄바꿈/축소 허용 */
+  .lv-quick { flex-wrap: wrap; }
+  .lv-quick input { flex: 1 1 140px; min-width: 0; }
+  .lv-quick-meta { flex-wrap: wrap; }
   .lv-quick-dates { flex-wrap: wrap; flex-shrink: 1; width: 100%; }
   .lv-quick-date { flex: 1 1 120px; min-width: 0; }
   .lv-quick-date input { width: 100%; min-width: 0; }

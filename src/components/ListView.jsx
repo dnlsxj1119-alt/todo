@@ -165,18 +165,32 @@ const GROUPS = [
   { key: 'unplanned', label: '미정', add: false },
 ];
 
-function QuickAdd({ placeholder, onAdd, withDates }) {
+function QuickAdd({ placeholder, onAdd, withDates, categories = [], defaultProjectId = null, onCreateCategory }) {
   const [val, setVal] = useState('');
   const [expected, setExpected] = useState('');
   const [due, setDue] = useState('');
+  const [projectId, setProjectId] = useState(defaultProjectId);
+  const [priority, setPriority] = useState(0);
+  const [catOpen, setCatOpen] = useState(false);
+  const [prioOpen, setPrioOpen] = useState(false);
   const composing = useRef(false);
+
+  // 카테고리 칩으로 필터를 바꾸면 빠른추가의 기본 카테고리도 따라간다
+  useEffect(() => { setProjectId(defaultProjectId); }, [defaultProjectId]);
+
+  const selectedCat = categories.find(c => String(c.id) === String(projectId)) ?? null;
+  const prio = PRIO[priority];
+
   const submit = () => {
     const t = val.trim();
     if (!t) return;
-    onAdd(t, { expected, due });
+    onAdd(t, { expected, due, projectId, priority });
     setVal('');
     setExpected('');
     setDue('');
+    // 중요도는 매번 초기화, 카테고리는 지금 보고 있는 카테고리로 되돌린다
+    setPriority(0);
+    setProjectId(defaultProjectId);
   };
   return (
     <div className={`lv-quick ${withDates ? 'lv-quick--dates' : ''}`}>
@@ -194,6 +208,46 @@ function QuickAdd({ placeholder, onAdd, withDates }) {
           submit();
         }}
       />
+      <span className="lv-quick-meta">
+        <span className="lv-quick-pick">
+          <button
+            type="button"
+            className="lv-quick-prio"
+            style={prio ? { color: prio.color, borderColor: prio.color } : undefined}
+            onClick={() => { setPrioOpen(v => !v); setCatOpen(false); }}
+            title={prio ? `중요도: ${prio.label}` : '중요도 설정'}
+          >
+            {prio ? prio.label : '중요도'}
+          </button>
+          {prioOpen && (
+            <PrioMenu value={priority} onPick={setPriority} onClose={() => setPrioOpen(false)} />
+          )}
+        </span>
+        <span className="lv-quick-pick">
+          <button
+            type="button"
+            className={`lv-pill lv-pill--btn ${selectedCat ? '' : 'lv-pill--empty'}`}
+            style={selectedCat ? { background: tint(catColor(selectedCat), '22'), color: catColor(selectedCat) } : undefined}
+            onClick={() => { setCatOpen(v => !v); setPrioOpen(false); }}
+            title="카테고리 설정"
+          >
+            {selectedCat ? selectedCat.title : '+ 카테고리'}
+          </button>
+          {catOpen && (
+            <CategoryMenu
+              current={projectId}
+              categories={categories}
+              onPick={setProjectId}
+              onCreate={async name => {
+                const id = await onCreateCategory?.(name);
+                if (id) setProjectId(id);
+                setCatOpen(false);
+              }}
+              onClose={() => setCatOpen(false)}
+            />
+          )}
+        </span>
+      </span>
       {withDates && (
         <span className="lv-quick-dates">
           <label className="lv-quick-date" title="계획일 (expected)">
@@ -778,13 +832,18 @@ export default function ListView({
     setPendingDel(p => { const n = { ...p }; delete n[key]; return n; });
   };
 
-  const quickAdd = (groupKey, title, dates) => {
-    const projectId = filter && projects.some(p => p.id === filter) ? filter : null;
+  // 빠른추가가 카테고리를 안 고르면 지금 보고 있는 카테고리를 기본으로 쓴다
+  const quickAddDefaultCat = filter && projects.some(p => p.id === filter) ? filter : null;
+  const quickAddCreateCat = async (name) => onAddCategory(name, pickNewCatColor(projects));
+
+  const quickAdd = (groupKey, title, extra) => {
+    const projectId = extra && 'projectId' in extra ? extra.projectId : quickAddDefaultCat;
+    const priority = extra?.priority ?? 0;
     // 날짜를 직접 고르면 그 값 사용, 안 고르면 그룹 기본 날짜(오늘/내일), 그 외엔 미정('')
     const groupDate = groupKey === 'today' ? TODAY : groupKey === 'tomorrow' ? TOMORROW : '';
-    const date = (dates && dates.expected) || groupDate;
-    const dueDate = (dates && dates.due) || '';
-    onAddItem({ type: 'todo', title, date, dueDate, timeSlot: 'all', projectId });
+    const date = (extra && extra.expected) || groupDate;
+    const dueDate = (extra && extra.due) || '';
+    onAddItem({ type: 'todo', title, date, dueDate, timeSlot: 'all', projectId, priority });
   };
 
   // 완료 처리한 카테고리의 항목은 아카이브 취급이므로 마감 안내 줄에서도 제외한다
@@ -1077,7 +1136,10 @@ export default function ListView({
             <QuickAdd
               withDates
               placeholder="할 일 추가 — 날짜 안 고르면 미정으로…"
-              onAdd={(t, dates) => quickAdd('unplanned', t, dates)}
+              onAdd={(t, extra) => quickAdd('unplanned', t, extra)}
+              categories={activeCats}
+              defaultProjectId={quickAddDefaultCat}
+              onCreateCategory={quickAddCreateCat}
             />
           </div>
 
@@ -1121,7 +1183,10 @@ export default function ListView({
                       g.key === 'later' ? '나중에 할 일…' :
                       '제목만 적어두기 (날짜는 나중에)…'
                     }
-                    onAdd={t => quickAdd(g.key, t)}
+                    onAdd={(t, extra) => quickAdd(g.key, t, extra)}
+                    categories={activeCats}
+                    defaultProjectId={quickAddDefaultCat}
+                    onCreateCategory={quickAddCreateCat}
                   />
                 )}
               </div>
