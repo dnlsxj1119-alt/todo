@@ -510,7 +510,9 @@ function DatePop({ value, label, today, onChange, onClose }) {
 }
 
 // 🟢일정은 목록 뷰에 안 나오지만(달력/주간뷰 담당), 계획을 세울 땐
-// 이미 시간이 잡힌 약속을 알아야 하므로 오늘·내일·모레 3일치만 따로 붙인다.
+// 이미 시간이 잡힌 약속을 알아야 하므로 오늘~모레 3일치만 따로 붙인다.
+// **완료한 일정은 여기서 뺀다** — 이 섹션은 '앞으로 해야 할/비어 있는 시간'을 보는 곳이고,
+// 끝낸 일은 아래 [✅ 최근 완료] 에만 모아 둔다 (할일도 완료되면 그룹에서 빠지는 것과 같은 규칙).
 function buildScheduleLines(items, today) {
   const days = [today, addDays(today, 1), addDays(today, 2)];
   const dayLabel = ['오늘', '내일', '모레'];
@@ -518,24 +520,23 @@ function buildScheduleLines(items, today) {
   let any = false;
   days.forEach((ds, i) => {
     const onDay = (items ?? [])
-      .filter(it => it.type === 'schedule' && (
-        it.date === ds || (it.endDate && it.date < ds && it.endDate >= ds)
-      ))
+      .filter(it => it.type === 'schedule'
+        && it.status !== 'done' && !it.completed
+        && (it.date === ds || (it.endDate && it.date < ds && it.endDate >= ds)))
       // 시간 없는(종일) 일정을 먼저, 그 다음 시간순
       .sort((a, b) => (a.time || '').localeCompare(b.time || ''));
     if (!onDay.length) return;
     any = true;
     lines.push(`  ${ds} (${dayLabel[i]})`);
     onDay.forEach(it => {
-      const done = it.completed ? '✓ ' : '';
       const span = it.endDate && it.endDate > it.date ? ` (${it.date}~${it.endDate})` : '';
       if (it.date !== ds) {
         // 이어지는 날은 시작 시각이 그 날의 정보가 아니므로 시간을 붙이지 않는다
-        lines.push(`    - ${done}↩ ${it.title}${span}`);
+        lines.push(`    - ↩ ${it.title}${span}`);
         return;
       }
       const time = it.time ? (it.endTime ? `${it.time}–${it.endTime} ` : `${it.time} `) : '';
-      lines.push(`    - ${done}${time}${it.title}${span}`);
+      lines.push(`    - ${time}${it.title}${span}`);
     });
   });
   return any ? lines : null;
@@ -557,7 +558,7 @@ function buildCategoryDeadlineLines(categories, today) {
 
 // 🟢일정은 목록(rows)에 안 들어가서, 완료해도 '최근 완료'에 한 번도 잡히지 않았다.
 // 한 일을 돌아볼 때 약속·일정도 같이 봐야 하므로 할일·태스크와 같은 모양으로 바꿔 합친다.
-// (오늘~모레 일정은 [🟢 일정] 에서 ✓ 로도 보이지만, 어제·그제 완료분은 여기서만 보인다)
+// (완료한 일정은 [🟢 일정] 섹션에서 빠지므로, 여기가 유일하게 보이는 자리다)
 function doneScheduleRows(items) {
   return (items ?? [])
     .filter(it => it.type === 'schedule' && (it.status === 'done' || it.completed))
