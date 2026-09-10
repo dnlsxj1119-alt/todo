@@ -217,7 +217,8 @@ function useSpanData(items) {
   }, [items]);
 }
 
-// 같은 칸에서 시간이 겹치는 카드들을 좌우 컬럼으로 나눠 배치
+// 같은 칸에서 시간이 겹치는 카드들에 겹침 단계(col)를 매긴다.
+// col 0 = 맨 아래(거의 전체 폭), col 1,2… = 위로 겹쳐 쌓이며 왼쪽으로 들여쓰기.
 function layoutOverlaps(cards) {
   const geom = cards
     .map((c, i) => {
@@ -475,11 +476,16 @@ export default function WeeklyView({
               const overlap = layoutOverlaps(cards);
               return cards.map(({ item, isContinuation, cardStyle }) => {
                 const ov = overlap[item.id];
+                // 겹치는 카드는 좁은 컬럼으로 쪼개지 않고, 구글 캘린더처럼
+                // 뒤 카드를 왼쪽에서 조금씩 들여쓰며 위로 겹쳐 쌓는다.
+                // (오른쪽 끝은 그대로 두어 앞 카드가 거의 전체 폭을 유지)
                 const finalStyle = ov
                   ? { ...cardStyle,
-                      left: `calc(4px + (100% - 8px) * ${ov.col} / ${ov.count})`,
-                      width: `calc((100% - 8px) / ${ov.count} - 3px)`,
-                      right: 'auto' }
+                      left: `calc(4px + (100% - 8px) * ${Math.min(ov.col * 0.16, 0.6)})`,
+                      right: '4px',
+                      width: 'auto',
+                      zIndex: 2 + ov.col,
+                      boxShadow: ov.col > 0 ? '-2px 0 6px rgba(0,0,0,0.10)' : undefined }
                   : cardStyle;
                 return (
                   <WeekCard key={`${item.id}-${slotKey}`} item={item}
