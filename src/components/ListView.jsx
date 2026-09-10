@@ -555,7 +555,22 @@ function buildCategoryDeadlineLines(categories, today) {
   });
 }
 
-function buildClaudeText(rows, items, categories, dayKeys) {
+// 🟢일정은 목록(rows)에 안 들어가서, 완료해도 '최근 완료'에 한 번도 잡히지 않았다.
+// 한 일을 돌아볼 때 약속·일정도 같이 봐야 하므로 할일·태스크와 같은 모양으로 바꿔 합친다.
+// (오늘~모레 일정은 [🟢 일정] 에서 ✓ 로도 보이지만, 어제·그제 완료분은 여기서만 보인다)
+function doneScheduleRows(items) {
+  return (items ?? [])
+    .filter(it => it.type === 'schedule' && (it.status === 'done' || it.completed))
+    .map(it => ({
+      title: it.title,
+      cat: null,
+      completedAt: it.completedAt ?? null,
+      time: it.time || null,
+      isSchedule: true,
+    }));
+}
+
+function buildSummaryText(rows, items, categories, dayKeys) {
   const { today } = dayKeys;
   const LABEL = { overdue: '🔴 지난 (놓친 일정)', yesterday: '🟠 어제 (놓친 일정)', today: '📌 오늘', tomorrow: '📅 내일', week: '📆 이번 주', later: '⏳ 나중에', unplanned: '📥 미정' };
   const STATUS_LABEL = { todo: '안 함', doing: '하는 중', done: '완료' };
@@ -571,13 +586,13 @@ function buildClaudeText(rows, items, categories, dayKeys) {
   // 시각이 없는 항목은 이 기능이 생기기 전에 완료된 것이라 판단할 수 없어 제외한다.
   const [ry, rm, rd] = addDays(today, -2).split('-').map(Number);
   const recentFrom = new Date(ry, rm - 1, rd).toISOString(); // 그제 자정(로컬) 기준
-  const doneAll = rows.filter(r => r.status === 'done');
+  const doneAll = [...rows.filter(r => r.status === 'done'), ...doneScheduleRows(items)];
   const doneRows = doneAll
     .filter(r => r.completedAt && r.completedAt >= recentFrom)
     .sort((a, b) => String(b.completedAt).localeCompare(String(a.completedAt)));
   const doneOmitted = doneAll.length - doneRows.length;
   const lines = [];
-  lines.push(`=== Claude 공유 (${today}) ===`);
+  lines.push(`=== 일정·할일 현황 (${today}) ===`);
   const scheduleLines = buildScheduleLines(items, today);
   lines.push('\n[🟢 일정] (오늘~모레)');
   if (scheduleLines) lines.push(...scheduleLines);
@@ -603,9 +618,12 @@ function buildClaudeText(rows, items, categories, dayKeys) {
     lines.push(`\n[✅ 최근 완료] (최근 3일, ${doneRows.length}개)`);
     doneRows.forEach(r => {
       const cat = r.cat ? ` #${r.cat.name}` : '';
+      // 일정은 할일과 성격이 달라서(약속·행사) 구분해 두면 읽는 쪽이 헷갈리지 않는다
+      const mark = r.isSchedule ? '🟢 ' : '';
+      const time = r.isSchedule && r.time ? ` (${r.time})` : '';
       // completedAt 은 UTC ISO 라서 앞 10자를 그냥 자르면 새벽 시간대에 날짜가 하루 밀린다
       const when = mdLabel(toDateString(new Date(r.completedAt)));
-      lines.push(`  - ${when} ${r.title}${cat}`);
+      lines.push(`  - ${when} ${mark}${r.title}${cat}${time}`);
     });
   } else {
     lines.push('\n[✅ 최근 완료] (최근 3일, 0개)');
@@ -659,11 +677,11 @@ export default function ListView({
   // 완료된 카테고리에 속한 항목은 '완료' 탭에서 제외 (카테고리와 함께 아카이브됨)
   const inDoneCat = r => r.cat && doneCatIds.has(r.cat.id);
 
-  const copyForClaude = () => {
+  const copySummary = () => {
     // 완료 처리한 카테고리는 아카이브 취급이라 화면에서도 숨기므로 공유에서도 제외한다
     // (할일·태스크뿐 아니라 일정과 카테고리 마감도 같은 기준으로 뺀다)
     const liveItems = items.filter(i => !i.projectId || !doneCatIds.has(i.projectId));
-    const text = buildClaudeText(rows.filter(r => !inDoneCat(r)), liveItems, activeCats, dayKeys);
+    const text = buildSummaryText(rows.filter(r => !inDoneCat(r)), liveItems, activeCats, dayKeys);
     // 클립보드는 보안 컨텍스트(https/localhost)와 권한이 필요해서 실패할 수 있다.
     // 조용히 넘어가면 눌러도 아무 일도 없는 것처럼 보이므로 알려준다.
     navigator.clipboard?.writeText(text)
@@ -672,7 +690,7 @@ export default function ListView({
         setTimeout(() => setCopied(false), 2000);
       })
       .catch(err => {
-        console.error('[copyForClaude]', err);
+        console.error('[copySummary]', err);
         window.alert('클립보드 복사에 실패했어요. 브라우저의 클립보드 권한을 확인해 주세요.');
       });
   };
@@ -1047,11 +1065,11 @@ export default function ListView({
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
           <button
             className="btn btn--ghost"
-            onClick={copyForClaude}
-            title="현재 할 일 목록을 Claude에게 공유할 텍스트로 복사"
+            onClick={copySummary}
+            title="지금 상황(일정·할일·마감·최근 완료)을 텍스트로 정리해 클립보드에 복사"
             style={{ fontSize: '13px' }}
           >
-            {copied ? '✅ 복사됨!' : '📋 Claude에게 공유'}
+            {copied ? '✅ 복사됨!' : '📋 현황 복사'}
           </button>
           <button className="btn btn--primary" onClick={() => onItemClick(null)}>+ 새 할일</button>
         </div>
