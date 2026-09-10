@@ -823,10 +823,12 @@ input, textarea, select { font-family: inherit; }
 }
 .field-input:focus { border-color: var(--purple-mid); box-shadow: 0 0 0 3px rgba(127,119,221,0.12); }
 .field-textarea { resize: vertical; min-height: 60px; }
-/* 좁은 화면에서 두 칸이 찌그러져 마감일 입력칸이 모달 밖으로 잘리던 문제 →
-   min-width:0 으로 줄어들게 하고, 더 좁아지면 아래로 줄바꿈한다 */
-.field-row { display: flex; gap: 10px; flex-wrap: wrap; }
-.field-group--half { flex: 1 1 190px; min-width: 0; }
+/* 좁은 화면에서도 두 칸(시작 날짜|종료 날짜, 시작 시간|종료 시간)은 항상 가로로
+   나란히 둔다 — 세로로 접히면 "시작 날짜 / 종료 날짜 / 시작 시간 / 종료 시간" 순서라
+   시작·종료가 뒤섞여 보인다. min-width:0 으로 date 입력칸이 모달 밖으로 잘리지 않게
+   줄어들게만 한다 (줄바꿈 없음). */
+.field-row { display: flex; gap: 10px; }
+.field-group--half { flex: 1 1 0; min-width: 0; }
 .field-group--third { flex: 1; min-width: 0; }
 
 /* Type tabs */
@@ -2251,7 +2253,15 @@ input, textarea, select { font-family: inherit; }
 @media (max-width: 560px) {
   .refl-row { grid-template-columns: 1fr; gap: 14px; }
   .refl-toolbar { padding: 10px 14px; }
-  .refl-cell-learn, .refl-cell-choice, .refl-cell-more { display: none; }
+  /* 좁은 화면에서도 회고 내용(성과/잘한 선택)을 칸 안에 보여준다 —
+     칸 높이를 넘으면 칸 안에서만 스크롤한다. */
+  .refl-cell-body { flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  .refl-cell-learn, .refl-cell-choice {
+    font-size: 9.5px;
+    padding: 1px 4px;
+    -webkit-line-clamp: 2;
+  }
+  .refl-cell-more { font-size: 9px; }
 }
 
 /* ===================== ListView (통합 목록) ===================== */
