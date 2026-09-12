@@ -83,7 +83,7 @@ const STATUS_OPTS = [
   { key: 'doing', label: '하는 중', dot: '#E0942A' },
   { key: 'done', label: '완료', dot: '#5C8F1E' },
   // '안 하기로 함'. 지우면 기록이 사라지고 그냥 두면 목록이 지저분해져서 따로 뒀다.
-  { key: 'cancelled', label: '취소', dot: '#5B6472' },
+  { key: 'cancelled', label: '취소', dot: '#3E5075' },
 ];
 const TASK_STATUS_MAP = { todo: 'upcoming', doing: 'in_progress', done: 'done', cancelled: 'cancelled' };
 
