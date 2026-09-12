@@ -271,7 +271,7 @@ export default function ItemModal({ item, defaultDate, defaultSlot, defaultType,
               <div className="field-group field-group--half">
                 <label className="field-label">상태</label>
                 <div className="seg">
-                  {[['todo', '안 함'], ['doing', '하는 중'], ['done', '완료']].map(([v, l]) => (
+                  {[['todo', '안 함'], ['doing', '하는 중'], ['done', '완료'], ['cancelled', '취소']].map(([v, l]) => (
                     <button key={v} type="button"
                       className={`seg-btn ${form.status === v ? 'seg-btn--on' : ''}`}
                       data-status={v}

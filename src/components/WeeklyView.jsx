@@ -97,7 +97,7 @@ function AgendaItemChip({ item, dateStr, onItemClick, onToggle }) {
   const isCont = item.date !== dateStr;
   return (
     <div
-      className={`chip ${CHIP_COLOR[item.type] || ''} ${item.completed ? 'chip--done' : ''}`}
+      className={`chip ${CHIP_COLOR[item.type] || ''} ${item.completed ? 'chip--done' : ''} ${item.status === 'cancelled' ? 'chip--cancelled' : ''}`}
       onClick={(e) => { e.stopPropagation(); onItemClick(item); }}
     >
       <span
@@ -143,7 +143,7 @@ function AgendaGoogleChip({ event, onToggle }) {
 function WeekCard({ item, onItemClick, onToggle, onDragStart, cardStyle, isContinuation }) {
   return (
     <div
-      className={`week-card ${TYPE_COLOR[item.type]} ${item.completed ? 'week-card--done' : ''} ${isContinuation ? 'week-card--continuation' : ''}`}
+      className={`week-card ${TYPE_COLOR[item.type]} ${item.completed ? 'week-card--done' : ''} ${item.status === 'cancelled' ? 'week-card--cancelled' : ''} ${isContinuation ? 'week-card--continuation' : ''}`}
       style={cardStyle}
       draggable
       onDragStart={(e) => onDragStart(e, item.id, item.type)}

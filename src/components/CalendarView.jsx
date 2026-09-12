@@ -15,7 +15,7 @@ function ItemChip({ item, onClick, onToggle, onDragStart }) {
   const canDrag = !!onDragStart && !item._isCont;
   return (
     <div
-      className={`chip ${TYPE_COLOR[item.type]} ${item.completed ? 'chip--done' : ''} ${canDrag ? 'chip--draggable' : ''}`}
+      className={`chip ${TYPE_COLOR[item.type]} ${item.completed ? 'chip--done' : ''} ${item.status === 'cancelled' ? 'chip--cancelled' : ''} ${canDrag ? 'chip--draggable' : ''}`}
       onClick={(e) => { e.stopPropagation(); onClick(item); }}
       draggable={canDrag}
       onDragStart={canDrag ? (e) => {

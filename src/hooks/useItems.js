@@ -207,6 +207,10 @@ export function useItems(userId) {
     // 모달에서 상태를 바꿨을 때도 완료 시각을 맞춰준다 (전환이 있을 때만)
     const wasDone = prev?.status === 'done';
     const nowDone = (merged.status ?? (merged.completed ? 'done' : 'todo')) === 'done';
+    // status 를 바꿨으면 completed 도 같이 맞춘다.
+    // 달력·주간뷰는 completed 만 보고 ✓ 를 그리므로 둘이 어긋나면
+    // '하는 중'/'취소'인데 달력에는 완료로 보인다.
+    if (data.status !== undefined) merged.completed = nowDone;
     if (nowDone && !wasDone) merged.completedAt = new Date().toISOString();
     else if (!nowDone && wasDone) merged.completedAt = null;
     // 구글 동기화는 네트워크 왕복이라 먼저 화면에 반영해두고(응답 지연 체감 제거),

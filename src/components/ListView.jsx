@@ -77,13 +77,19 @@ function tint(hex, aa) {
   return /^#[0-9a-fA-F]{6}$/.test(hex) ? hex + aa : hex;
 }
 
-const STATUS_CLASS = { todo: '', doing: 'lv-ck--doing', done: 'lv-ck--done' };
+const STATUS_CLASS = { todo: '', doing: 'lv-ck--doing', done: 'lv-ck--done', cancelled: 'lv-ck--cancelled' };
 const STATUS_OPTS = [
   { key: 'todo', label: '안 함', dot: 'var(--text-muted)' },
   { key: 'doing', label: '하는 중', dot: '#E0942A' },
   { key: 'done', label: '완료', dot: '#5C8F1E' },
+  // '안 하기로 함'. 지우면 기록이 사라지고 그냥 두면 목록이 지저분해져서 따로 뒀다.
+  { key: 'cancelled', label: '취소', dot: '#98A0B3' },
 ];
-const TASK_STATUS_MAP = { todo: 'upcoming', doing: 'in_progress', done: 'done' };
+const TASK_STATUS_MAP = { todo: 'upcoming', doing: 'in_progress', done: 'done', cancelled: 'cancelled' };
+
+// 완료·취소는 '끝난 것'이라 활성 목록에서 빠지고 보관 탭에서만 보인다.
+// 둘의 차이는 완료만 '최근 완료'·통계에 들어간다는 점.
+const isArchived = (status) => status === 'done' || status === 'cancelled';
 const PRIO = [
   null,
   { label: '낮음', color: '#8A94B8' },
@@ -141,7 +147,9 @@ function buildRows(items, projects) {
         expected: t.planned || null,
         due: t.deadline || null,
         time: null,
-        status: t.status === 'done' ? 'done' : t.status === 'in_progress' ? 'doing' : 'todo',
+        status: t.status === 'done' ? 'done'
+          : t.status === 'cancelled' ? 'cancelled'
+          : t.status === 'in_progress' ? 'doing' : 'todo',
         priority: normPrio(t.priority),
         sortOrder: null,
         completedAt: t.completedAt ?? null,
@@ -153,7 +161,7 @@ function buildRows(items, projects) {
 }
 
 function dateBucket(r, { today, tomorrow, yesterday, eow }) {
-  if (r.status !== 'done') {
+  if (!isArchived(r.status)) {
     const past = [r.due, r.expected].filter(d => d && d < today).sort();
     if (past.length) return past[past.length - 1] === yesterday ? 'yesterday' : 'overdue';
   }
@@ -578,7 +586,8 @@ function buildSummaryText(rows, items, categories, dayKeys) {
   const PRIO_LABEL = ['', '낮음', '보통', '높음'];
   const grouped = { overdue: [], yesterday: [], today: [], tomorrow: [], week: [], later: [], unplanned: [] };
   rows
-    .filter(r => r.status !== 'done')
+    // 취소한 일은 '안 하기로 한 것'이라 앞으로의 계획에도, 최근 완료에도 넣지 않는다
+    .filter(r => !isArchived(r.status))
     .forEach(r => {
       const b = dateBucket(r, dayKeys);
       if (grouped[b]) grouped[b].push(r);
@@ -650,7 +659,7 @@ export default function ListView({
   const projectsRef = useRef(projects);
   projectsRef.current = projects;
   const { today: TODAY, tomorrow: TOMORROW } = dayKeys;
-  const [filter, setFilterRaw] = useState(null); // null(전체) | 'done' | projectId
+  const [filter, setFilterRaw] = useState(null); // null(전체) | 'done' | 'cancelled' | projectId
   const [datePop, setDatePop] = useState(null); // `${rowKey}:${field}`
   const [statusPop, setStatusPop] = useState(null); // rowKey
   const [prioPop, setPrioPop] = useState(null); // rowKey
@@ -697,22 +706,25 @@ export default function ListView({
   };
 
   const doneCount = rows.filter(r => r.status === 'done' && !inDoneCat(r)).length;
+  const cancelledCount = rows.filter(r => r.status === 'cancelled' && !inDoneCat(r)).length;
   const catCounts = {};
-  rows.forEach(r => { if (r.cat && r.status !== 'done') catCounts[r.cat.id] = (catCounts[r.cat.id] ?? 0) + 1; });
+  rows.forEach(r => { if (r.cat && !isArchived(r.status)) catCounts[r.cat.id] = (catCounts[r.cat.id] ?? 0) + 1; });
 
   const viewingDone = filter === 'done';
+  const viewingCancelled = filter === 'cancelled';
+  const viewingArchive = viewingDone || viewingCancelled;
 
-  // 최근 완료가 위로. 완료 시각이 있으면 그걸 쓰고, 없는(옛) 항목은 날짜로 폴백한다.
+  // 최근 것이 위로. 완료 시각이 있으면 그걸 쓰고, 없는(옛·취소) 항목은 날짜로 폴백한다.
   const doneSortKey = (r) => r.completedAt || r.expected || r.due || '0000';
-  const doneRows = rows
-    .filter(r => r.status === 'done' && !inDoneCat(r))
+  const archiveRows = rows
+    .filter(r => r.status === (viewingCancelled ? 'cancelled' : 'done') && !inDoneCat(r))
     .sort((a, b) => doneSortKey(b).localeCompare(doneSortKey(a)));
 
-  // 완료 목록은 카테고리별로 묶어서 표시
+  // 보관 목록은 카테고리별로 묶어서 표시
   const doneByCategory = [];
   {
     const map = new Map();
-    doneRows.forEach(r => {
+    archiveRows.forEach(r => {
       const key = r.cat ? String(r.cat.id) : '__none';
       if (!map.has(key)) {
         const g = { key, label: r.cat ? r.cat.name : '카테고리 없음', color: r.cat ? r.cat.color : null, rows: [] };
@@ -729,7 +741,7 @@ export default function ListView({
   // 완료된 카테고리를 보고 있으면 그 카테고리의 완료 항목도 아래에 같이 보여줌
   const catDoneRows = filteredCatIsDone
     ? rows
-        .filter(r => r.status === 'done' && r.cat && r.cat.id === filter)
+        .filter(r => isArchived(r.status) && r.cat && r.cat.id === filter)
         .sort((a, b) => {
           const da = a.expected || a.due || '0';
           const db = b.expected || b.due || '0';
@@ -740,7 +752,8 @@ export default function ListView({
   const passFilter = r => {
     // 완료된 카테고리 항목은 그 카테고리를 직접 선택했을 때만 보임
     if (inDoneCat(r) && filter !== r.cat.id) return false;
-    if (r.status === 'done' && !justDone.has(r.key)) return false;
+    // 방금 완료·취소로 바꾼 행은 잘못 눌렀을 때 되돌릴 수 있게 잠시 제자리에 남긴다
+    if (isArchived(r.status) && !justDone.has(r.key)) return false;
     if (filter === null) return true;
     return r.cat && r.cat.id === filter;
   };
@@ -756,7 +769,7 @@ export default function ListView({
   // 완전히 같은 조건이면 Array.sort 가 안정 정렬이라 만든 순서가 유지된다.
   Object.values(grouped).forEach(list => {
     list.sort((a, b) => {
-      if ((a.status === 'done') !== (b.status === 'done')) return a.status === 'done' ? 1 : -1;
+      if (isArchived(a.status) !== isArchived(b.status)) return isArchived(a.status) ? 1 : -1;
       if (a.priority !== b.priority) return b.priority - a.priority;
       const da = a.expected || a.due || '9999-99-99';
       const db = b.expected || b.due || '9999-99-99';
@@ -778,7 +791,7 @@ export default function ListView({
     setRowStatus(r, status);
     setJustDone(prev => {
       const n = new Set(prev);
-      if (status === 'done') n.add(r.key); else n.delete(r.key);
+      if (isArchived(status)) n.add(r.key); else n.delete(r.key);
       return n;
     });
   };
@@ -935,7 +948,7 @@ export default function ListView({
 
   // 완료 처리한 카테고리의 항목은 아카이브 취급이므로 마감 안내 줄에서도 제외한다
   const dueOnly = rows
-    .filter(r => r.due && !r.expected && r.status !== 'done' && !inDoneCat(r))
+    .filter(r => r.due && !r.expected && !isArchived(r.status) && !inDoneCat(r))
     .sort((a, b) => (a.due < b.due ? -1 : 1));
 
   const datePill = (r, field) => {
@@ -943,7 +956,7 @@ export default function ListView({
     const val = isExpected ? r.expected : r.due;
     const label = isExpected ? '계획일' : '마감일';
     const icon = isExpected ? '🗓' : '📕';
-    const soon = !isExpected && val && val <= addDays(TODAY, 1) && r.status !== 'done';
+    const soon = !isExpected && val && val <= addDays(TODAY, 1) && !isArchived(r.status);
     const popKey = `${r.key}:${field}`;
     return (
       <span className="lv-date-edit" key={field}>
@@ -978,7 +991,7 @@ export default function ListView({
     const prio = PRIO[r.priority];
     return (
       <div
-        className={`lv-row ${r.status === 'done' ? 'lv-row--done' : ''}`}
+        className={`lv-row ${r.status === 'done' ? 'lv-row--done' : ''} ${r.status === 'cancelled' ? 'lv-row--cancelled' : ''}`}
         key={r.key}
       >
         <span className="lv-prio-wrap">
@@ -1132,6 +1145,13 @@ export default function ListView({
           onClick={() => setFilter(viewingDone ? null : 'done')}
         >✓ 완료 <span className="lv-cat-ct">{doneCount}</span></button>
 
+        {(cancelledCount > 0 || viewingCancelled) && (
+          <button
+            className={`lv-cat lv-cat--muted ${viewingCancelled ? 'lv-cat--on' : ''}`}
+            onClick={() => setFilter(viewingCancelled ? null : 'cancelled')}
+          >✕ 취소 <span className="lv-cat-ct">{cancelledCount}</span></button>
+        )}
+
         {doneCats.length > 0 && (
           <button className="lv-cat lv-cat--muted" onClick={() => setShowDoneCats(v => !v)}>
             완료된 카테고리 {doneCats.length} {showDoneCats ? '▾' : '▸'}
@@ -1181,9 +1201,9 @@ export default function ListView({
         </div>
       )}
 
-      {viewingDone ? (
-        doneRows.length === 0
-          ? <div className="lv-empty">완료한 항목이 없습니다</div>
+      {viewingArchive ? (
+        archiveRows.length === 0
+          ? <div className="lv-empty">{viewingCancelled ? '취소한 항목이 없습니다' : '완료한 항목이 없습니다'}</div>
           : doneByCategory.map(g => {
               const open = openDoneGroups.has(g.key);
               return (

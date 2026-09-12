@@ -465,6 +465,17 @@ input, textarea, select { font-family: inherit; }
   color: #6B7280;
   font-weight: 900;
 }
+/* 달력에서 취소한 항목 — 완료와 같은 회색이지만 줄이 점선이다 */
+.chip--cancelled {
+  background: #F0F0F0 !important;
+  color: #9CA3AF !important;
+  opacity: 0.85;
+}
+.chip--cancelled .chip-title {
+  text-decoration: line-through;
+  text-decoration-style: dashed;
+  text-decoration-color: #9CA3AF;
+}
 .chip-check {
   font-size: 11px;
   font-weight: 700;
@@ -736,6 +747,14 @@ input, textarea, select { font-family: inherit; }
 .week-card--google { background: #F3F4F8; color: #445; border: 1px dashed #B7BCD6; border-left: 3px dashed #9095B8; }
 .week-card--spanning { flex: 1; border-left-width: 4px; }
 .week-card--continuation { opacity: 0.7; border-style: dashed; }
+.week-card--cancelled {
+  opacity: 0.8;
+}
+.week-card--cancelled .card-title {
+  text-decoration: line-through;
+  text-decoration-style: dashed;
+  text-decoration-color: #9CA3AF;
+}
 .week-card--done {
   background: #F3F4F6 !important;
   border-left-color: #D1D5DB !important;
@@ -2339,6 +2358,10 @@ input, textarea, select { font-family: inherit; }
 .lv-ck-btn:hover { background: var(--bg); }
 
 .lv-row--done .lv-name { color: var(--text-muted); text-decoration: line-through; }
+/* 취소는 완료와 같이 흐려지되, 줄도 점선으로 그어 '끝냈다'와 구분한다 */
+.lv-row--cancelled .lv-name { color: var(--text-muted); text-decoration: line-through;
+  text-decoration-style: dashed; }
+.lv-row--cancelled { opacity: 0.75; }
 
 .lv-name-input { min-width: 0; font-size: 13.5px; font-weight: 500; font-family: inherit; color: var(--text-primary);
   border: 1px solid var(--accent); border-radius: 6px; padding: 6px 8px; background: var(--surface); outline: none; }
@@ -2372,6 +2395,10 @@ input, textarea, select { font-family: inherit; }
 .lv-ck--done { background: var(--green-mid); border-color: var(--green-mid); }
 .lv-ck--done::after { content: "✓"; position: absolute; inset: 0; display: grid; place-items: center;
   color: #fff; font-size: 11px; font-weight: 800; }
+/* 취소('안 하기로 함') — 완료의 초록 대신 회색 ✕ 로, 한눈에 구분되게 */
+.lv-ck--cancelled { background: #98A0B3; border-color: #98A0B3; }
+.lv-ck--cancelled::after { content: "✕"; position: absolute; inset: 0; display: grid; place-items: center;
+  color: #fff; font-size: 10px; font-weight: 800; }
 
 .lv-name { font-size: 13.5px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   min-width: 0; padding: 10px 0; cursor: text; border-radius: 4px; }
@@ -2512,6 +2539,7 @@ input, textarea, select { font-family: inherit; }
 .seg-btn--on[data-prio="3"] { background: #D9534F; }
 .seg-btn--on[data-status="doing"] { background: #E0942A; }
 .seg-btn--on[data-status="done"] { background: var(--green-mid); }
+.seg-btn--on[data-status="cancelled"] { background: #98A0B3; }
 
 /* ===================== 터치 기기 보정 =====================
    hover 가 없는 기기(휴대폰/태블릿)에서는 hover 로만 나타나는 조작 버튼이
