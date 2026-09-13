@@ -674,10 +674,7 @@ export default function ListView({
   const [pendingDel, setPendingDel] = useState({}); // rowKey -> row (되돌리기 대기)
   const delTimers = useRef({});
   useEffect(() => () => { Object.values(delTimers.current).forEach(clearTimeout); }, []);
-  // 방금 완료한 항목은 잠깐 그 자리에 남겨둠 (실수 취소용). 탭을 바꾸면 정리됨.
-  const [justDone, setJustDone] = useState(() => new Set());
-
-  const setFilter = f => { setFilterRaw(f); setJustDone(new Set()); };
+  const setFilter = f => setFilterRaw(f);
 
   const rows = useMemo(() => buildRows(items, projects), [items, projects]);
 
@@ -752,8 +749,11 @@ export default function ListView({
   const passFilter = r => {
     // 완료된 카테고리 항목은 그 카테고리를 직접 선택했을 때만 보임
     if (inDoneCat(r) && filter !== r.cat.id) return false;
-    // 방금 완료·취소로 바꾼 행은 잘못 눌렀을 때 되돌릴 수 있게 잠시 제자리에 남긴다
-    if (isArchived(r.status) && !justDone.has(r.key)) return false;
+    // 완료·취소한 항목은 바로 목록에서 뺀다.
+    // 예전엔 '실수로 눌렀을 때 되돌리라고' 그 자리에 남겼는데, 없애는 타이머가 없어서
+    // 새로고침 전까지 계속 남아 있었다 — 체크할수록 목록이 줄어드는 맛이 없었다.
+    // 되돌릴 일이 있으면 상단 '✓ 완료' / '✕ 취소' 칩에서 상태를 다시 바꾸면 된다.
+    if (isArchived(r.status)) return false;
     if (filter === null) return true;
     return r.cat && r.cat.id === filter;
   };
@@ -787,14 +787,7 @@ export default function ListView({
       completedAt: keep ? r.raw.task.completedAt : (done ? new Date().toISOString() : null),
     });
   };
-  const changeStatus = (r, status) => {
-    setRowStatus(r, status);
-    setJustDone(prev => {
-      const n = new Set(prev);
-      if (isArchived(status)) n.add(r.key); else n.delete(r.key);
-      return n;
-    });
-  };
+  const changeStatus = (r, status) => setRowStatus(r, status);
   const openRow = r => {
     if (r.kind === 'item') onItemClick(r.raw);
     else onEditProject(r.raw.project);
