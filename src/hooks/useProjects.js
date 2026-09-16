@@ -15,6 +15,7 @@ function toLocal(row) {
     sortOrder: row.sort_order ?? 0,
     pinned: row.pinned ?? false,
     forceCompleted: row.force_completed ?? false,
+    completedAt: row.completed_at ?? null,
   };
 }
 
@@ -32,7 +33,28 @@ function toRow(data, userId) {
     sort_order: data.sortOrder ?? 0,
     pinned: data.pinned ?? false,
     force_completed: data.forceCompleted ?? false,
+    completed_at: data.completedAt ?? null,
   };
+}
+
+// completed_at 마이그레이션을 아직 안 돌린 환경에서도 앱이 깨지지 않게,
+// '그런 컬럼 없음' 오류면 그 필드만 빼고 한 번 더 시도한다 (useItems 와 같은 방식)
+function isMissingColumnError(error, column) {
+  if (!error) return false;
+  if (error.code === '42703' || error.code === 'PGRST204') return true;
+  const msg = String(error.message ?? '');
+  return msg.includes(column) && /column|schema/i.test(msg);
+}
+
+async function updateProjectRow(id, patch) {
+  const { error } = await supabase.from('projects').update(patch).eq('id', id);
+  if (!error) return null;
+  if ('completed_at' in patch && isMissingColumnError(error, 'completed_at')) {
+    const { completed_at: _omit, ...rest } = patch;
+    const retry = await supabase.from('projects').update(rest).eq('id', id);
+    return retry.error ?? null;
+  }
+  return error;
 }
 
 export function useProjects(userId) {
@@ -82,8 +104,13 @@ export function useProjects(userId) {
   }, [userId]);
 
   const addProject = useCallback(async (data) => {
-    const { data: inserted, error } = await supabase
+    let { data: inserted, error } = await supabase
       .from('projects').insert(toRow(data, userId)).select().single();
+    if (error && isMissingColumnError(error, 'completed_at')) {
+      // 마이그레이션 전 환경: completed_at 만 빼고 다시
+      const { completed_at: _omit, ...rest } = toRow(data, userId);
+      ({ data: inserted, error } = await supabase.from('projects').insert(rest).select().single());
+    }
     if (error) {
       console.error('[addProject]', error);
       window.alert('카테고리 추가 실패: ' + error.message);
@@ -102,7 +129,7 @@ export function useProjects(userId) {
     const current = projectsRef.current.find(p => p.id === id);
     const merged = current ? { ...current, ...data } : data;
     setProjects(prev => prev.map(p => p.id === id ? { ...p, ...data } : p));
-    const { error } = await supabase.from('projects').update(toRow(merged, userId)).eq('id', id);
+    const error = await updateProjectRow(id, toRow(merged, userId));
     if (error) console.error('[updateProject]', error);
   }, [userId]);
 
@@ -135,14 +162,18 @@ export function useProjects(userId) {
   }, [projects]);
 
   const completeProject = useCallback(async (projectId) => {
-    setProjects(prev => prev.map(p => p.id === projectId ? { ...p, forceCompleted: true } : p));
-    const { error } = await supabase.from('projects').update({ force_completed: true }).eq('id', projectId);
+    // 완료를 '언제' 눌렀는지 남긴다 (공유 텍스트의 최근 3일 완료에 싣기 위해).
+    // 이미 완료였던 걸 다시 눌러도 원래 시각을 유지한다.
+    const prev = projectsRef.current.find(p => p.id === projectId);
+    const completedAt = (prev?.forceCompleted && prev?.completedAt) || new Date().toISOString();
+    setProjects(p => p.map(x => x.id === projectId ? { ...x, forceCompleted: true, completedAt } : x));
+    const error = await updateProjectRow(projectId, { force_completed: true, completed_at: completedAt });
     if (error) console.error('[completeProject]', error);
   }, []);
 
   const uncompleteProject = useCallback(async (projectId) => {
-    setProjects(prev => prev.map(p => p.id === projectId ? { ...p, forceCompleted: false } : p));
-    const { error } = await supabase.from('projects').update({ force_completed: false }).eq('id', projectId);
+    setProjects(prev => prev.map(p => p.id === projectId ? { ...p, forceCompleted: false, completedAt: null } : p));
+    const error = await updateProjectRow(projectId, { force_completed: false, completed_at: null });
     if (error) console.error('[uncompleteProject]', error);
   }, []);
 

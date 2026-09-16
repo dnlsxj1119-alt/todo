@@ -579,10 +579,26 @@ function doneScheduleRows(items) {
     }));
 }
 
+// 완료 처리한 카테고리(프로젝트) 자체도 '최근 완료'에 한 줄로 싣는다.
+// 그 안의 항목들만 나열하면 "프로젝트를 끝냈다"는 제일 큰 사실이 안 드러난다.
+// completed_at 이 없는(마이그레이션 전에 완료했던) 프로젝트는 언제 끝냈는지 알 수 없어 목록엔 안 뜬다 —
+// 계획일 같은 걸로 추측해 채우지 않는다. 다만 맨 아래 '생략 N개'에는 할일과 같이 세어 준다.
+function doneProjectRows(projects) {
+  return (projects ?? [])
+    .filter(catDone)
+    .map(p => ({
+      title: p.title,
+      cat: null,
+      completedAt: p.completedAt,
+      time: null,
+      isProject: true,
+    }));
+}
+
 // doneCatIds: '완료 처리'한 카테고리들. 이 카테고리 항목은 아카이브라 **앞으로의 계획**
 // (일정·날짜 그룹)에서는 빼지만, **최근 3일 안에 끝낸 것은 프로젝트를 완료했든 아니든 싣는다**
 // — 프로젝트를 끝냈다고 그 안에서 오늘 한 일까지 통째로 사라지면 '뭘 했는지'가 안 남는다.
-function buildSummaryText(rows, items, categories, dayKeys, doneCatIds) {
+function buildSummaryText(rows, items, categories, dayKeys, doneCatIds, allProjects) {
   const { today } = dayKeys;
   const archivedCat = new Set(doneCatIds ?? []);
   const rowInDoneCat = (r) => !!(r.cat && archivedCat.has(r.cat.id));
@@ -604,7 +620,11 @@ function buildSummaryText(rows, items, categories, dayKeys, doneCatIds) {
   // 시각이 없는 항목은 이 기능이 생기기 전에 완료된 것이라 판단할 수 없어 제외한다.
   const [ry, rm, rd] = addDays(today, -2).split('-').map(Number);
   const recentFrom = new Date(ry, rm - 1, rd).toISOString(); // 그제 자정(로컬) 기준
-  const doneAll = [...rows.filter(r => r.status === 'done'), ...doneScheduleRows(items)];
+  const doneAll = [
+    ...rows.filter(r => r.status === 'done'),
+    ...doneScheduleRows(items),
+    ...doneProjectRows(allProjects),
+  ];
   const doneRows = doneAll
     .filter(r => r.completedAt && r.completedAt >= recentFrom)
     .sort((a, b) => String(b.completedAt).localeCompare(String(a.completedAt)));
@@ -636,9 +656,9 @@ function buildSummaryText(rows, items, categories, dayKeys, doneCatIds) {
     lines.push(`\n[✅ 최근 완료] (최근 3일, ${doneRows.length}개)`);
     doneRows.forEach(r => {
       const cat = r.cat ? ` #${r.cat.name}` : '';
-      // 일정은 할일과 성격이 달라서(약속·행사) 구분해 두면 읽는 쪽이 헷갈리지 않는다
-      const mark = r.isSchedule ? '🟢 ' : '';
-      const time = r.isSchedule && r.time ? ` (${r.time})` : '';
+      // 일정·프로젝트는 할일과 성격이 달라서 구분해 두면 읽는 쪽이 헷갈리지 않는다
+      const mark = r.isProject ? '🏁 ' : r.isSchedule ? '🟢 ' : '';
+      const time = r.isSchedule && r.time ? ` (${r.time})` : r.isProject ? ' (프로젝트 완료)' : '';
       // completedAt 은 UTC ISO 라서 앞 10자를 그냥 자르면 새벽 시간대에 날짜가 하루 밀린다
       const when = mdLabel(toDateString(new Date(r.completedAt)));
       lines.push(`  - ${when} ${mark}${r.title}${cat}${time}`);
@@ -695,7 +715,7 @@ export default function ListView({
   const copySummary = () => {
     // 전체를 넘기고, 완료 처리한 카테고리를 어디서 뺄지는 buildSummaryText 가 판단한다
     // (계획 섹션에서만 빼고 '최근 완료'에는 남긴다)
-    const text = buildSummaryText(rows, items, activeCats, dayKeys, doneCatIds);
+    const text = buildSummaryText(rows, items, activeCats, dayKeys, doneCatIds, projects);
     // 클립보드는 보안 컨텍스트(https/localhost)와 권한이 필요해서 실패할 수 있다.
     // 조용히 넘어가면 눌러도 아무 일도 없는 것처럼 보이므로 알려준다.
     navigator.clipboard?.writeText(text)
