@@ -579,13 +579,21 @@ function doneScheduleRows(items) {
     }));
 }
 
-function buildSummaryText(rows, items, categories, dayKeys) {
+// doneCatIds: '완료 처리'한 카테고리들. 이 카테고리 항목은 아카이브라 **앞으로의 계획**
+// (일정·날짜 그룹)에서는 빼지만, **최근 3일 안에 끝낸 것은 프로젝트를 완료했든 아니든 싣는다**
+// — 프로젝트를 끝냈다고 그 안에서 오늘 한 일까지 통째로 사라지면 '뭘 했는지'가 안 남는다.
+function buildSummaryText(rows, items, categories, dayKeys, doneCatIds) {
   const { today } = dayKeys;
+  const archivedCat = new Set(doneCatIds ?? []);
+  const rowInDoneCat = (r) => !!(r.cat && archivedCat.has(r.cat.id));
+  const itemInDoneCat = (it) => it.projectId != null && archivedCat.has(it.projectId);
+  const planRows = rows.filter(r => !rowInDoneCat(r));
+  const planItems = items.filter(it => !itemInDoneCat(it));
   const LABEL = { overdue: '🔴 지난 (놓친 일정)', yesterday: '🟠 어제 (놓친 일정)', today: '📌 오늘', tomorrow: '📅 내일', week: '📆 이번 주', later: '⏳ 나중에', unplanned: '📥 미정' };
   const STATUS_LABEL = { todo: '안 함', doing: '하는 중', done: '완료' };
   const PRIO_LABEL = ['', '낮음', '보통', '높음'];
   const grouped = { overdue: [], yesterday: [], today: [], tomorrow: [], week: [], later: [], unplanned: [] };
-  rows
+  planRows
     // 취소한 일은 '안 하기로 한 것'이라 앞으로의 계획에도, 최근 완료에도 넣지 않는다
     .filter(r => !isArchived(r.status))
     .forEach(r => {
@@ -603,7 +611,7 @@ function buildSummaryText(rows, items, categories, dayKeys) {
   const doneOmitted = doneAll.length - doneRows.length;
   const lines = [];
   lines.push(`=== 일정·할일 현황 (${today}) ===`);
-  const scheduleLines = buildScheduleLines(items, today);
+  const scheduleLines = buildScheduleLines(planItems, today);
   lines.push('\n[🟢 일정] (오늘~모레)');
   if (scheduleLines) lines.push(...scheduleLines);
   else lines.push('  (없음)');
@@ -685,10 +693,9 @@ export default function ListView({
   const inDoneCat = r => r.cat && doneCatIds.has(r.cat.id);
 
   const copySummary = () => {
-    // 완료 처리한 카테고리는 아카이브 취급이라 화면에서도 숨기므로 공유에서도 제외한다
-    // (할일·태스크뿐 아니라 일정과 카테고리 마감도 같은 기준으로 뺀다)
-    const liveItems = items.filter(i => !i.projectId || !doneCatIds.has(i.projectId));
-    const text = buildSummaryText(rows.filter(r => !inDoneCat(r)), liveItems, activeCats, dayKeys);
+    // 전체를 넘기고, 완료 처리한 카테고리를 어디서 뺄지는 buildSummaryText 가 판단한다
+    // (계획 섹션에서만 빼고 '최근 완료'에는 남긴다)
+    const text = buildSummaryText(rows, items, activeCats, dayKeys, doneCatIds);
     // 클립보드는 보안 컨텍스트(https/localhost)와 권한이 필요해서 실패할 수 있다.
     // 조용히 넘어가면 눌러도 아무 일도 없는 것처럼 보이므로 알려준다.
     navigator.clipboard?.writeText(text)
