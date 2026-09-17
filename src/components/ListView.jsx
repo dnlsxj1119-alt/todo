@@ -1,5 +1,5 @@
 import { useMemo, useState, useRef, useEffect, useLayoutEffect } from 'react';
-import { toDateString, addDays } from '../utils/dateUtils';
+import { toDateString, addDays, DAY_NAMES } from '../utils/dateUtils';
 import { getProjectType, CATEGORY_PALETTE } from '../utils/projectTypes';
 
 function catColor(p) {
@@ -73,6 +73,14 @@ function mdLabel(s) {
   const [, m, d] = s.split('-');
   return `${+m}/${+d}`;
 }
+// 완료 탭의 날짜 그룹 제목. 오늘/어제는 이름으로, 그 전은 '9/15 (화)' 로.
+function doneDayLabel(ds, today) {
+  if (ds === today) return '오늘';
+  if (ds === addDays(today, -1)) return '어제';
+  const [y, m, d] = ds.split('-').map(Number);
+  return `${m}/${d} (${DAY_NAMES[new Date(y, m - 1, d).getDay()]})`;
+}
+
 function tint(hex, aa) {
   return /^#[0-9a-fA-F]{6}$/.test(hex) ? hex + aa : hex;
 }
@@ -744,20 +752,38 @@ export default function ListView({
     .filter(r => r.status === (viewingCancelled ? 'cancelled' : 'done') && !inDoneCat(r))
     .sort((a, b) => doneSortKey(b).localeCompare(doneSortKey(a)));
 
-  // 보관 목록은 카테고리별로 묶어서 표시
-  const doneByCategory = [];
+  // 완료 탭은 **완료한 날짜별**로 묶는다 (활성 목록이 날짜 그룹인 것과 같은 방식).
+  // 취소 탭은 취소 시각을 기록하지 않으므로 그대로 카테고리별로 묶는다.
+  // 완료 시각이 없는 항목(컬럼 생기기 전에 완료한 것)은 계획일로 추측하지 않고
+  // 맨 아래 '완료 날짜 모름' 으로 모은다.
+  const archiveGroups = [];
   {
     const map = new Map();
-    archiveRows.forEach(r => {
-      const key = r.cat ? String(r.cat.id) : '__none';
+    const push = (key, label, color, r) => {
       if (!map.has(key)) {
-        const g = { key, label: r.cat ? r.cat.name : '카테고리 없음', color: r.cat ? r.cat.color : null, rows: [] };
+        const g = { key, label, color, rows: [] };
         map.set(key, g);
-        doneByCategory.push(g);
+        archiveGroups.push(g);
       }
       map.get(key).rows.push(r);
-    });
-    doneByCategory.sort((a, b) => (a.key === '__none' ? 1 : b.key === '__none' ? -1 : 0));
+    };
+    if (viewingCancelled) {
+      archiveRows.forEach(r => push(
+        r.cat ? String(r.cat.id) : '__none',
+        r.cat ? r.cat.name : '카테고리 없음',
+        r.cat ? r.cat.color : null,
+        r,
+      ));
+      archiveGroups.sort((a, b) => (a.key === '__none' ? 1 : b.key === '__none' ? -1 : 0));
+    } else {
+      // archiveRows 가 이미 최근순이라 날짜 그룹도 최근순으로 쌓인다
+      archiveRows.forEach(r => {
+        if (!r.completedAt) { push('__noDate', '완료 날짜 모름', null, r); return; }
+        const ds = toDateString(new Date(r.completedAt));
+        push(ds, doneDayLabel(ds, TODAY), null, r);
+      });
+      archiveGroups.sort((a, b) => (a.key === '__noDate' ? 1 : b.key === '__noDate' ? -1 : 0));
+    }
   }
 
   const filteredCat = filter ? projects.find(p => p.id === filter) : null;
@@ -1224,7 +1250,7 @@ export default function ListView({
       {viewingArchive ? (
         archiveRows.length === 0
           ? <div className="lv-empty">{viewingCancelled ? '취소한 항목이 없습니다' : '완료한 항목이 없습니다'}</div>
-          : doneByCategory.map(g => {
+          : archiveGroups.map(g => {
               const open = openDoneGroups.has(g.key);
               return (
                 <div className="lv-group" key={g.key}>
