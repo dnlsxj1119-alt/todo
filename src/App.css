@@ -426,6 +426,13 @@ input, textarea, select { font-family: inherit; }
   min-width: 0;
   flex: 1;
   min-height: 0;
+  /* 여러 날 일정 막대가 칸 끝까지 닿아 이어져 보이게, 좌우로 칸 패딩(6px)만큼 넓히고
+     안쪽에 같은 값의 패딩을 줘서 나머지 칩 위치는 그대로 둔다.
+     (막대에 음수 마진만 주면 스택이 넘쳐서 가로 스크롤바가 생긴다) */
+  margin-left: -6px;
+  margin-right: -6px;
+  padding-left: 6px;
+  padding-right: 6px;
   overflow-y: auto;
 }
 
@@ -488,6 +495,22 @@ input, textarea, select { font-family: inherit; }
 }
 .chip:hover .chip-check { opacity: 1; }
 .chip-priority { font-size: 8px; flex-shrink: 0; }
+/* 여러 날 🟢일정 = 칸마다 '↩' 칩을 따로 그리는 대신 하나의 막대처럼 이어 그린다.
+   칸 사이를 벌리는 건 셀의 좌우 패딩(6px)뿐이라 그만큼 음수 마진을 주면 테두리선까지 닿아
+   이어져 보인다. .cal-cell 의 overflow:hidden 은 패딩 박스에서 자르므로 이 마진은 안 잘린다.
+   (주간뷰는 그대로 '↩' 칩을 쓴다 — 시간대 격자라 막대로 잇는 개념이 아니다) */
+.chip--span {
+  border-radius: 0;
+  margin-left: -6px;
+  margin-right: -6px;
+  /* 칸이 좁으면 칩이 눌려서 날마다 막대 높이가 달라졌다 → 줄어들지 않게 고정 */
+  flex-shrink: 0;
+}
+.chip--span-start { border-radius: 4px 0 0 4px; margin-left: 0; }
+.chip--span-end { border-radius: 0 4px 4px 0; margin-right: 0; }
+/* 그 줄을 안 쓰는 칸의 빈 자리 — 높이를 차지해 막대 높이를 맞춘다 */
+.chip--span-gap { visibility: hidden; }
+
 .chip-time { font-size: 10px; font-weight: 700; opacity: 0.75; flex-shrink: 0; }
 .chip-title { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 
@@ -1335,8 +1358,17 @@ input, textarea, select { font-family: inherit; }
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
     gap: 1px;
+    /* 모바일 칸 패딩은 3px */
+    margin-left: -3px;
+    margin-right: -3px;
+    padding-left: 3px;
+    padding-right: 3px;
   }
   .chip { font-size: 9px; padding: 1px 4px; gap: 3px; }
+  /* 모바일 칸 패딩은 3px 이라 막대 마진도 그만큼만 */
+  .chip--span { margin-left: -3px; margin-right: -3px; flex-shrink: 0; }
+  .chip--span-start { margin-left: 0; }
+  .chip--span-end { margin-right: 0; }
   .chip-check { width: 11px; font-size: 9px; }
   .chip-priority { font-size: 7px; }
   .chip-time { font-size: 8px; }
