@@ -323,6 +323,7 @@ export default function App() {
           <CalendarView
             currentMonth={currentMonth}
             setCurrentMonth={setCurrentMonth}
+            items={items}
             getItemsForDate={getItemsForDate}
             onItemClick={openEdit}
             onDayClick={(ds) => openAdd(ds)}

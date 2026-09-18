@@ -9,6 +9,9 @@ import { habitAppliesToDate } from '../hooks/useHabits';
 import { buildDeadlineMap } from '../utils/deadlines';
 import { readStored, writeStored } from '../utils/safeStorage';
 
+// 마감 칩의 종류별 기호: 카테고리 🏁 · 태스크 📌 · 할일 📕(목록의 마감일 칩과 같은 기호)
+const DEADLINE_EMOJI = { task: '📌', item: '📕', project: '🏁' };
+
 const TYPE_COLOR = {
   todo:      'week-card--purple',
   education: 'week-card--red',
@@ -343,7 +346,7 @@ export default function WeeklyView({
     sweepTargets.forEach(i => moveItem(i.id, null, 'all'));
   };
   const { spanMap, covered } = useSpanData(items);
-  const deadlineMap = useMemo(() => buildDeadlineMap(projects), [projects]);
+  const deadlineMap = useMemo(() => buildDeadlineMap(projects, items), [projects, items]);
 
   const prevWeek = () => { const d = new Date(currentWeek); d.setDate(d.getDate() - 7); setCurrentWeek(d); };
   const nextWeek = () => { const d = new Date(currentWeek); d.setDate(d.getDate() + 7); setCurrentWeek(d); };
@@ -435,9 +438,13 @@ export default function WeeklyView({
         {slotKey === 'all' && (deadlineMap[ds] ?? []).map(entry => (
           <div key={entry.key}
             className={`chip chip--deadline${entry.done ? ' chip--done' : ''}`}
-            onClick={(e) => { e.stopPropagation(); onProjectClick?.(entry.project); }}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (entry.type === 'item') onItemClick?.(entry.item);
+              else onProjectClick?.(entry.project);
+            }}
             title={`마감: ${entry.title}`}>
-            <span className="chip-check" style={{ opacity: 1 }}>{entry.type === 'task' ? '📌' : '🏁'}</span>
+            <span className="chip-check" style={{ opacity: 1 }}>{DEADLINE_EMOJI[entry.type] ?? '🏁'}</span>
             <span className="chip-title">{entry.title}</span>
           </div>
         ))}
@@ -696,10 +703,14 @@ export default function WeeklyView({
                           <div
                             key={entry.key}
                             className={`chip chip--deadline${entry.done ? ' chip--done' : ''}`}
-                            onClick={(e) => { e.stopPropagation(); onProjectClick?.(entry.project); }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (entry.type === 'item') onItemClick?.(entry.item);
+                              else onProjectClick?.(entry.project);
+                            }}
                             title={`마감: ${entry.title}`}
                           >
-                            <span className="chip-check" style={{ opacity: 1 }}>{entry.type === 'task' ? '📌' : '🏁'}</span>
+                            <span className="chip-check" style={{ opacity: 1 }}>{DEADLINE_EMOJI[entry.type] ?? '🏁'}</span>
                             <span className="chip-title">{entry.title}</span>
                           </div>
                         ))}

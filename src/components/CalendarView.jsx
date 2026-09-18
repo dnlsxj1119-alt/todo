@@ -84,20 +84,27 @@ function mergeByTime(items, googleEvents) {
     .sort((a, b) => (a.done - b.done) || (a.time - b.time) || (a.index - b.index));
 }
 
-function DeadlineChip({ entry, onClick }) {
+// 마감 칩의 종류별 표시/클릭 대상: 카테고리 🏁 · 태스크 📌 · 할일 📕(목록의 마감일 칩과 같은 기호)
+const DEADLINE_EMOJI = { task: '📌', item: '📕', project: '🏁' };
+
+function DeadlineChip({ entry, onProjectClick, onItemClick }) {
   return (
     <div
       className={`chip chip--deadline${entry.done ? ' chip--done' : ''}`}
-      onClick={(e) => { e.stopPropagation(); onClick(entry.project); }}
+      onClick={(e) => {
+        e.stopPropagation();
+        if (entry.type === 'item') onItemClick?.(entry.item);
+        else onProjectClick?.(entry.project);
+      }}
       title={`마감: ${entry.title}`}
     >
-      <span className="chip-check" style={{ opacity: 1 }}>{entry.type === 'task' ? '📌' : '🏁'}</span>
+      <span className="chip-check" style={{ opacity: 1 }}>{DEADLINE_EMOJI[entry.type] ?? '🏁'}</span>
       <span className="chip-title">{entry.title}</span>
     </div>
   );
 }
 
-export default function CalendarView({ currentMonth, setCurrentMonth, getItemsForDate, onItemClick, onDayClick, onDateNumClick, reflectionDates, onToggle, filterType, projects = [], onProjectClick, getGoogleEventsForDate, onToggleGoogleEvent, onMoveItem }) {
+export default function CalendarView({ currentMonth, setCurrentMonth, items = [], getItemsForDate, onItemClick, onDayClick, onDateNumClick, reflectionDates, onToggle, filterType, projects = [], onProjectClick, getGoogleEventsForDate, onToggleGoogleEvent, onMoveItem }) {
   const [expanded, setExpanded] = useState({});
   // 항목을 다른 날짜 칸으로 끌어다 옮기기 (데스크톱 전용 — 터치에선 HTML5 드래그가 동작하지 않음)
   const [dragInfo, setDragInfo] = useState(null); // { id, from }
@@ -119,7 +126,7 @@ export default function CalendarView({ currentMonth, setCurrentMonth, getItemsFo
 
   const VISIBLE_MAX = 3;
 
-  const deadlineMap = useMemo(() => buildDeadlineMap(projects), [projects]);
+  const deadlineMap = useMemo(() => buildDeadlineMap(projects, items), [projects, items]);
 
   return (
     <div className="calendar-view" onDragEnd={endDrag}>
@@ -196,7 +203,8 @@ export default function CalendarView({ currentMonth, setCurrentMonth, getItemsFo
                   <DeadlineChip
                     key={entry.key}
                     entry={entry}
-                    onClick={onProjectClick}
+                    onProjectClick={onProjectClick}
+                    onItemClick={onItemClick}
                   />
                 ))}
                 {visibleCombined.map(entry => (
