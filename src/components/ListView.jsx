@@ -497,7 +497,11 @@ function InlineTitle({ value, onSave }) {
   );
 }
 
-function DatePop({ value, label, today, onChange, onClose }) {
+// onTimeChange 를 주면 시간도 같이 정할 수 있다(계획일 · 할일 항목만).
+// **할일은 시간이 있어야 주간뷰의 시간대 행(아침/점심/저녁/밤)에 들어간다** —
+// 시간이 없으면 맨 위 '전체' 행에 남는다. 예전엔 이 창에서 시간을 못 정해서
+// 주간뷰의 원하는 시간대로 보내려면 항목 모달까지 열어야 했다.
+function DatePop({ value, label, today, time, onChange, onTimeChange, onClose }) {
   const ref = useRef(null);
   const inputRef = useRef(null);
   usePopClose(ref, onClose);
@@ -507,6 +511,9 @@ function DatePop({ value, label, today, onChange, onClose }) {
     el.focus();
     try { el.showPicker?.(); } catch { /* 사용자 제스처 밖이면 무시 */ }
   }, []);
+  // 시간까지 정할 수 있는 창은 날짜를 고른 뒤에도 닫지 않는다 (이어서 시간을 고를 수 있게)
+  const canSetTime = !!onTimeChange;
+  const closeUnlessTime = () => { if (!canSetTime) onClose(); };
   return (
     <div className="lv-date-pop" ref={ref} onClick={e => e.stopPropagation()}>
       <label>{label}</label>
@@ -514,12 +521,24 @@ function DatePop({ value, label, today, onChange, onClose }) {
         ref={inputRef}
         type="date"
         value={value || ''}
-        onChange={e => { onChange(e.target.value || null); onClose(); }}
+        onChange={e => { onChange(e.target.value || null); closeUnlessTime(); }}
       />
+      {/* 날짜가 없으면 시간만 정해도 어디에도 안 보이므로 날짜를 고른 뒤에만 보여준다 */}
+      {canSetTime && value && (
+        <>
+          <label>시간 (비우면 전체 행)</label>
+          <input
+            type="time"
+            value={time || ''}
+            onChange={e => onTimeChange(e.target.value || '')}
+          />
+        </>
+      )}
       <div className="lv-date-pop-row">
-        <button onClick={() => { onChange(today); onClose(); }}>오늘</button>
-        <button onClick={() => { onChange(addDays(today, 1)); onClose(); }}>내일</button>
-        <button onClick={() => { onChange(null); onClose(); }}>지우기</button>
+        <button onClick={() => { onChange(today); closeUnlessTime(); }}>오늘</button>
+        <button onClick={() => { onChange(addDays(today, 1)); closeUnlessTime(); }}>내일</button>
+        {/* 날짜를 지우면 남은 시간은 쓸 데가 없으니 같이 지운다 */}
+        <button onClick={() => { onChange(null); onTimeChange?.(''); onClose(); }}>지우기</button>
       </div>
     </div>
   );
@@ -1004,6 +1023,7 @@ export default function ListView({
     const icon = isExpected ? '🗓' : '📕';
     const soon = !isExpected && val && val <= addDays(TODAY, 1) && !isArchived(r.status);
     const popKey = `${r.key}:${field}`;
+    const canSetRowTime = isExpected && r.kind === 'item';
     return (
       <span className="lv-date-edit" key={field}>
         <button
@@ -1017,7 +1037,10 @@ export default function ListView({
             value={val}
             label={label}
             today={TODAY}
+            /* 시간은 계획일에만, 그리고 항목만 (프로젝트 태스크엔 시간 필드가 없다) */
+            time={canSetRowTime ? r.time : undefined}
             onChange={v => setRowDate(r, field, v)}
+            onTimeChange={canSetRowTime ? (t => onUpdateItem(r.raw.id, { time: t })) : undefined}
             onClose={() => setDatePop(null)}
           />
         )}
