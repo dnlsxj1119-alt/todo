@@ -16,6 +16,42 @@ function mdLabel(ds) {
   return `${+m}/${+d}`;
 }
 
+// '언젠가 꼭' 의 기한은 자유 입력이라 ('올해', '내년', '2027', '2027년 3월', '2026-12', '5월')
+// 정렬용으로 연·월만 뽑아 숫자 하나로 만든다. 읽을 수 없으면 맨 뒤로 보낸다 —
+// 기한을 안 적은 것까지 앞에 끼어들면 '가까운 것부터' 라는 순서가 깨진다.
+const HORIZON_FAR = 999913; // 연도 9999 = 맨 뒤
+function horizonRank(raw, baseYear) {
+  const s = String(raw ?? '').trim();
+  if (!s) return HORIZON_FAR;
+
+  let year = null;
+  const y4 = s.match(/(?:19|20)\d{2}/);
+  if (y4) year = Number(y4[0]);
+  else if (/내후년/.test(s)) year = baseYear + 2;
+  else if (/내년|다음\s*해/.test(s)) year = baseYear + 1;
+  else if (/올해|금년|이번\s*해/.test(s)) year = baseYear;
+  else {
+    const rel = s.match(/(\d{1,2})\s*년\s*(?:뒤|후|안|내)/);
+    if (rel) year = baseYear + Number(rel[1]);
+  }
+
+  let month = 0;
+  const ym = s.match(/(?:19|20)\d{2}\s*[-./년]\s*(\d{1,2})/);
+  if (ym) month = Number(ym[1]);
+  else {
+    const mo = s.match(/(\d{1,2})\s*월/);
+    if (mo) month = Number(mo[1]);
+  }
+  if (month < 1 || month > 12) month = 0;
+
+  if (year == null) {
+    if (!month) return HORIZON_FAR; // 연도도 달도 없는 말 ('언젠가', '죽기 전에')
+    year = baseYear;                // 달만 적었으면 올해로 본다
+  }
+  // 연도만 적힌 것은 그 해의 구체적인 달들보다 뒤 (13월 취급)
+  return year * 100 + (month || 13);
+}
+
 // 이번 달의 1일과 말일
 function monthBounds(monthKey) {
   const [y, m] = monthKey.split('-').map(Number);
@@ -248,6 +284,8 @@ function GoalRow({ goal, prog, projects, habits, expanded, onToggleExpand, onUpd
           )}
 
           <div className="gv-detail-foot">
+            {/* 입력은 글자마다 바로 저장되지만, 다 고쳤을 때 닫을 곳이 없어서 따로 뒀다 */}
+            <button className="gv-mini gv-mini--close" onClick={onToggleExpand}>✓ 수정 완료</button>
             <button className="gv-mini gv-mini--go" onClick={() => onSendToTodo(goal)}>＋ 할일로 보내기</button>
             <button className="gv-mini" onClick={() => onDone(goal.id, !done)}>
               {done ? '되돌리기' : '이룸'}
@@ -298,6 +336,8 @@ function SomedayRow({ goal, expanded, onToggleExpand, onUpdate, onDelete, onDone
             </div>
           </div>
           <div className="gv-detail-foot">
+            {/* 입력은 글자마다 바로 저장되지만, 다 고쳤을 때 닫을 곳이 없어서 따로 뒀다 */}
+            <button className="gv-mini gv-mini--close" onClick={onToggleExpand}>✓ 수정 완료</button>
             <button className="gv-mini gv-mini--go" onClick={() => onSendToTodo(goal)}>＋ 할일로 보내기</button>
             <button className="gv-mini" onClick={() => onDone(goal.id, !done)}>{done ? '되돌리기' : '이룸'}</button>
             <button className="gv-mini" onClick={() => onUpdate(goal.id, { kind: 'month', month: getMonthKey(new Date()) })}>
@@ -324,9 +364,17 @@ export default function GoalsView({
     () => goals.filter(g => g.kind !== 'someday' && (!g.month || g.month === monthKey))
       .sort((a, b) => a.sortOrder - b.sortOrder),
     [goals, monthKey]);
-  const somedayAll = useMemo(
-    () => goals.filter(g => g.kind === 'someday').sort((a, b) => a.sortOrder - b.sortOrder),
-    [goals]);
+  // 언젠가 꼭은 손으로 옮긴 순서보다 '언제까지' 가 먼저다 → 기한이 가까운 것부터,
+  // 같은 기한이면 넣은 순서대로. 기한을 안 적은 것은 맨 아래.
+  const somedayAll = useMemo(() => {
+    const baseYear = Number(monthKey.split('-')[0]);
+    return goals.filter(g => g.kind === 'someday').sort((a, b) => {
+      const ra = horizonRank(a.horizon, baseYear);
+      const rb = horizonRank(b.horizon, baseYear);
+      if (ra !== rb) return ra - rb;
+      return (a.sortOrder ?? 0) - (b.sortOrder ?? 0);
+    });
+  }, [goals, monthKey]);
   const someday = showDoneSomeday ? somedayAll : somedayAll.filter(g => !g.completedAt);
   const somedayDoneCt = somedayAll.length - somedayAll.filter(g => !g.completedAt).length;
 

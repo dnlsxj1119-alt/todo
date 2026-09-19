@@ -2782,6 +2782,8 @@ input, textarea, select { font-family: inherit; }
 }
 .gv-mini:hover { border-color: var(--accent); color: var(--accent); }
 .gv-mini--go { color: var(--accent); border-color: var(--accent); }
+.gv-mini--close { color: var(--text-primary); background: var(--bg); }
+.gv-mini--close:hover { border-color: var(--text-secondary); color: var(--text-primary); }
 .gv-mini--danger { color: var(--red-mid); }
 .gv-mini--danger:hover { border-color: var(--red-mid); color: var(--red-mid); background: var(--red-light); }
 
