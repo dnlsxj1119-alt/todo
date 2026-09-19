@@ -153,10 +153,6 @@ function GoalRow({ goal, prog, projects, habits, expanded, onToggleExpand, onUpd
         {prog.source !== 'manual' && (
           <span className="gv-proj"><i />{prog.label}</span>
         )}
-        {goal.notionUrl && (
-          <a className="gv-notion" href={goal.notionUrl} target="_blank" rel="noreferrer noopener"
-            onClick={e => e.stopPropagation()}>🔗 노션</a>
-        )}
       </div>
 
       {expanded && (
@@ -233,17 +229,6 @@ function GoalRow({ goal, prog, projects, habits, expanded, onToggleExpand, onUpd
             </div>
           )}
 
-          <div className="gv-detail-row">
-            <label className="gv-detail-label" htmlFor={`gv-notion-${goal.id}`}>노션 링크</label>
-            <input
-              id={`gv-notion-${goal.id}`}
-              className="gv-detail-select"
-              value={goal.notionUrl}
-              onChange={e => onUpdate(goal.id, { notionUrl: e.target.value.trim() })}
-              placeholder="https://www.notion.so/…"
-            />
-          </div>
-
           {prog.evidence.length > 0 && (
             <div className="gv-ev">
               <div className="gv-ev-label">
@@ -297,10 +282,6 @@ function SomedayRow({ goal, expanded, onToggleExpand, onUpdate, onDelete, onDone
             </span>
           )}
         </span>
-        {goal.notionUrl && (
-          <a className="gv-notion" href={goal.notionUrl} target="_blank" rel="noreferrer noopener"
-            onClick={e => e.stopPropagation()}>🔗 노션</a>
-        )}
       </button>
       {expanded && (
         <div className="gv-detail">
@@ -315,12 +296,6 @@ function SomedayRow({ goal, expanded, onToggleExpand, onUpdate, onDelete, onDone
               <input className="gv-detail-select" value={goal.horizon}
                 onChange={e => onUpdate(goal.id, { horizon: e.target.value })} placeholder="올해·2027…" />
             </div>
-          </div>
-          <div className="gv-detail-row">
-            <label className="gv-detail-label" htmlFor={`gv-snotion-${goal.id}`}>노션 링크</label>
-            <input id={`gv-snotion-${goal.id}`} className="gv-detail-select" value={goal.notionUrl}
-              onChange={e => onUpdate(goal.id, { notionUrl: e.target.value.trim() })}
-              placeholder="https://www.notion.so/…" />
           </div>
           <div className="gv-detail-foot">
             <button className="gv-mini gv-mini--go" onClick={() => onSendToTodo(goal)}>＋ 할일로 보내기</button>

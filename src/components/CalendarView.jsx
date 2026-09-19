@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { getMonthGrid, toDateString, isToday, formatMonthYear, DAY_NAMES } from '../utils/dateUtils';
 import { buildDeadlineMap } from '../utils/deadlines';
+import { readStored, writeStored, removeStored } from '../utils/safeStorage';
 
 const TYPE_COLOR = {
   todo:      'chip--purple',
@@ -144,6 +145,10 @@ function mergeByTime(items, googleEvents) {
 // 마감 칩의 종류별 표시/클릭 대상: 카테고리 🏁 · 태스크 📌 · 할일 📕(목록의 마감일 칩과 같은 기호)
 const DEADLINE_EMOJI = { task: '📌', item: '📕', project: '🏁' };
 
+// 노션 페이지 주소. 링크만 여는 것이라 토큰·서버가 필요 없고, 기기마다 따로 저장한다
+// (DB 컬럼을 안 늘리려고 localStorage. 기기를 바꾸면 다시 넣어야 한다)
+const NOTION_URL_KEY = 'notionPageUrl';
+
 function DeadlineChip({ entry, onProjectClick, onItemClick }) {
   return (
     <div
@@ -163,6 +168,15 @@ function DeadlineChip({ entry, onProjectClick, onItemClick }) {
 
 export default function CalendarView({ currentMonth, setCurrentMonth, items = [], getItemsForDate, onItemClick, onDayClick, onDateNumClick, reflectionDates, onToggle, filterType, projects = [], onProjectClick, getGoogleEventsForDate, onToggleGoogleEvent, onMoveItem }) {
   const [expanded, setExpanded] = useState({});
+  const [notionUrl, setNotionUrl] = useState(() => readStored(NOTION_URL_KEY) ?? '');
+  const [editingNotion, setEditingNotion] = useState(false);
+  const saveNotion = (raw) => {
+    const url = (raw ?? '').trim();
+    setNotionUrl(url);
+    if (url) writeStored(NOTION_URL_KEY, url);
+    else removeStored(NOTION_URL_KEY);
+    setEditingNotion(false);
+  };
   // 항목을 다른 날짜 칸으로 끌어다 옮기기 (데스크톱 전용 — 터치에선 HTML5 드래그가 동작하지 않음)
   const [dragInfo, setDragInfo] = useState(null); // { id, from }
   const [dragOverDate, setDragOverDate] = useState(null);
@@ -241,6 +255,33 @@ export default function CalendarView({ currentMonth, setCurrentMonth, items = []
         <div className="cal-title-group">
           <h2 className="cal-title">{formatMonthYear(currentMonth)}</h2>
           {!isCurrentMonth && <button className="today-btn" onClick={goToday}>오늘</button>}
+
+          {/* 노션 페이지 — 한 번 누르면 바로 새 탭으로 열린다 (a 태그라 중간 단계가 없다) */}
+          {editingNotion ? (
+            <form
+              className="cal-notion-form"
+              onSubmit={(e) => { e.preventDefault(); saveNotion(e.currentTarget.elements.notionUrl.value); }}
+            >
+              <input
+                name="notionUrl"
+                id="cal-notion-url"
+                type="url"
+                autoFocus
+                defaultValue={notionUrl}
+                placeholder="https://www.notion.so/…"
+                aria-label="노션 페이지 주소"
+              />
+              <button type="submit" className="cal-notion-ok">저장</button>
+              <button type="button" className="cal-notion-cancel" onClick={() => setEditingNotion(false)}>취소</button>
+            </form>
+          ) : notionUrl ? (
+            <span className="cal-notion-wrap">
+              <a className="cal-notion" href={notionUrl} target="_blank" rel="noreferrer noopener">🔗 노션</a>
+              <button className="cal-notion-edit" onClick={() => setEditingNotion(true)} aria-label="노션 주소 바꾸기">✎</button>
+            </span>
+          ) : (
+            <button className="cal-notion" onClick={() => setEditingNotion(true)}>🔗 노션 연결</button>
+          )}
         </div>
         <button className="nav-btn" onClick={nextMonth} aria-label="다음 달">›</button>
       </div>
