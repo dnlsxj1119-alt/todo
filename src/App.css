@@ -505,7 +505,11 @@ input, textarea, select { font-family: inherit; }
   margin-right: -6px;
   /* 칸이 좁으면 칩이 눌려서 날마다 막대 높이가 달라졌다 → 줄어들지 않게 고정 */
   flex-shrink: 0;
+  /* 제목에 이모지가 있으면 줄 상자가 커져서(16px vs 12.5px) 같은 주 안에서도
+     막대 높이가 달라졌다 → 글자 종류와 무관하게 줄 높이를 고정한다 */
+  line-height: 1.4;
 }
+.chip--span .chip-title { line-height: inherit; }
 .chip--span-start { border-radius: 4px 0 0 4px; margin-left: 0; }
 .chip--span-end { border-radius: 0 4px 4px 0; margin-right: 0; }
 /* 그 줄을 안 쓰는 칸의 빈 자리 — 높이를 차지해 막대 높이를 맞춘다 */
@@ -1367,6 +1371,12 @@ input, textarea, select { font-family: inherit; }
   .chip { font-size: 9px; padding: 1px 4px; gap: 3px; }
   /* 모바일 칸 패딩은 3px 이라 막대 마진도 그만큼만 */
   .chip--span { margin-left: -3px; margin-right: -3px; flex-shrink: 0; }
+  /* 여러 날 일정 막대: 54px 칸에서 체크(11px)+시간(21px)이 자리를 다 먹어
+     제목이 4px 까지 밀려 이름이 아예 안 보였다. 막대에서 제일 중요한 건 이름이므로
+     모바일에선 시간·체크를 빼고 제목에 폭을 준다 (완료 토글은 막대를 눌러 항목 창에서).
+     제목 없는 이어짐 칸도 같은 구조가 되어 높이는 그대로 맞는다. */
+  .chip--span .chip-check,
+  .chip--span .chip-time { display: none; }
   .chip--span-start { margin-left: 0; }
   .chip--span-end { margin-right: 0; }
   .chip-check { width: 11px; font-size: 9px; }
