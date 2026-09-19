@@ -21,6 +21,7 @@ class ErrorBoundary extends Component {
 import { useProjects } from './hooks/useProjects';
 import { useHabits } from './hooks/useHabits';
 import { useMonthlyGoals } from './hooks/useMonthlyGoals';
+import { useGoals } from './hooks/useGoals';
 import { useDailyReflections } from './hooks/useDailyReflections';
 import { getWeekStart, toDateString, getMonthKey, addDays } from './utils/dateUtils';
 import { readStored, writeStored } from './utils/safeStorage';
@@ -31,6 +32,7 @@ import CategoryModal from './components/CategoryModal';
 // ProjectsView(구 프로젝트 탭)는 목록 뷰 카테고리로 대체됨 — 필요 시 복구
 import HabitTracker from './components/HabitTracker';
 import MonthlyGoalsView from './components/MonthlyGoalsView';
+import GoalsView from './components/GoalsView';
 import DailyReflectionView from './components/DailyReflectionView';
 import ReflectionEditorModal from './components/ReflectionEditorModal';
 import ItemModal from './components/ItemModal';
@@ -60,6 +62,8 @@ export default function App() {
   const [currentMonth, setCurrentMonth] = useState(() => new Date());
   const [currentWeek, setCurrentWeek] = useState(() => getWeekStart(new Date()));
   const [goalsMonth, setGoalsMonth] = useState(() => new Date());
+  // 예전 '이번달 목표'(주차x열 격자) 화면. 데이터를 지우지 않았으므로 언제든 볼 수 있게 남겨 둔다.
+  const [showLegacyGoals, setShowLegacyGoals] = useState(false);
   const [reflectionMonth, setReflectionMonth] = useState(() => new Date());
   const [reflectionModalDate, setReflectionModalDate] = useState(null);
   const [filterType, setFilterType] = useState(null);
@@ -90,6 +94,20 @@ export default function App() {
   const { projects, addProject, updateProject, deleteProject, completeProject, uncompleteProject, reorderProjects } = useProjects(userId);
   const { habits, archivedHabits, addHabit, updateHabit, deleteHabit, toggleHabitDate, reorderHabits, archiveHabit, restoreHabit } = useHabits(userId);
   const { getForMonth: getMonthlyGoal, updateNotes: updateGoalNotes, addItem: addGoalItem, toggleItem: toggleGoalItem, deleteItem: deleteGoalItem, editItem: editGoalItem, reorderItems: reorderGoalItems } = useMonthlyGoals(userId);
+  const { goals, ready: goalsReady, addGoal, updateGoal, deleteGoal, setGoalDone } = useGoals(userId);
+
+  // 목표에서 바로 할일을 만들어 오늘 계획으로 꽂는다 ('적어두고 끝'을 막는 동작).
+  // 연결한 프로젝트가 있으면 그 카테고리로 넣어, 완료하면 목표의 '쌓인 것'에 그대로 잡힌다.
+  const sendGoalToTodo = useCallback((goal) => {
+    addItem({
+      type: 'todo',
+      title: goal.title,
+      date: toDateString(new Date()),
+      timeSlot: 'all',
+      projectId: goal.projectId ?? null,
+    });
+    setActiveTab('list');
+  }, [addItem]);
   const {
     getForDate: getReflection,
     addLearning, editLearning, deleteLearning,
@@ -392,17 +410,39 @@ export default function App() {
             onRestore={restoreHabit}
           />
         ) : activeTab === 'goals' ? (
-          <MonthlyGoalsView
-            currentMonth={goalsMonth}
-            setCurrentMonth={setGoalsMonth}
-            goal={getMonthlyGoal(getMonthKey(goalsMonth))}
-            onUpdateNotes={updateGoalNotes}
-            onAddItem={addGoalItem}
-            onToggleItem={toggleGoalItem}
-            onDeleteItem={deleteGoalItem}
-            onEditItem={editGoalItem}
-            onReorderItems={reorderGoalItems}
-          />
+          showLegacyGoals ? (
+            <>
+              <div className="gv-back">
+                예전 &lsquo;이번달 목표&rsquo; — 적어둔 내용은 그대로 있습니다.
+                <button onClick={() => setShowLegacyGoals(false)}>새 목표 화면으로</button>
+              </div>
+              <MonthlyGoalsView
+                currentMonth={goalsMonth}
+                setCurrentMonth={setGoalsMonth}
+                goal={getMonthlyGoal(getMonthKey(goalsMonth))}
+                onUpdateNotes={updateGoalNotes}
+                onAddItem={addGoalItem}
+                onToggleItem={toggleGoalItem}
+                onDeleteItem={deleteGoalItem}
+                onEditItem={editGoalItem}
+                onReorderItems={reorderGoalItems}
+              />
+            </>
+          ) : (
+            <GoalsView
+              goals={goals}
+              ready={goalsReady}
+              projects={projects}
+              habits={habits}
+              items={items}
+              onAddGoal={addGoal}
+              onUpdateGoal={updateGoal}
+              onDeleteGoal={deleteGoal}
+              onSetGoalDone={setGoalDone}
+              onSendToTodo={sendGoalToTodo}
+              onOpenLegacy={() => setShowLegacyGoals(true)}
+            />
+          )
         ) : activeTab === 'reflection' ? (
           <DailyReflectionView
             currentMonth={reflectionMonth}

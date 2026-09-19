@@ -2639,3 +2639,183 @@ input, textarea, select { font-family: inherit; }
   .lv-duestrip-chips span { padding-top: 7px; padding-bottom: 7px; }
   .goals-checklist-type-toggle { min-width: 30px; min-height: 30px; }
 }
+
+/* ===================== 목표 탭 (GoalsView) =====================
+   왼쪽은 이번 달, 오른쪽은 언젠가 꼭. 진행 숫자는 연결한 프로젝트·습관에서 자동으로 온다.
+   예전 '이번달 목표'(주차×열 격자)는 지우지 않고 맨 아래 링크로 남겨 둠. */
+.goalsview { padding: 26px 24px 40px; max-width: 1100px; }
+
+.gv-head { display: flex; align-items: flex-start; gap: 16px; margin-bottom: 24px; }
+.gv-head-t { flex: 1; min-width: 0; }
+.gv-h1 { font-size: 26px; font-weight: 800; letter-spacing: -0.02em; }
+.gv-h2 { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
+.gv-add-btn { flex-shrink: 0; border-radius: 12px; padding: 12px 20px; font-size: 13.5px; }
+
+.gv-notready {
+  margin-bottom: 18px; padding: 12px 14px; border-radius: 10px;
+  background: var(--red-light); color: var(--red-dark);
+  font-size: 12.5px; font-weight: 600; line-height: 1.6;
+}
+.gv-notready code { font-size: 11.5px; background: rgba(0,0,0,0.06); padding: 1px 5px; border-radius: 4px; }
+
+.gv-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
+.gv-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: 18px 18px 10px;
+}
+.gv-card-head {
+  display: flex; align-items: baseline; gap: 10px;
+  padding-bottom: 13px; border-bottom: 1px solid var(--border-light);
+}
+.gv-card-t { font-size: 15px; font-weight: 800; letter-spacing: -0.01em; }
+.gv-card-meta { margin-left: auto; font-size: 12.5px; color: var(--text-muted); }
+.gv-card-link { margin-left: auto; font-size: 12.5px; color: var(--text-muted); }
+.gv-card-link:hover { color: var(--accent); }
+
+.gv-empty {
+  display: block; width: 100%; text-align: left;
+  padding: 18px 2px; font-size: 13px; color: var(--text-muted);
+}
+.gv-empty:hover { color: var(--accent); }
+.gv-add-more {
+  display: block; width: 100%; text-align: left;
+  padding: 12px 2px; font-size: 12.5px; font-weight: 600; color: var(--text-muted);
+}
+.gv-add-more:hover { color: var(--accent); }
+
+/* 이번 달 목표 줄 */
+.gv-goal { padding: 14px 0; border-bottom: 1px solid var(--border-light); }
+.gv-goal:last-of-type { border-bottom: none; }
+.gv-goal--done .gv-goal-name { color: var(--text-muted); text-decoration: line-through; }
+.gv-goal-top {
+  display: flex; align-items: baseline; gap: 10px; width: 100%;
+  text-align: left; padding: 0;
+}
+.gv-goal-name { font-size: 13.5px; font-weight: 600; color: var(--text-secondary); flex: 1; min-width: 0; }
+.gv-goal-top:hover .gv-goal-name { color: var(--text-primary); }
+.gv-goal-n {
+  font-size: 13px; color: var(--text-secondary); flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+.gv-bar {
+  height: 7px; border-radius: 999px; background: var(--border-light);
+  overflow: hidden; margin-top: 9px;
+}
+.gv-bar i { display: block; height: 100%; border-radius: 999px; background: var(--goal-color, var(--accent)); }
+.gv-goal-foot { display: flex; align-items: center; gap: 7px; margin-top: 8px; flex-wrap: wrap; }
+.gv-proj {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 11px; font-weight: 600; color: var(--text-secondary);
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: 999px; padding: 2px 9px;
+}
+.gv-proj i { width: 7px; height: 7px; border-radius: 50%; background: var(--goal-color, var(--accent)); flex-shrink: 0; }
+.gv-notion {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 11px; font-weight: 600; color: var(--text-secondary);
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: 999px; padding: 2px 9px; text-decoration: none;
+  margin-left: auto; flex-shrink: 0;
+}
+.gv-notion:hover { border-color: var(--accent); color: var(--accent); }
+
+/* 언젠가 꼭 */
+.gv-some { border-bottom: 1px solid var(--border-light); }
+.gv-some:last-of-type { border-bottom: none; }
+.gv-some-top {
+  display: flex; align-items: flex-start; gap: 12px; width: 100%;
+  text-align: left; padding: 14px 0;
+}
+.gv-some-mark { font-size: 15px; color: var(--text-muted); flex-shrink: 0; line-height: 1.4; }
+.gv-some-body { flex: 1; min-width: 0; }
+.gv-some-t { display: block; font-size: 14.5px; font-weight: 600; }
+.gv-some-s { display: block; font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+.gv-some-s .gv-sep { opacity: 0.5; margin-inline: 3px; }
+.gv-some--done .gv-some-t { color: var(--text-muted); text-decoration: line-through; }
+.gv-some--done .gv-some-mark { color: var(--green-mid); }
+
+/* 눌렀을 때 펼치는 상세 */
+.gv-detail {
+  margin: 0 0 14px; padding: 14px;
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  display: flex; flex-direction: column; gap: 10px;
+}
+.gv-detail-input, .gv-detail-select, .gv-num {
+  width: 100%; padding: 7px 9px; font-size: 12.5px; font-family: inherit;
+  color: var(--text-primary); background: var(--surface);
+  border: 1px solid var(--border); border-radius: 7px; outline: none;
+}
+.gv-detail-input:focus, .gv-detail-select:focus, .gv-num:focus { border-color: var(--accent); }
+.gv-detail-row { display: flex; align-items: center; gap: 10px; }
+.gv-detail-label { font-size: 11px; font-weight: 700; color: var(--text-muted); flex: 0 0 76px; }
+.gv-nums { display: flex; align-items: center; gap: 7px; flex: 1; min-width: 0; }
+.gv-num { width: 80px; text-align: center; font-variant-numeric: tabular-nums; }
+.gv-num-sep { color: var(--text-muted); font-size: 12px; }
+
+.gv-ev { border-top: 1px dashed var(--border); padding-top: 9px; display: flex; flex-direction: column; gap: 3px; }
+.gv-ev-label {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--text-muted); margin-bottom: 3px;
+}
+.gv-ev-row { display: flex; gap: 8px; font-size: 12.5px; color: var(--text-secondary); align-items: baseline; }
+.gv-ev-row time { font-size: 11px; color: var(--text-muted); flex-shrink: 0; font-variant-numeric: tabular-nums; }
+.gv-ev-row span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gv-ev-check { color: var(--green-mid); font-weight: 800; flex-shrink: 0; }
+.gv-ev-more { font-size: 11.5px; color: var(--text-muted); padding-left: 2px; }
+
+.gv-detail-foot { display: flex; gap: 6px; flex-wrap: wrap; }
+.gv-mini {
+  font-size: 11.5px; font-weight: 600; color: var(--text-secondary);
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 7px; padding: 5px 10px;
+}
+.gv-mini:hover { border-color: var(--accent); color: var(--accent); }
+.gv-mini--go { color: var(--accent); border-color: var(--accent); }
+.gv-mini--danger { color: var(--red-mid); }
+.gv-mini--danger:hover { border-color: var(--red-mid); color: var(--red-mid); background: var(--red-light); }
+
+/* 추가 폼 */
+.gv-add-form { display: flex; flex-direction: column; gap: 8px; padding: 14px 0; }
+.gv-add-input {
+  width: 100%; padding: 9px 11px; font-size: 13px; font-family: inherit;
+  color: var(--text-primary); background: var(--surface);
+  border: 1px solid var(--accent); border-radius: 8px; outline: none;
+}
+.gv-add-row { display: flex; gap: 7px; }
+.gv-add-input--sm { border-color: var(--border); font-size: 12px; padding: 7px 9px; }
+.gv-add-actions { display: flex; gap: 6px; }
+.gv-add-actions .btn { font-size: 12.5px; padding: 7px 14px; }
+
+.gv-legacy {
+  display: block; margin-top: 26px; font-size: 12px;
+  color: var(--text-muted); text-decoration: underline; text-underline-offset: 3px;
+}
+.gv-legacy:hover { color: var(--accent); }
+
+/* 예전 화면으로 돌아가는 줄 */
+.gv-back {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 24px; background: var(--purple-light);
+  font-size: 12.5px; font-weight: 600; color: var(--purple-dark);
+}
+.gv-back button { font-size: 12px; font-weight: 700; color: var(--purple-dark); text-decoration: underline; }
+
+@media (max-width: 900px) {
+  .goalsview { padding: 22px 20px 70px; }
+  .gv-cols { grid-template-columns: 1fr; }
+}
+@media (max-width: 560px) {
+  .goalsview { padding: 18px 16px 70px; }
+  .gv-h1 { font-size: 21px; }
+  .gv-head { flex-direction: column; gap: 12px; }
+  .gv-add-btn { width: 100%; }
+  .gv-detail-row { flex-direction: column; align-items: stretch; gap: 5px; }
+  .gv-detail-label { flex: none; }
+}
+@media (hover: none) {
+  .gv-mini { min-height: 32px; }
+  .gv-goal-top, .gv-some-top { min-height: 40px; }
+  .gv-card-link, .gv-add-more, .gv-legacy { min-height: 32px; }
+}
+.gv-num-hint { font-size: 11px; color: var(--text-muted); line-height: 1.4; }
