@@ -548,9 +548,21 @@ function DatePop({ value, label, today, time, onChange, onTimeChange, onClose })
 // 이미 시간이 잡힌 약속을 알아야 하므로 오늘~모레 3일치만 따로 붙인다.
 // **완료한 일정은 여기서 뺀다** — 이 섹션은 '앞으로 해야 할/비어 있는 시간'을 보는 곳이고,
 // 끝낸 일은 아래 [✅ 최근 완료] 에만 모아 둔다 (할일도 완료되면 그룹에서 빠지는 것과 같은 규칙).
+// 앞으로 며칠치 일정을 실을지. 오늘~모레 3일만 싣다가 일주일 뒤까지로 늘렸다 —
+// 약속은 주 단위로 잡히는데 모레까지만 보이니 다음 주 초 일정이 매번 빠졌다.
+const SCHEDULE_AHEAD = 7; // 오늘 + 7일 = 8일치
+
+// 3일 넘어가면 '오늘·내일·모레' 같은 이름이 없어서 요일로 적는다
+function scheduleDayLabel(ds, i) {
+  if (i === 0) return '오늘';
+  if (i === 1) return '내일';
+  if (i === 2) return '모레';
+  const [y, m, d] = ds.split('-').map(Number);
+  return DAY_NAMES[new Date(y, m - 1, d).getDay()];
+}
+
 function buildScheduleLines(items, today) {
-  const days = [today, addDays(today, 1), addDays(today, 2)];
-  const dayLabel = ['오늘', '내일', '모레'];
+  const days = Array.from({ length: SCHEDULE_AHEAD + 1 }, (_, i) => addDays(today, i));
   const lines = [];
   let any = false;
   days.forEach((ds, i) => {
@@ -562,7 +574,7 @@ function buildScheduleLines(items, today) {
       .sort((a, b) => (a.time || '').localeCompare(b.time || ''));
     if (!onDay.length) return;
     any = true;
-    lines.push(`  ${ds} (${dayLabel[i]})`);
+    lines.push(`  ${ds} (${scheduleDayLabel(ds, i)})`);
     onDay.forEach(it => {
       const span = it.endDate && it.endDate > it.date ? ` (${it.date}~${it.endDate})` : '';
       if (it.date !== ds) {
@@ -659,7 +671,7 @@ function buildSummaryText(rows, items, categories, dayKeys, doneCatIds, allProje
   const lines = [];
   lines.push(`=== 일정·할일 현황 (${today}) ===`);
   const scheduleLines = buildScheduleLines(planItems, today);
-  lines.push('\n[🟢 일정] (오늘~모레)');
+  lines.push(`\n[🟢 일정] (오늘~${mdLabel(addDays(today, SCHEDULE_AHEAD))}, ${SCHEDULE_AHEAD + 1}일치)`);
   if (scheduleLines) lines.push(...scheduleLines);
   else lines.push('  (없음)');
   const catDeadlineLines = buildCategoryDeadlineLines(categories, today);
