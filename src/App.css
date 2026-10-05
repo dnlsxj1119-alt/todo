@@ -498,7 +498,7 @@ input, textarea, select { font-family: inherit; }
 /* 여러 날 🟢일정 = 칸마다 '↩' 칩을 따로 그리는 대신 하나의 막대처럼 이어 그린다.
    칸 사이를 벌리는 건 셀의 좌우 패딩(6px)뿐이라 그만큼 음수 마진을 주면 테두리선까지 닿아
    이어져 보인다. .cal-cell 의 overflow:hidden 은 패딩 박스에서 자르므로 이 마진은 안 잘린다.
-   (주간뷰는 그대로 '↩' 칩을 쓴다 — 시간대 격자라 막대로 잇는 개념이 아니다) */
+   주간뷰는 시간을 정하지 않은 일정을 '전체' 행에 이 막대로 그린다(시간 있는 건 시간대 격자의 카드). */
 .chip--span {
   border-radius: 0;
   margin-left: -6px;
@@ -514,6 +514,12 @@ input, textarea, select { font-family: inherit; }
 .chip--span-end { border-radius: 0 4px 4px 0; margin-right: 0; }
 /* 그 줄을 안 쓰는 칸의 빈 자리 — 높이를 차지해 막대 높이를 맞춘다 */
 .chip--span-gap { visibility: hidden; }
+/* 주간뷰 '전체' 칸은 좌우 패딩이 4px */
+.wg-cell--all .chip--span { margin-left: -4px; margin-right: -4px; }
+.wg-cell--all .chip--span-start { margin-left: 0; }
+.wg-cell--all .chip--span-end { margin-right: 0; }
+/* 하루짜리는 양끝 모두 둥글게 */
+.chip--span-start.chip--span-end { border-radius: 4px; }
 
 .chip-time { font-size: 10px; font-weight: 700; opacity: 0.75; flex-shrink: 0; }
 .chip-title { overflow: hidden; text-overflow: ellipsis; min-width: 0; }

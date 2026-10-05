@@ -49,7 +49,8 @@ function isSpanItem(it) {
 
 // 칸마다 '↩ 제목' 칩을 따로 그리는 대신, 하나의 막대처럼 이어 그린다.
 // 제목은 시작일과 **주가 바뀐 첫 칸**에만 붙인다(안 붙이면 다음 주 줄이 이름 없는 막대가 된다).
-function SpanChip({ slot, onClick, onToggle, onDragStart }) {
+// 주간뷰 '전체' 행도 같은 막대를 쓴다.
+export function SpanChip({ slot, onClick, onToggle, onDragStart }) {
   const { item, isStart, isEnd, labeled } = slot;
   const canDrag = !!onDragStart && isStart;
   const cls = [
@@ -69,7 +70,7 @@ function SpanChip({ slot, onClick, onToggle, onDragStart }) {
         e.dataTransfer.effectAllowed = 'move';
         onDragStart(item);
       } : undefined}
-      title={`${item.title} (${item.date}~${item.endDate})`}
+      title={item.endDate ? `${item.title} (${item.date}~${item.endDate})` : item.title}
     >
       {labeled ? (
         <>

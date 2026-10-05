@@ -6,6 +6,8 @@ import {
   SLOT_HEIGHTS, timeToSlotPx,
 } from '../utils/dateUtils';
 import { habitAppliesToDate } from '../hooks/useHabits';
+import { isAllDaySchedule } from '../hooks/useItems';
+import { SpanChip } from './CalendarView';
 import { buildDeadlineMap } from '../utils/deadlines';
 import { readStored, writeStored } from '../utils/safeStorage';
 
@@ -346,6 +348,27 @@ export default function WeeklyView({
     sweepTargets.forEach(i => moveItem(i.id, null, 'all'));
   };
   const { spanMap, covered } = useSpanData(items);
+
+  // 시간을 정하지 않은 일정 → '전체' 행 막대. 같은 일정이 날마다 같은 줄에 오도록
+  // 이 주에 걸친 막대들에 줄 번호(lane)를 미리 매긴다 (달력의 막대와 같은 방식).
+  const weekFirst = toDateString(days[0]);
+  const weekLast = toDateString(days[days.length - 1]);
+  const spanLaneOf = useMemo(() => {
+    const spans = items
+      .filter(i => isAllDaySchedule(i) && (!filterType || i.type === filterType)
+        && i.date <= weekLast && (i.endDate ?? i.date) >= weekFirst)
+      .sort((a, b) => a.date.localeCompare(b.date) || (b.endDate ?? b.date).localeCompare(a.endDate ?? a.date));
+    const laneEnds = [];
+    const laneOf = {};
+    spans.forEach(it => {
+      let lane = laneEnds.findIndex(end => end < it.date);
+      const end = it.endDate ?? it.date;
+      if (lane === -1) { laneEnds.push(end); lane = laneEnds.length - 1; }
+      else laneEnds[lane] = end;
+      laneOf[it.id] = lane;
+    });
+    return laneOf;
+  }, [items, filterType, weekFirst, weekLast]);
   const deadlineMap = useMemo(() => buildDeadlineMap(projects, items), [projects, items]);
 
   const prevWeek = () => { const d = new Date(currentWeek); d.setDate(d.getDate() - 7); setCurrentWeek(d); };
@@ -362,9 +385,10 @@ export default function WeeklyView({
   };
 
   const handleDragOver = (e, ds, slotKey) => {
-    const isTodo = dragItemType === 'todo';
-    if (isTodo && slotKey !== 'all') return;
-    if (!isTodo && slotKey === 'all') return;
+    // 할일·시간 없는 일정은 전체 행에만, 시간 있는 일정은 시간대 칸에만 놓을 수 있다
+    const allRowOnly = dragItemType === 'todo' || dragItemType === 'allday';
+    if (allRowOnly && slotKey !== 'all') return;
+    if (!allRowOnly && slotKey === 'all') return;
     e.preventDefault();
     setDragOverCell(`${ds}-${slotKey}`);
   };
@@ -372,9 +396,9 @@ export default function WeeklyView({
   const handleDrop = (e, ds, slotKey) => {
     e.preventDefault();
     const id = Number(e.dataTransfer.getData('itemId'));
-    const type = e.dataTransfer.getData('itemType');
-    if (type === 'todo' && slotKey !== 'all') return;
-    if (type !== 'todo' && slotKey === 'all') return;
+    const allRowOnly = dragItemType === 'allday' || e.dataTransfer.getData('itemType') === 'todo';
+    if (allRowOnly && slotKey !== 'all') return;
+    if (!allRowOnly && slotKey === 'all') return;
     moveItem(id, ds, slotKey);
     setDragOverCell(null); setDragItemType(null);
   };
@@ -417,6 +441,13 @@ export default function WeeklyView({
       }
     }
 
+    // 전체 행: 시간 없는 일정 막대는 따로 떼어 줄(lane)에 맞춰 맨 위에 그린다
+    const spanLanes = [];
+    if (slotKey === 'all') {
+      allItems.filter(isAllDaySchedule).forEach(it => { spanLanes[spanLaneOf[it.id] ?? 0] = it; });
+      allItems = allItems.filter(i => !isAllDaySchedule(i));
+    }
+
     const isDragOver = dragOverCell === cellKey;
     const googleEvents = getGoogleEventsForDate?.(ds) ?? [];
     const googleAllDay = slotKey === 'all' ? googleEvents.filter(e => e.allDay) : [];
@@ -434,6 +465,17 @@ export default function WeeklyView({
         onDragLeave={() => setDragOverCell(null)}
         onDoubleClick={() => onDayClick(ds, slotKey)}
       >
+        {/* 여러 날 일정 막대 (전체 행만) — 빈 줄은 자리만 차지해 옆 칸 막대와 높이를 맞춘다 */}
+        {Array.from(spanLanes, (it, lane) => it
+          ? <SpanChip key={`span-${it.id}`}
+              slot={{ item: it, isStart: it.date === ds, isEnd: (it.endDate ?? it.date) === ds,
+                labeled: it.date === ds || ds === weekFirst }}
+              onClick={onItemClick} onToggle={onToggle}
+              // 시작일 막대를 끌어 다른 날 전체 칸으로 옮긴다 (종료일은 moveItem 이 같은 간격으로 옮김)
+              onDragStart={() => setDragItemType('allday')} />
+          : <div key={`lane-${lane}`} className="chip chip--span chip--span-gap" aria-hidden="true">&nbsp;</div>
+        )}
+
         {/* 마감일 칩 (전체 행만) */}
         {slotKey === 'all' && (deadlineMap[ds] ?? []).map(entry => (
           <div key={entry.key}
@@ -462,7 +504,7 @@ export default function WeeklyView({
           />
         ))}
 
-        {allItems.length === 0 && spannedTodoGroups.length === 0 && googleAllDay.length === 0 && googleTimed.length === 0
+        {allItems.length === 0 && spanLanes.length === 0 && spannedTodoGroups.length === 0 && googleAllDay.length === 0 && googleTimed.length === 0
           ? <div className="wg-cell-empty" title="더블클릭으로 추가" />
           : (() => {
               const cards = allItems.map(item => {

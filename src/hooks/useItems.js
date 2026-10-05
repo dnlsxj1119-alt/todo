@@ -102,6 +102,11 @@ async function updateItemRow(id, patch) {
   return error;
 }
 
+// 시간을 정하지 않은 🟢일정(하루짜리·여러 날 모두) — 주간뷰에서 시간대가 아니라 '전체' 행에 그린다
+export function isAllDaySchedule(i) {
+  return i.type !== 'todo' && !i.time && !!i.date;
+}
+
 export function useItems(userId) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -308,13 +313,18 @@ export function useItems(userId) {
 
   const getItemsForCell = useCallback((dateStr, slot) => {
     if (slot === 'all') {
-      // 시간이 설정된 할일은 해당 시간대 행에 표시되므로 전체 행에서는 제외
-      return sortByTime(items.filter(i => i.date === dateStr && i.type === 'todo' && !i.time));
+      // 시간이 설정된 할일은 해당 시간대 행에 표시되므로 전체 행에서는 제외.
+      // 시간을 정하지 않은 일정도 전체 행에 그린다(여러 날이면 막대로 이어서).
+      return sortByTime(items.filter(i =>
+        (i.date === dateStr && i.type === 'todo' && !i.time)
+        || (isAllDaySchedule(i) && i.date <= dateStr && (i.endDate ?? i.date) >= dateStr)
+      ));
     }
     return sortByTime(items.filter(i => {
       if (i.type === 'todo') {
         return i.date === dateStr && !!i.time && getTimeSlotFromTime(i.time) === slot;
       }
+      if (isAllDaySchedule(i)) return false;
       if (i.date === dateStr) return i.timeSlot === slot;
       if (i.endDate && i.date < dateStr && i.endDate > dateStr) return true;
       if (i.endDate === dateStr && i.date < dateStr) {
