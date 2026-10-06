@@ -1,6 +1,7 @@
 import { useMemo, useState, useRef, useEffect, useLayoutEffect } from 'react';
 import { toDateString, addDays, DAY_NAMES } from '../utils/dateUtils';
 import { getProjectType, CATEGORY_PALETTE } from '../utils/projectTypes';
+import { buildCategoryIndex, suggestCategory } from '../utils/autoCategory';
 
 function catColor(p) {
   return p.color || getProjectType(p.type).border;
@@ -746,6 +747,13 @@ export default function ListView({
   const rows = useMemo(() => buildRows(items, projects), [items, projects]);
 
   const activeCats = projects.filter(p => !catDone(p));
+  // 카테고리 자동 추천: 이미 카테고리가 붙은 항목들의 제목에서 배운다 (utils/autoCategory.js)
+  const catIndex = useMemo(() => buildCategoryIndex(rows), [rows]);
+  const suggestable = activeCats.map(catOf);
+  const suggestFor = title => {
+    const id = suggestCategory(title, catIndex, suggestable);
+    return id == null ? null : suggestable.find(c => c.id === id) ?? null;
+  };
   const doneCats = projects.filter(catDone);
   const doneCatIds = new Set(doneCats.map(p => p.id));
   // 완료된 카테고리에 속한 항목은 '완료' 탭에서 제외 (카테고리와 함께 아카이브됨)
@@ -1020,7 +1028,9 @@ export default function ListView({
     const groupDate = groupKey === 'today' ? TODAY : groupKey === 'tomorrow' ? TOMORROW : '';
     const date = (extra && extra.expected) || groupDate;
     const dueDate = (extra && extra.due) || '';
-    onAddItem({ type: 'todo', title, date, dueDate, timeSlot: 'all', projectId, priority });
+    // 카테고리를 안 골랐으면 제목으로 자동 지정 (애매하면 비워 둔다)
+    const autoProjectId = projectId ?? suggestFor(title)?.id ?? null;
+    onAddItem({ type: 'todo', title, date, dueDate, timeSlot: 'all', projectId: autoProjectId, priority });
   };
 
   // 완료 처리한 카테고리의 항목은 아카이브 취급이므로 마감 안내 줄에서도 제외한다
@@ -1103,6 +1113,20 @@ export default function ListView({
         <InlineTitle value={r.title} onSave={t => setRowTitle(r, t)} />
         <span className="lv-meta">
           <span className="lv-cat-edit">
+            {/* 카테고리 없는 기존 항목엔 추천을 점선 칩으로 — 누르면 바로 지정. 자동으로 바꾸진 않는다(운영 데이터) */}
+            {!r.cat && !isArchived(r.status) && (() => {
+              const sug = suggestFor(r.title);
+              return sug && (
+                <button
+                  className="lv-pill lv-pill--btn lv-pill--suggest"
+                  style={{ color: sug.color, borderColor: tint(sug.color, '88') }}
+                  onClick={e => { e.stopPropagation(); setRowCategory(r, sug.id); }}
+                  title={`추천 카테고리 — 누르면 '${sug.name}'(으)로 지정`}
+                >
+                  {sug.name}?
+                </button>
+              );
+            })()}
             <button
               className={`lv-pill lv-pill--btn ${r.cat ? '' : 'lv-pill--empty'}`}
               style={r.cat ? { background: tint(r.cat.color, '22'), color: r.cat.color } : undefined}

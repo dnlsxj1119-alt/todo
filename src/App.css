@@ -2526,6 +2526,8 @@ input, textarea, select { font-family: inherit; }
 .lv-pill--btn:hover { border-color: var(--border); }
 .lv-pill--empty { background: none; color: var(--text-muted); opacity: 0.5; font-weight: 500; }
 .lv-row:hover .lv-pill--empty { opacity: 1; }
+.lv-pill--suggest { background: none; border: 1px dashed; margin-right: 4px; }
+.lv-pill--suggest:hover { border-style: solid; }
 
 .lv-quick { display: flex; align-items: center; gap: 8px; padding: 9px 12px; border: 1px dashed var(--border);
   border-radius: var(--radius-md); margin-bottom: 6px; }
