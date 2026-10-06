@@ -131,16 +131,24 @@ function timeMinutes(time) {
   return h * 60 + m;
 }
 
+// 중요도는 1(낮음)/2(보통)/3(높음)만 유효, 그 외(옛 우선순위 값 등)는 '없음' — 목록 탭의 normPrio 와 같은 기준
+function prioOf(item) {
+  const n = Number(item.priority);
+  return n === 1 || n === 2 || n === 3 ? n : 0;
+}
+
 // 앱 항목과 구글 이벤트를 한 줄에 섞어서 정렬
-// 완료한 항목은 뒤로, 그 안에서 시간순 (시간 없는 항목은 뒤로)
+// 완료한 항목은 뒤로 → 중요도 높은 것 먼저(목록 탭과 같은 순서) → 시간순 (시간 없는 항목은 뒤로)
+// 칸에 3개만 보이고 나머지는 '+N개 더보기'라서, 중요한 게 접힌 쪽에 묻히지 않게 한다.
+// 구글 이벤트는 중요도가 없어 '없음'으로 친다.
 function mergeByTime(items, googleEvents) {
   const tagged = [
-    ...items.map(item => ({ kind: 'item', time: timeMinutes(item.time), done: !!item.completed, data: item })),
-    ...googleEvents.map(event => ({ kind: 'google', time: timeMinutes(event.time), done: !!event.completed, data: event })),
+    ...items.map(item => ({ kind: 'item', prio: prioOf(item), time: timeMinutes(item.time), done: !!item.completed, data: item })),
+    ...googleEvents.map(event => ({ kind: 'google', prio: 0, time: timeMinutes(event.time), done: !!event.completed, data: event })),
   ];
   return tagged
     .map((entry, index) => ({ ...entry, index }))
-    .sort((a, b) => (a.done - b.done) || (a.time - b.time) || (a.index - b.index));
+    .sort((a, b) => (a.done - b.done) || (b.prio - a.prio) || (a.time - b.time) || (a.index - b.index));
 }
 
 // 마감 칩의 종류별 표시/클릭 대상: 카테고리 🏁 · 태스크 📌 · 할일 📕(목록의 마감일 칩과 같은 기호)
