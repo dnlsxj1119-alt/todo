@@ -42,12 +42,6 @@ function sortTodos(list: Todo[], today: string) {
   return list.sort((a, b) => overdue(a) - overdue(b) || b.priority - a.priority || key(a).localeCompare(key(b)));
 }
 
-function todoLine(todos: Todo[], max = 3) {
-  const names = todos.slice(0, max).map(t => t.title);
-  const rest = todos.length - names.length;
-  return names.join(' · ') + (rest > 0 ? ` 외 ${rest}개` : '');
-}
-
 function scheduleLine(s: Schedule, today: string) {
   if (s.date !== today) return `↩ ${s.title}`;      // 어제부터 이어지는 여러 날 일정
   return s.time ? `${s.time} ${s.title}` : `종일 ${s.title}`;
@@ -100,20 +94,35 @@ async function loadUser(db: ReturnType<typeof createClient>, userId: string, tod
   return { todos: sortTodos(todos, today), schedules };
 }
 
+// 본문 순서(사용자 요청): ① 오늘 일정 ② 오늘 할 일 **전부**(중요도순) ③ 지난 할 일은 **개수만**
+//   📅 10:00 회의 · 14:00 치과
+//   오늘: 메일 · 운동 · 장보기 · 빨래
+//   지난 할 일 3개
+// 보낼 수 있는 양(약 4KB)은 넉넉하다. 접힌 알림에선 뒤가 잘리지만 펼치면 다 보인다 — 사용자가 이쪽을 골랐다.
+// 매시 알림의 일정은 **아직 안 지난 것만**(종일·이어지는 일정은 계속) — 지나간 회의를 다시 알릴 필요가 없다.
+// 매시 알림을 보낼지는 여전히 '남은 할 일이 있는가'로만 정한다(일정만 남았으면 안 보냄).
 function buildMessage(hour: number, today: string, todos: Todo[], schedules: Schedule[]) {
-  if (hour === BRIEFING_HOUR) {
-    if (!todos.length && !schedules.length) return null;
-    const head = [
-      schedules.length ? `일정 ${schedules.length}개` : null,
-      todos.length ? `할 일 ${todos.length}개` : null,
-    ].filter(Boolean).join(' · ');
-    const lines = schedules.slice(0, 4).map(s => scheduleLine(s, today));
-    if (schedules.length > 4) lines.push(`일정 외 ${schedules.length - 4}개`);
-    if (todos.length) lines.push(`할 일: ${todoLine(todos)}`);
-    return { title: `☀️ 오늘 ${head}`, body: lines.join('\n'), tag: 'flow-todo' };
-  }
-  if (!todos.length) return null;
-  return { title: `남은 할 일 ${todos.length}개`, body: todoLine(todos), tag: 'flow-todo' };
+  const briefing = hour === BRIEFING_HOUR;
+  if (briefing ? !todos.length && !schedules.length : !todos.length) return null;
+
+  const nowHHMM = `${String(hour).padStart(2, '0')}:00`;
+  const sched = briefing
+    ? schedules
+    : schedules.filter(s => s.date !== today || !s.time || s.time >= nowHHMM);
+  const isOverdue = (t: Todo) => [t.date, t.due].some(d => d && d < today);
+  const todayTodos = todos.filter(t => !isOverdue(t));
+  const overdueTodos = todos.filter(isOverdue);
+
+  const lines: string[] = [];
+  if (sched.length) lines.push('📅 ' + sched.map(s => scheduleLine(s, today)).join(' · '));
+  if (todayTodos.length) lines.push('오늘: ' + todayTodos.map(t => t.title).join(' · '));
+  if (overdueTodos.length) lines.push(`지난 할 일 ${overdueTodos.length}개`);
+
+  const head = [
+    sched.length ? `일정 ${sched.length}개` : null,
+    todos.length ? `할 일 ${todos.length}개` : null,
+  ].filter(Boolean).join(' · ');
+  return { title: briefing ? `☀️ 오늘 ${head}` : `남은 ${head}`, body: lines.join('\n'), tag: 'flow-todo' };
 }
 
 Deno.serve(async (req) => {
