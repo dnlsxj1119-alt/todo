@@ -33,10 +33,13 @@ const isArchived = (s: string | null | undefined) => s === 'done' || s === 'canc
 const normPrio = (v: unknown) => { const n = Number(v); return n === 1 || n === 2 || n === 3 ? n : 0; };
 const onOrBefore = (d: string | null, today: string) => !!d && d <= today;
 
-// 중요도 높은 것 먼저, 같으면 더 오래 밀린(이른 날짜) 것 먼저
-function sortTodos(list: Todo[]) {
+// 오늘 할 일 먼저(사용자 요청) → 그 안에서 중요도 높은 것 먼저 → 같으면 더 오래 밀린(이른 날짜) 것 먼저.
+// '밀림' = 계획일·마감일 중 하나라도 오늘 전 — 목록의 지난/어제 그룹과 같은 기준.
+// 알림 본문엔 3개만 보여서, 밀린 일이 앞을 차지하면 오늘 할 일이 '외 N개'에 묻혔다.
+function sortTodos(list: Todo[], today: string) {
+  const overdue = (t: Todo) => [t.date, t.due].some(d => d && d < today) ? 1 : 0;
   const key = (t: Todo) => [t.date, t.due].filter(Boolean).sort()[0] ?? '9999';
-  return list.sort((a, b) => b.priority - a.priority || key(a).localeCompare(key(b)));
+  return list.sort((a, b) => overdue(a) - overdue(b) || b.priority - a.priority || key(a).localeCompare(key(b)));
 }
 
 function todoLine(todos: Todo[], max = 3) {
@@ -94,7 +97,7 @@ async function loadUser(db: ReturnType<typeof createClient>, userId: string, tod
     // 이어지는 일정·종일 일정 먼저, 그 다음 시간순
     .sort((a, b) => (a.date === today ? a.time : '').localeCompare(b.date === today ? b.time : ''));
 
-  return { todos: sortTodos(todos), schedules };
+  return { todos: sortTodos(todos, today), schedules };
 }
 
 function buildMessage(hour: number, today: string, todos: Todo[], schedules: Schedule[]) {
