@@ -4,13 +4,16 @@
 //   ② 아니면 제목 단어가 과거에 어느 카테고리에 많이 쓰였는지 ('지삿 6회' → 예전 '지삿 5회'가 GSAT)
 // 애매하면(1등이 2등의 두 배가 안 되면) 추천하지 않는다 — 틀리게 붙는 것보다 비어 있는 게 낫다.
 
-const norm = s => String(s ?? '').toLowerCase().replace(/\s+/g, '');
+// 한글은 맥 등에서 자모가 쪼개진 형태(NFD)로 저장되기도 해서, 눈에는 같아도 includes 가 실패했다
+// ('산업스터디' 카테고리가 '산업스터디 기사올리기' 에 안 붙음) → 비교 전에 항상 NFC 로 맞추고
+// 보이지 않는 글자(zero-width 등)도 뗀다.
+const clean = s => String(s ?? '').normalize('NFC').replace(/[\u200b-\u200f\u2060\ufeff]/g, '').toLowerCase();
+const norm = s => clean(s).replace(/\s+/g, '');
 
 // '지삿 6회' → ['지삿'], '에이치씨엠 지원?' → ['에이치씨엠', '지원']
 // 숫자·문장부호를 떼고 한 글자짜리는 버린다(조사·'회' 같은 잡음).
 export function titleTokens(title) {
-  return String(title ?? '')
-    .toLowerCase()
+  return clean(title)
     .split(/[\s·,./?!()[\]{}:;'"~\-_+]+/)
     .map(w => w.replace(/\d+(회|차|번|개|장|일|주|시|분)?/g, ''))
     .filter(w => w.length >= 2);
