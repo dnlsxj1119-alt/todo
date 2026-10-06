@@ -2,6 +2,7 @@ import { useState, useCallback, useMemo, Component } from 'react';
 import { useAuth } from './hooks/useAuth';
 import { useItems } from './hooks/useItems';
 import { useGoogleCalendar } from './hooks/useGoogleCalendar';
+import { usePush } from './hooks/usePush';
 import LoginPage from './components/LoginPage';
 
 class ErrorBoundary extends Component {
@@ -91,6 +92,7 @@ export default function App() {
     connected: googleConnected, loading: googleLoading, error: googleError,
     getGoogleEventsForDate, toggleGoogleEventDone, disconnect: disconnectGoogle,
   } = useGoogleCalendar(userId, googleRange.start, googleRange.end);
+  const push = usePush(userId);
   const { projects, addProject, updateProject, deleteProject, completeProject, uncompleteProject, reorderProjects } = useProjects(userId);
   const { habits, archivedHabits, addHabit, updateHabit, deleteHabit, toggleHabitDate, reorderHabits, archiveHabit, restoreHabit } = useHabits(userId);
   const { getForMonth: getMonthlyGoal, updateNotes: updateGoalNotes, addItem: addGoalItem, toggleItem: toggleGoalItem, deleteItem: deleteGoalItem, editItem: editGoalItem, reorderItems: reorderGoalItems } = useMonthlyGoals(userId);
@@ -310,6 +312,34 @@ export default function App() {
               <span className="filter-label">구글 캘린더 연동</span>
             </button>
           )}
+        </div>
+
+        {/* Push notifications */}
+        <div className="sidebar-section sidebar-section--gcal sidebar-section--push">
+          <div className="sidebar-section-title">알림</div>
+          <button
+            className={`gcal-connect-btn ${push.status === 'on' ? 'push-btn--on' : ''}`}
+            disabled={push.busy || push.status === 'loading'}
+            onClick={() => {
+              if (push.status === 'on') {
+                if (confirm('이 기기에서 할 일 알림을 끌까요?')) push.disable();
+              } else if (push.status === 'ios-install') {
+                alert('아이폰은 Safari에서 공유 → "홈 화면에 추가"로 설치한 앱에서만 알림을 받을 수 있어요.\n설치한 앱을 열고 다시 눌러 주세요.');
+              } else if (push.status === 'denied') {
+                alert('이 브라우저에서 알림이 차단돼 있어요. 브라우저(또는 기기) 설정에서 이 사이트의 알림을 허용한 뒤 다시 눌러 주세요.');
+              } else if (push.status === 'unsupported') {
+                alert('이 브라우저에서는 푸시 알림을 쓸 수 없어요.');
+              } else {
+                push.enable();
+              }
+            }}
+            title={push.status === 'on'
+              ? '할 일 알림 켜짐 — 9시 브리핑, 10~22시 매시 남은 할 일 (누르면 끄기)'
+              : '할 일 알림 켜기'}
+          >
+            <span>{push.status === 'on' ? '🔔' : '🔕'}</span>
+            <span className="filter-label">{push.status === 'on' ? '할 일 알림 켜짐' : '할 일 알림 켜기'}</span>
+          </button>
         </div>
 
         {/* Add button */}

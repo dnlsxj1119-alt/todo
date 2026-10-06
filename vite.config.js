@@ -38,6 +38,8 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,ico}'],
+        // 푸시 알림 수신·클릭 처리 (public/push-sw.js)
+        importScripts: ['push-sw.js'],
       },
     }),
   ],

@@ -255,6 +255,8 @@ input, textarea, select { font-family: inherit; }
   transition: background var(--transition), color var(--transition);
 }
 .gcal-connect-btn:hover { background: var(--bg); color: var(--text-primary); }
+.gcal-connect-btn.push-btn--on { color: var(--purple-mid); }
+.gcal-connect-btn:disabled { opacity: .6; cursor: default; }
 .gcal-status {
   display: flex;
   align-items: center;
