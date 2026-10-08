@@ -333,7 +333,6 @@ export default function App() {
             </button>
           ) : null}
           {googleConnected ? null : (
-          ) : (
             <button className="gcal-connect-btn" onClick={signInWithGoogle} title="구글 캘린더 불러오기">
               <span>📆</span>
               <span className="filter-label">구글 캘린더 연동</span>
