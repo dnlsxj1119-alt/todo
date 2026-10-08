@@ -384,7 +384,10 @@ input, textarea, select { font-family: inherit; }
   /* 칸을 펼쳤을 때 내용이 칸 밖으로 흘러 다음 주 칸 위에 겹쳐 그려지면서
      마지막 칩들과 '접기' 버튼을 누를 수 없었다 → 칸 안에서 스크롤되게 한다 */
   overflow: hidden;
-  border-right: 1px solid var(--border-light);
+  /* 세로 칸 경계선은 테두리가 아니라 안쪽 그림자로 그린다.
+     테두리는 overflow:hidden 바깥이라 여러 날 막대(.chip--span)가 덮지 못해 날마다 1px 선으로 끊겨 보였다.
+     안쪽 그림자는 내용 아래에 그려지므로 칸 끝까지 닿는 막대가 선을 덮어 이어져 보인다. */
+  box-shadow: inset -1px 0 0 var(--border-light);
   border-bottom: 1px solid var(--border-light);
   padding: 6px 6px 4px;
   cursor: pointer;
@@ -523,8 +526,8 @@ input, textarea, select { font-family: inherit; }
 .wg-cell--all .chip--span-end { margin-right: 0; }
 /* 하루짜리는 양끝 모두 둥글게 */
 .chip--span-start.chip--span-end { border-radius: 4px; }
-/* 카테고리 기간 막대: 색은 카테고리 색을 인라인으로, 여기선 테두리와 굵기만 */
-.chip--span-project { border: 1px solid transparent; font-weight: 600; }
+/* 카테고리 기간 막대: 색은 카테고리 색을 인라인으로(테두리는 칸마다 상자처럼 끊겨 보여서 뺐다) */
+.chip--span-project { font-weight: 600; }
 
 .chip-time { font-size: 10px; font-weight: 700; opacity: 0.75; flex-shrink: 0; }
 .chip-title { overflow: hidden; text-overflow: ellipsis; min-width: 0; }

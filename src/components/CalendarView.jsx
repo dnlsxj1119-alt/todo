@@ -71,7 +71,7 @@ export function SpanChip({ slot, onClick, onToggle, onDragStart }) {
     canDrag ? 'chip--draggable' : '',
   ].filter(Boolean).join(' ');
   const projectStyle = isProject && !item.completed
-    ? { background: `${item.color}26`, color: item.color, borderColor: `${item.color}80` }
+    ? { background: `${item.color}33`, color: item.color }
     : undefined;
   return (
     <div
@@ -345,8 +345,10 @@ export default function CalendarView({ currentMonth, setCurrentMonth, items = []
           const today = isToday(date);
           const isExpanded = expanded[ds];
           const totalCount = combined.length + deadlines.length;
-          // 막대는 항상 보여야 이어짐이 끊기지 않으므로, 나머지 칩이 쓸 자리에서 뺀다
-          const budget = Math.max(1, VISIBLE_MAX - laneRow.length);
+          // 막대는 항상 보여야 이어짐이 끊기지 않으므로, 나머지 칩이 쓸 자리에서 뺀다.
+          // 단 카테고리 막대는 빼지 않는다 — 카테고리 두 개가 걸쳐 있으면 할일이 하나밖에 안 보였다.
+          const itemLaneCount = laneRow.filter(slot => slot && !slot.item._project).length;
+          const budget = Math.max(1, VISIBLE_MAX - itemLaneCount);
           const visibleDeadlines = isExpanded ? deadlines : deadlines.slice(0, budget);
           const combinedBudget = Math.max(0, budget - visibleDeadlines.length);
           const visibleCombined = isExpanded ? combined : combined.slice(0, combinedBudget);
