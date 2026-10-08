@@ -116,9 +116,20 @@ export default function App() {
     try {
       const r = await syncMissingGoogleEvents(todayStr);
       if (r.expired) { window.alert('구글 로그인이 만료됐어요. 다시 연결한 뒤 눌러 주세요.'); return; }
+      const listOf = (arr) => {
+        const shown = arr.slice(0, 20).map(i => `  · ${i.date}${i.time ? ` ${i.time}` : ''} ${i.title}`);
+        if (arr.length > 20) shown.push(`  · 외 ${arr.length - 20}개`);
+        return shown.join('\n');
+      };
       const lines = [];
-      if (r.total) lines.push(`새로 올림 ${r.ok}개${r.failed ? ` (실패 ${r.failed}개)` : ''}`);
-      if (r.checked) lines.push(`구글과 대조 ${r.checked}개 → 사라진 일정 ${r.recreated}개 다시 올림`);
+      if (r.total) {
+        lines.push(`새로 올림 ${r.ok}개${r.failed ? ` (실패 ${r.failed}개)` : ''}`);
+        if (r.uploaded?.length) lines.push(listOf(r.uploaded));
+      }
+      if (r.checked) {
+        lines.push(`구글과 대조 ${r.checked}개 → 구글에 없던 일정 ${r.recreated}개 다시 올림`);
+        if (r.recreatedItems?.length) lines.push(listOf(r.recreatedItems));
+      }
       window.alert(lines.length ? lines.join('\n') : '확인할 일정이 없어요.');
     } finally {
       setGcalBackfilling(false);

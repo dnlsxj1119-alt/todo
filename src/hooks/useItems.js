@@ -268,19 +268,24 @@ export function useItems(userId) {
       setItems(prev => prev.map(i => i.id === item.id ? { ...i, googleEventId } : i));
       return true;
     };
-    let ok = 0;
+    // 무엇을 올렸는지 결과창에 보여주려고 항목도 같이 돌려준다 ("9개 올렸다는데 뭘 올린 거냐")
+    const uploaded = [];
     for (const item of missing) {
       const synced = await applyGoogleSync(userId, null, item);
-      if (synced.googleEventId && await saveId(item, synced.googleEventId)) ok++;
+      if (synced.googleEventId && await saveId(item, synced.googleEventId)) uploaded.push(item);
     }
-    let recreated = 0;
+    const recreatedItems = [];
     for (const item of toVerify) {
       const exists = await googleEventExists(userId, item.googleEventId);
       if (exists !== false) continue;
       const synced = await applyGoogleSync(userId, null, { ...item, googleEventId: null });
-      if (synced.googleEventId && await saveId(item, synced.googleEventId)) recreated++;
+      if (synced.googleEventId && await saveId(item, synced.googleEventId)) recreatedItems.push(item);
     }
-    return { total: missing.length, ok, failed: missing.length - ok, checked: toVerify.length, recreated };
+    return {
+      total: missing.length, ok: uploaded.length, failed: missing.length - uploaded.length,
+      checked: toVerify.length, recreated: recreatedItems.length,
+      uploaded, recreatedItems,
+    };
   }, [userId, items, findMissingGoogleItems]);
 
   const deleteItem = useCallback(async (id) => {
