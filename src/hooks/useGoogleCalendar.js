@@ -1,6 +1,9 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { googleCalendarTokenKey, googleCalendarRefreshKey } from './useAuth';
-import { readToken, hasRefreshToken, getValidToken, fetchWithAuth } from '../lib/googleCalendarApi';
+import {
+  readToken, hasRefreshToken, getValidToken, fetchWithAuth,
+  GOOGLE_SYNC_EVENT, GOOGLE_SYNC_EXPIRED_MSG,
+} from '../lib/googleCalendarApi';
 import { readStored, writeStored, removeStored } from '../utils/safeStorage';
 
 // 구글 이벤트는 구글 쪽에 완료 상태가 없어서, 완료 표시는 로컬에만 저장 (사용자별)
@@ -70,6 +73,29 @@ export function useGoogleCalendar(userId, rangeStart, rangeEnd) {
     setConnected(!!readToken(userId) || hasRefreshToken(userId));
   }, [userId]);
 
+  // '연동됨'은 저장소에 토큰이 있다는 뜻일 뿐이라, 앱을 열 때 실제로 쓸 수 있는 토큰인지 한 번 확인한다.
+  // (가져오기 범위를 비워 둬서 구글에서 읽는 동작이 없고, 만료를 알아챌 다른 길이 없었다)
+  // 살아 있는 access token 이 있으면 네트워크 호출 없이 끝나고, 없으면 재발급을 한 번 시도한다.
+  useEffect(() => {
+    if (!userId || !connected) return;
+    let cancelled = false;
+    (async () => {
+      const token = await getValidToken(userId);
+      if (!cancelled && !token) setError(GOOGLE_SYNC_EXPIRED_MSG);
+    })();
+    return () => { cancelled = true; };
+  }, [userId, connected]);
+
+  // 일정 저장 시 구글 반영 결과(useItems → applyGoogleSync)를 받아 사이드바 상태에 띄운다
+  useEffect(() => {
+    const onSync = (e) => {
+      const d = e.detail ?? {};
+      setError(d.ok ? null : (d.message ?? '구글 캘린더에 반영하지 못했어요.'));
+    };
+    window.addEventListener(GOOGLE_SYNC_EVENT, onSync);
+    return () => window.removeEventListener(GOOGLE_SYNC_EVENT, onSync);
+  }, []);
+
   useEffect(() => {
     if (!userId || !connected || !rangeStart || !rangeEnd) {
       setEvents([]);
@@ -120,7 +146,7 @@ export function useGoogleCalendar(userId, rangeStart, rangeEnd) {
           removeStored(googleCalendarTokenKey(userId));
           removeStored(googleCalendarRefreshKey(userId));
           setConnected(false);
-          setError('구글 로그인이 만료됐어요. 다시 연결해 주세요.');
+          setError(GOOGLE_SYNC_EXPIRED_MSG);
         } else {
           setError('구글 캘린더를 불러오지 못했어요.');
         }
@@ -137,6 +163,7 @@ export function useGoogleCalendar(userId, rangeStart, rangeEnd) {
     removeStored(googleCalendarTokenKey(userId));
     removeStored(googleCalendarRefreshKey(userId));
     setConnected(false);
+    setError(null);
     setEvents([]);
   }, [userId]);
 

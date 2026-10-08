@@ -45,6 +45,16 @@ export async function getValidToken(userId) {
   return readToken(userId) ?? (await refreshAccessToken(userId));
 }
 
+// 동기화 결과를 화면(useGoogleCalendar)에 알리는 통로.
+// 예전엔 실패해도 console 에만 남겨서, 사이드바는 '연동됨'인데 구글엔 아무것도 안 올라가는 상태를
+// 사용자가 알 길이 없었다. (refresh token 이 죽어도 재발급 실패 → null → 조용히 넘어갔다)
+export const GOOGLE_SYNC_EVENT = 'google-calendar-sync';
+export const GOOGLE_SYNC_EXPIRED_MSG = '구글 로그인이 만료됐어요. 다시 연결해 주세요.';
+export const GOOGLE_SYNC_FAILED_MSG = '구글 캘린더에 반영하지 못했어요.';
+function notifySync(detail) {
+  try { window.dispatchEvent(new CustomEvent(GOOGLE_SYNC_EVENT, { detail })); } catch { /* 테스트 환경 등 */ }
+}
+
 // 401을 받으면 refresh token으로 한 번 재발급받아 재시도한다
 export async function fetchWithAuth(url, token, userId, options = {}) {
   let currentToken = token;
@@ -167,15 +177,26 @@ export async function applyGoogleSync(userId, prevItem, nextItem) {
     return { ...nextItem, googleEventId: existingId };
   }
 
+  // 저장소엔 토큰이 있는데 재발급이 안 되면(refresh token 만료·철회) 연동이 죽은 것 → 화면에 알린다
+  if (!(await getValidToken(userId))) {
+    notifySync({ ok: false, expired: true, message: GOOGLE_SYNC_EXPIRED_MSG });
+    return { ...nextItem, googleEventId: existingId };
+  }
+
   try {
+    let result;
     if (existingId) {
       const updated = await updateGoogleEvent(userId, existingId, nextItem);
-      return { ...nextItem, googleEventId: updated?.id ?? existingId };
+      result = { ...nextItem, googleEventId: updated?.id ?? existingId };
+    } else {
+      const created = await createGoogleEvent(userId, nextItem);
+      result = { ...nextItem, googleEventId: created?.id ?? null };
     }
-    const created = await createGoogleEvent(userId, nextItem);
-    return { ...nextItem, googleEventId: created?.id ?? null };
+    notifySync({ ok: true });
+    return result;
   } catch (err) {
     console.error('구글 캘린더 동기화 실패', err);
+    notifySync({ ok: false, message: `${GOOGLE_SYNC_FAILED_MSG} (${err?.message ?? '알 수 없는 오류'})` });
     return { ...nextItem, googleEventId: existingId };
   }
 }

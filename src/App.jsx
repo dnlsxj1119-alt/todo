@@ -297,7 +297,7 @@ export default function App() {
                 tabIndex={0}
                 title={googleError ? '다시 연결' : '탭하여 연동 해제'}
               />
-              <span className="gcal-status-label">
+              <span className="gcal-status-label" title={googleError ?? undefined}>
                 {googleLoading ? '불러오는 중…' : googleError ? googleError : '연동됨'}
               </span>
               {googleError ? (
