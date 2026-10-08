@@ -93,6 +93,10 @@ export default function App() {
     getGoogleEventsForDate, toggleGoogleEventDone, disconnect: disconnectGoogle,
   } = useGoogleCalendar(userId, googleRange.start, googleRange.end);
   const push = usePush(userId);
+  // 휴대폰에선 연동 표시 점이 곧 '해제' 버튼이라 실수로 눌리기 쉽다 → 한 번 물어본다
+  const confirmDisconnectGoogle = useCallback(() => {
+    if (window.confirm('구글 캘린더 연동을 해제할까요?\n(모든 기기에서 해제되고, 이후 만든 일정은 구글에 안 올라가요)')) disconnectGoogle();
+  }, [disconnectGoogle]);
   // 연동이 끊긴 사이에 만들어져 구글에 못 올라간 🟢일정(지난 것 포함) — 사이드바에서 한 번에 올린다
   const todayStr = toDateString(new Date());
   const missingGoogleAll = useMemo(
@@ -358,7 +362,7 @@ export default function App() {
             <div className="gcal-status">
               <span
                 className={`gcal-status-dot ${googleError ? 'gcal-status-dot--error' : ''}`}
-                onClick={googleError ? signInWithGoogle : disconnectGoogle}
+                onClick={googleError ? signInWithGoogle : confirmDisconnectGoogle}
                 role="button"
                 tabIndex={0}
                 title={googleError ? '다시 연결' : '탭하여 연동 해제'}
@@ -369,7 +373,7 @@ export default function App() {
               {googleError ? (
                 <button className="gcal-action-btn" onClick={signInWithGoogle}>다시 연결</button>
               ) : (
-                <button className="gcal-action-btn" onClick={disconnectGoogle}>해제</button>
+                <button className="gcal-action-btn" onClick={confirmDisconnectGoogle}>해제</button>
               )}
             </div>
           ) : null}
