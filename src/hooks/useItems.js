@@ -107,6 +107,20 @@ export function isAllDaySchedule(i) {
   return i.type !== 'todo' && !i.time && !!i.date;
 }
 
+// 계획일~마감일이 여러 날인 할일 — 월간 달력처럼 주간뷰 '전체' 행에도 막대로 잇는다.
+// (시간을 정한 할일이라도 막대로 그린다. 시간은 막대 제목 옆에 붙는다)
+export function isSpanTodo(i) {
+  return i.type === 'todo' && !!i.date && !!i.dueDate && i.dueDate > i.date;
+}
+
+// 주간뷰 '전체' 행에 막대/칩으로 그리는 항목과 그 끝 날짜
+export function isWeekBar(i) {
+  return isAllDaySchedule(i) || isSpanTodo(i);
+}
+export function weekBarEnd(i) {
+  return i.type === 'todo' ? i.dueDate : (i.endDate ?? i.date);
+}
+
 export function useItems(userId) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -315,14 +329,15 @@ export function useItems(userId) {
     if (slot === 'all') {
       // 시간이 설정된 할일은 해당 시간대 행에 표시되므로 전체 행에서는 제외.
       // 시간을 정하지 않은 일정도 전체 행에 그린다(여러 날이면 막대로 이어서).
+      // 여러 날 할일(계획일~마감일)도 전체 행 막대로 그린다.
       return sortByTime(items.filter(i =>
-        (i.date === dateStr && i.type === 'todo' && !i.time)
-        || (isAllDaySchedule(i) && i.date <= dateStr && (i.endDate ?? i.date) >= dateStr)
+        (i.date === dateStr && i.type === 'todo' && !i.time && !isSpanTodo(i))
+        || (isWeekBar(i) && i.date <= dateStr && weekBarEnd(i) >= dateStr)
       ));
     }
     return sortByTime(items.filter(i => {
       if (i.type === 'todo') {
-        return i.date === dateStr && !!i.time && getTimeSlotFromTime(i.time) === slot;
+        return i.date === dateStr && !!i.time && !isSpanTodo(i) && getTimeSlotFromTime(i.time) === slot;
       }
       if (isAllDaySchedule(i)) return false;
       if (i.date === dateStr) return i.timeSlot === slot;

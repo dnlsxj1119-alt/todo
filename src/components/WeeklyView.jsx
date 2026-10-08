@@ -6,7 +6,7 @@ import {
   SLOT_HEIGHTS, timeToSlotPx,
 } from '../utils/dateUtils';
 import { habitAppliesToDate } from '../hooks/useHabits';
-import { isAllDaySchedule } from '../hooks/useItems';
+import { isWeekBar, isSpanTodo, weekBarEnd } from '../hooks/useItems';
 import { SpanChip } from './CalendarView';
 import { buildDeadlineMap } from '../utils/deadlines';
 import { readStored, writeStored } from '../utils/safeStorage';
@@ -349,20 +349,20 @@ export default function WeeklyView({
   };
   const { spanMap, covered } = useSpanData(items);
 
-  // 시간을 정하지 않은 일정 → '전체' 행 막대. 같은 일정이 날마다 같은 줄에 오도록
+  // 시간을 정하지 않은 일정 · 여러 날 할일 → '전체' 행 막대. 같은 항목이 날마다 같은 줄에 오도록
   // 이 주에 걸친 막대들에 줄 번호(lane)를 미리 매긴다 (달력의 막대와 같은 방식).
   const weekFirst = toDateString(days[0]);
   const weekLast = toDateString(days[days.length - 1]);
   const spanLaneOf = useMemo(() => {
     const spans = items
-      .filter(i => isAllDaySchedule(i) && (!filterType || i.type === filterType)
-        && i.date <= weekLast && (i.endDate ?? i.date) >= weekFirst)
-      .sort((a, b) => a.date.localeCompare(b.date) || (b.endDate ?? b.date).localeCompare(a.endDate ?? a.date));
+      .filter(i => isWeekBar(i) && (!filterType || i.type === filterType)
+        && i.date <= weekLast && weekBarEnd(i) >= weekFirst)
+      .sort((a, b) => a.date.localeCompare(b.date) || weekBarEnd(b).localeCompare(weekBarEnd(a)));
     const laneEnds = [];
     const laneOf = {};
     spans.forEach(it => {
       let lane = laneEnds.findIndex(end => end < it.date);
-      const end = it.endDate ?? it.date;
+      const end = weekBarEnd(it);
       if (lane === -1) { laneEnds.push(end); lane = laneEnds.length - 1; }
       else laneEnds[lane] = end;
       laneOf[it.id] = lane;
@@ -444,8 +444,8 @@ export default function WeeklyView({
     // 전체 행: 시간 없는 일정 막대는 따로 떼어 줄(lane)에 맞춰 맨 위에 그린다
     const spanLanes = [];
     if (slotKey === 'all') {
-      allItems.filter(isAllDaySchedule).forEach(it => { spanLanes[spanLaneOf[it.id] ?? 0] = it; });
-      allItems = allItems.filter(i => !isAllDaySchedule(i));
+      allItems.filter(isWeekBar).forEach(it => { spanLanes[spanLaneOf[it.id] ?? 0] = it; });
+      allItems = allItems.filter(i => !isWeekBar(i));
     }
 
     const isDragOver = dragOverCell === cellKey;
@@ -468,7 +468,7 @@ export default function WeeklyView({
         {/* 여러 날 일정 막대 (전체 행만) — 빈 줄은 자리만 차지해 옆 칸 막대와 높이를 맞춘다 */}
         {Array.from(spanLanes, (it, lane) => it
           ? <SpanChip key={`span-${it.id}`}
-              slot={{ item: it, isStart: it.date === ds, isEnd: (it.endDate ?? it.date) === ds,
+              slot={{ item: it, isStart: it.date === ds, isEnd: weekBarEnd(it) === ds,
                 labeled: it.date === ds || ds === weekFirst }}
               onClick={onItemClick} onToggle={onToggle}
               // 시작일 막대를 끌어 다른 날 전체 칸으로 옮긴다 (종료일은 moveItem 이 같은 간격으로 옮김)
@@ -476,8 +476,10 @@ export default function WeeklyView({
           : <div key={`lane-${lane}`} className="chip chip--span chip--span-gap" aria-hidden="true">&nbsp;</div>
         )}
 
-        {/* 마감일 칩 (전체 행만) */}
-        {slotKey === 'all' && (deadlineMap[ds] ?? []).map(entry => (
+        {/* 마감일 칩 (전체 행만). 막대로 그린 할일은 막대 끝이 곧 마감일이라 📕 칩을 또 찍지 않는다 */}
+        {slotKey === 'all' && (deadlineMap[ds] ?? [])
+          .filter(entry => !(entry.type === 'item' && isSpanTodo(entry.item)))
+          .map(entry => (
           <div key={entry.key}
             className={`chip chip--deadline${entry.done ? ' chip--done' : ''}`}
             onClick={(e) => {
