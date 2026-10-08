@@ -244,9 +244,9 @@ export function useItems(userId) {
   }, [userId, items]);
 
   // 구글 이벤트가 없는 🟢일정 = 연동이 끊긴 사이에(또는 연동 전에) 만들어져 구글에 못 올라간 것.
-  // 오늘 이후 것만 골라 차례로 올린다. (지난 일정까지 구글에 쌓는 건 쓸모가 적고 양이 많다)
+  // fromDate 를 주면 그 날짜부터, 안 주면 지난 일정까지 전부. (사용자가 지난 일정도 올리길 원했다)
   const findMissingGoogleItems = useCallback((fromDate) =>
-    items.filter(i => i.type === 'schedule' && !!i.date && !i.googleEventId && i.date >= fromDate),
+    items.filter(i => i.type === 'schedule' && !!i.date && !i.googleEventId && (!fromDate || i.date >= fromDate)),
   [items]);
 
   const syncMissingGoogleEvents = useCallback(async (fromDate) => {

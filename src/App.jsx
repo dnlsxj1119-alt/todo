@@ -93,21 +93,27 @@ export default function App() {
     getGoogleEventsForDate, toggleGoogleEventDone, disconnect: disconnectGoogle,
   } = useGoogleCalendar(userId, googleRange.start, googleRange.end);
   const push = usePush(userId);
-  // 연동이 끊긴 사이에 만들어져 구글에 못 올라간 🟢일정(오늘 이후) — 사이드바에서 한 번에 올린다
+  // 연동이 끊긴 사이에 만들어져 구글에 못 올라간 🟢일정(지난 것 포함) — 사이드바에서 한 번에 올린다
   const todayStr = toDateString(new Date());
-  const missingGoogleCount = googleConnected && !googleError ? findMissingGoogleItems(todayStr).length : 0;
+  const missingGoogleAll = googleConnected && !googleError ? findMissingGoogleItems() : [];
+  const missingGoogleCount = missingGoogleAll.length;
   const [gcalBackfilling, setGcalBackfilling] = useState(false);
   const backfillGoogle = useCallback(async () => {
-    if (gcalBackfilling) return;
+    if (gcalBackfilling || !missingGoogleCount) return;
+    // 지난 일정은 양이 많을 수 있어서, 몇 개를 올리는지 보여주고 확인을 받는다
+    const upcoming = missingGoogleAll.filter(i => i.date >= todayStr).length;
+    const past = missingGoogleCount - upcoming;
+    const parts = [upcoming ? `오늘 이후 ${upcoming}개` : null, past ? `지난 일정 ${past}개` : null].filter(Boolean);
+    if (!window.confirm(`${parts.join(', ')}를 구글 캘린더에 올릴까요?`)) return;
     setGcalBackfilling(true);
     try {
-      const r = await syncMissingGoogleEvents(todayStr);
+      const r = await syncMissingGoogleEvents();
       if (r.expired) window.alert('구글 로그인이 만료됐어요. 다시 연결한 뒤 눌러 주세요.');
       else window.alert(`구글 캘린더에 ${r.ok}개 올렸어요.${r.failed ? ` ${r.failed}개는 실패했어요.` : ''}`);
     } finally {
       setGcalBackfilling(false);
     }
-  }, [gcalBackfilling, syncMissingGoogleEvents, todayStr]);
+  }, [gcalBackfilling, missingGoogleAll, missingGoogleCount, syncMissingGoogleEvents, todayStr]);
   const { projects, addProject, updateProject, deleteProject, completeProject, uncompleteProject, reorderProjects } = useProjects(userId);
   const { habits, archivedHabits, addHabit, updateHabit, deleteHabit, toggleHabitDate, reorderHabits, archiveHabit, restoreHabit } = useHabits(userId);
   const { getForMonth: getMonthlyGoal, updateNotes: updateGoalNotes, addItem: addGoalItem, toggleItem: toggleGoalItem, deleteItem: deleteGoalItem, editItem: editGoalItem, reorderItems: reorderGoalItems } = useMonthlyGoals(userId);
@@ -329,8 +335,8 @@ export default function App() {
               onClick={backfillGoogle}
               disabled={gcalBackfilling || missingGoogleCount === 0}
               title={missingGoogleCount > 0
-                ? '구글 이벤트가 없는 오늘 이후 🟢일정을 구글 캘린더에 올립니다'
-                : '오늘 이후 🟢일정은 모두 구글 캘린더에 올라가 있어요'}
+                ? '구글 이벤트가 없는 🟢일정(지난 것 포함)을 구글 캘린더에 올립니다'
+                : '🟢일정은 모두 구글 캘린더에 올라가 있어요'}
             >
               <span className="gcal-backfill-short">
                 {gcalBackfilling ? '…' : missingGoogleCount > 0 ? `📤${missingGoogleCount}` : '📤'}
