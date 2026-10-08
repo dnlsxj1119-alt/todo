@@ -296,7 +296,8 @@ input, textarea, select { font-family: inherit; }
   text-align: left;
   transition: background 0.2s, color 0.2s;
 }
-.gcal-backfill-btn:disabled { cursor: default; }
+.gcal-backfill-btn:hover:not(:disabled) { background: #E6E8EF; }
+.gcal-backfill-btn:disabled { cursor: default; opacity: 0.6; }
 /* 올릴 게 있음: 초록 */
 .gcal-backfill-btn--ready { color: var(--green-dark); background: var(--green-light); }
 .gcal-backfill-btn--ready:hover:not(:disabled) { background: #d2e6b4; }

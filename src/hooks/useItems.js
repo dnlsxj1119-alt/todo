@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { getTimeSlotFromTime, TIME_SLOT_ORDER, timeToSlotPx, addDays } from '../utils/dateUtils';
-import { applyGoogleSync, deleteGoogleEvent, getValidToken } from '../lib/googleCalendarApi';
+import { applyGoogleSync, deleteGoogleEvent, getValidToken, googleEventExists } from '../lib/googleCalendarApi';
 
 // 실제 시간이 없는 옛 항목 대비: 제목 앞 숫자를 HHMM 형태의 시간으로 해석
 function legacyTitleMinutes(title) {
@@ -249,22 +249,39 @@ export function useItems(userId) {
     items.filter(i => i.type === 'schedule' && !!i.date && !i.googleEventId && (!fromDate || i.date >= fromDate)),
   [items]);
 
-  const syncMissingGoogleEvents = useCallback(async (fromDate) => {
-    const targets = findMissingGoogleItems(fromDate);
-    if (!targets.length) return { total: 0, ok: 0, failed: 0 };
+  // 1) 구글 이벤트 ID 가 없는 🟢일정을 올리고,
+  // 2) ID 는 있지만 구글에 실제로는 없는(다른 계정으로 올라갔거나 구글에서 지운) 오늘 이후 일정은 다시 올린다.
+  //    ("앱은 올라갔다고 아는데 구글엔 없다"는 상황이 실제로 있었다. ID 만 보고는 알 수 없어 하나씩 대조한다)
+  const syncMissingGoogleEvents = useCallback(async (verifyFromDate) => {
+    const missing = findMissingGoogleItems();
+    const toVerify = verifyFromDate
+      ? items.filter(i => i.type === 'schedule' && !!i.date && !!i.googleEventId && i.date >= verifyFromDate)
+      : [];
+    if (!missing.length && !toVerify.length) return { total: 0, ok: 0, failed: 0, checked: 0, recreated: 0 };
     // 토큰이 죽어 있으면 항목마다 재발급을 시도하느라 느려지기만 한다 → 먼저 한 번만 확인
-    if (!(await getValidToken(userId))) return { total: targets.length, ok: 0, failed: targets.length, expired: true };
-    let ok = 0;
-    for (const item of targets) {
-      const synced = await applyGoogleSync(userId, null, item);
-      if (!synced.googleEventId) continue;
-      const error = await updateItemRow(item.id, { google_event_id: synced.googleEventId });
-      if (error) { console.error('[syncMissingGoogleEvents]', error); continue; }
-      setItems(prev => prev.map(i => i.id === item.id ? { ...i, googleEventId: synced.googleEventId } : i));
-      ok++;
+    if (!(await getValidToken(userId))) {
+      return { total: missing.length, ok: 0, failed: missing.length, checked: 0, recreated: 0, expired: true };
     }
-    return { total: targets.length, ok, failed: targets.length - ok };
-  }, [userId, findMissingGoogleItems]);
+    const saveId = async (item, googleEventId) => {
+      const error = await updateItemRow(item.id, { google_event_id: googleEventId });
+      if (error) { console.error('[syncMissingGoogleEvents]', error); return false; }
+      setItems(prev => prev.map(i => i.id === item.id ? { ...i, googleEventId } : i));
+      return true;
+    };
+    let ok = 0;
+    for (const item of missing) {
+      const synced = await applyGoogleSync(userId, null, item);
+      if (synced.googleEventId && await saveId(item, synced.googleEventId)) ok++;
+    }
+    let recreated = 0;
+    for (const item of toVerify) {
+      const exists = await googleEventExists(userId, item.googleEventId);
+      if (exists !== false) continue;
+      const synced = await applyGoogleSync(userId, null, { ...item, googleEventId: null });
+      if (synced.googleEventId && await saveId(item, synced.googleEventId)) recreated++;
+    }
+    return { total: missing.length, ok, failed: missing.length - ok, checked: toVerify.length, recreated };
+  }, [userId, items, findMissingGoogleItems]);
 
   const deleteItem = useCallback(async (id) => {
     const item = items.find(i => i.id === id);

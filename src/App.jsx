@@ -102,17 +102,24 @@ export default function App() {
   const missingGoogleCount = missingGoogleAll.length;
   const [gcalBackfilling, setGcalBackfilling] = useState(false);
   const backfillGoogle = useCallback(async () => {
-    if (gcalBackfilling || !missingGoogleCount) return;
-    // 지난 일정은 양이 많을 수 있어서, 몇 개를 올리는지 보여주고 확인을 받는다
+    if (gcalBackfilling) return;
+    // 지난 일정은 양이 많을 수 있어서, 몇 개를 올리는지 보여주고 확인을 받는다.
+    // 올릴 게 없어도 누를 수 있다: 오늘 이후 일정이 구글에 실제로 있는지 대조해서 없으면 다시 올린다.
     const upcoming = missingGoogleAll.filter(i => i.date >= todayStr).length;
     const past = missingGoogleCount - upcoming;
     const parts = [upcoming ? `오늘 이후 ${upcoming}개` : null, past ? `지난 일정 ${past}개` : null].filter(Boolean);
-    if (!window.confirm(`${parts.join(', ')}를 구글 캘린더에 올릴까요?`)) return;
+    const msg = parts.length
+      ? `${parts.join(', ')}를 구글 캘린더에 올릴까요?\n(오늘 이후 일정이 구글에 실제로 있는지도 함께 확인해요)`
+      : '오늘 이후 일정이 구글 캘린더에 실제로 있는지 확인하고, 없으면 다시 올릴까요?';
+    if (!window.confirm(msg)) return;
     setGcalBackfilling(true);
     try {
-      const r = await syncMissingGoogleEvents();
-      if (r.expired) window.alert('구글 로그인이 만료됐어요. 다시 연결한 뒤 눌러 주세요.');
-      else window.alert(`구글 캘린더에 ${r.ok}개 올렸어요.${r.failed ? ` ${r.failed}개는 실패했어요.` : ''}`);
+      const r = await syncMissingGoogleEvents(todayStr);
+      if (r.expired) { window.alert('구글 로그인이 만료됐어요. 다시 연결한 뒤 눌러 주세요.'); return; }
+      const lines = [];
+      if (r.total) lines.push(`새로 올림 ${r.ok}개${r.failed ? ` (실패 ${r.failed}개)` : ''}`);
+      if (r.checked) lines.push(`구글과 대조 ${r.checked}개 → 사라진 일정 ${r.recreated}개 다시 올림`);
+      window.alert(lines.length ? lines.join('\n') : '확인할 일정이 없어요.');
     } finally {
       setGcalBackfilling(false);
     }
@@ -336,16 +343,16 @@ export default function App() {
             <button
               className={`gcal-backfill-btn ${missingGoogleCount > 0 ? 'gcal-backfill-btn--ready' : ''}`}
               onClick={backfillGoogle}
-              disabled={gcalBackfilling || missingGoogleCount === 0}
+              disabled={gcalBackfilling}
               title={missingGoogleCount > 0
                 ? '구글 이벤트가 없는 🟢일정(지난 것 포함)을 구글 캘린더에 올립니다'
-                : '🟢일정은 모두 구글 캘린더에 올라가 있어요'}
+                : '오늘 이후 일정이 구글 캘린더에 실제로 있는지 대조하고, 없으면 다시 올립니다'}
             >
               <span className="gcal-backfill-short">
                 {gcalBackfilling ? '…' : missingGoogleCount > 0 ? `📤${missingGoogleCount}` : '📤'}
               </span>
               <span className="filter-label">
-                {gcalBackfilling ? '올리는 중…' : missingGoogleCount > 0 ? `미반영 일정 ${missingGoogleCount}개 올리기` : '구글에 올릴 일정 없음'}
+                {gcalBackfilling ? '올리는 중…' : missingGoogleCount > 0 ? `미반영 일정 ${missingGoogleCount}개 올리기` : '구글과 대조하기'}
               </span>
             </button>
           ) : null}

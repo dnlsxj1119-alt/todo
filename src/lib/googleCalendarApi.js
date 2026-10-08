@@ -150,6 +150,20 @@ export async function updateGoogleEvent(userId, eventId, item) {
   return res.json();
 }
 
+// 구글에 그 이벤트가 아직 있는지. 없음(404/410) 또는 구글에서 삭제됨(status cancelled)이면 false.
+// 다른 계정의 토큰으로 만든 이벤트도 지금 계정에선 404 라 false 가 된다.
+// 네트워크 오류 등 판단이 안 되면 null (그대로 둔다).
+export async function googleEventExists(userId, eventId) {
+  const token = await getValidToken(userId);
+  if (!token) return null;
+  const url = `${EVENTS_BASE}/${encodeURIComponent(eventId)}`;
+  const res = await fetchWithAuth(url, token, userId);
+  if (res.status === 404 || res.status === 410) return false;
+  if (!res.ok) return null;
+  const data = await res.json().catch(() => null);
+  return data ? data.status !== 'cancelled' : null;
+}
+
 export async function deleteGoogleEvent(userId, eventId) {
   const token = await getValidToken(userId);
   if (!token) return;
