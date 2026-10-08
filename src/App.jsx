@@ -322,15 +322,22 @@ export default function App() {
               )}
             </div>
           ) : null}
-          {googleConnected && missingGoogleCount > 0 ? (
+          {/* 올릴 게 없어도 회색으로 항상 보여서, 초록으로 바뀌면 '올릴 게 생겼다'는 걸 알 수 있다 */}
+          {googleConnected ? (
             <button
-              className="gcal-backfill-btn"
+              className={`gcal-backfill-btn ${missingGoogleCount > 0 ? 'gcal-backfill-btn--ready' : ''}`}
               onClick={backfillGoogle}
-              disabled={gcalBackfilling}
-              title="구글 이벤트가 없는 오늘 이후 🟢일정을 구글 캘린더에 올립니다"
+              disabled={gcalBackfilling || missingGoogleCount === 0}
+              title={missingGoogleCount > 0
+                ? '구글 이벤트가 없는 오늘 이후 🟢일정을 구글 캘린더에 올립니다'
+                : '오늘 이후 🟢일정은 모두 구글 캘린더에 올라가 있어요'}
             >
-              <span className="gcal-backfill-short">{gcalBackfilling ? '…' : `📤${missingGoogleCount}`}</span>
-              <span className="filter-label">{gcalBackfilling ? '올리는 중…' : `미반영 일정 ${missingGoogleCount}개 올리기`}</span>
+              <span className="gcal-backfill-short">
+                {gcalBackfilling ? '…' : missingGoogleCount > 0 ? `📤${missingGoogleCount}` : '📤'}
+              </span>
+              <span className="filter-label">
+                {gcalBackfilling ? '올리는 중…' : missingGoogleCount > 0 ? `미반영 일정 ${missingGoogleCount}개 올리기` : '구글에 올릴 일정 없음'}
+              </span>
             </button>
           ) : null}
           {googleConnected ? null : (

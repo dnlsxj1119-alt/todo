@@ -289,12 +289,18 @@ input, textarea, select { font-family: inherit; }
   padding: 5px 8px;
   font-size: 11px;
   font-weight: 600;
-  color: var(--purple-mid);
-  background: var(--purple-light);
+  /* 기본(올릴 게 없음): 회색 */
+  color: var(--text-muted);
+  background: #F1F2F6;
   border-radius: 6px;
   text-align: left;
+  transition: background 0.2s, color 0.2s;
 }
-.gcal-backfill-btn:disabled { opacity: 0.6; cursor: default; }
+.gcal-backfill-btn:disabled { cursor: default; }
+/* 올릴 게 있음: 초록 */
+.gcal-backfill-btn--ready { color: var(--green-dark); background: var(--green-light); }
+.gcal-backfill-btn--ready:hover:not(:disabled) { background: #d2e6b4; }
+.gcal-backfill-btn--ready:disabled { opacity: 0.6; }
 .gcal-backfill-short { display: none; }
 /* 접힌 사이드바에선 '📤N' 로 줄여서 보여준다 (안 보이면 버튼이 있는지조차 모른다) */
 .sidebar--collapsed .gcal-backfill-btn { text-align: center; padding-left: 0; padding-right: 0; }
