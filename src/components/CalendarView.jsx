@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { getMonthGrid, toDateString, isToday, formatMonthYear, DAY_NAMES } from '../utils/dateUtils';
 import { buildDeadlineMap } from '../utils/deadlines';
+import { buildProjectSpans, hasProjectSpan } from '../utils/projectSpans';
 import { readStored, writeStored, removeStored } from '../utils/safeStorage';
 
 const TYPE_COLOR = {
@@ -57,19 +58,25 @@ function isSpanItem(it) {
 // 칸마다 '↩ 제목' 칩을 따로 그리는 대신, 하나의 막대처럼 이어 그린다.
 // 제목은 시작일과 **주가 바뀐 첫 칸**에만 붙인다(안 붙이면 다음 주 줄이 이름 없는 막대가 된다).
 // 주간뷰 '전체' 행도 같은 막대를 쓴다.
+// 카테고리(시작일~마감 기한) 막대도 같은 컴포넌트로 그린다: 체크 대신 🏁, 카테고리 색, 드래그 없음.
 export function SpanChip({ slot, onClick, onToggle, onDragStart }) {
   const { item, isStart, isEnd, labeled } = slot;
-  const canDrag = !!onDragStart && isStart;
+  const isProject = !!item._project;
+  const canDrag = !!onDragStart && isStart && !isProject;
   const cls = [
-    'chip', TYPE_COLOR[item.type],
+    'chip', isProject ? 'chip--span-project' : TYPE_COLOR[item.type],
     item.completed ? 'chip--done' : '',
     item.status === 'cancelled' ? 'chip--cancelled' : '',
     'chip--span', isStart ? 'chip--span-start' : '', isEnd ? 'chip--span-end' : '',
     canDrag ? 'chip--draggable' : '',
   ].filter(Boolean).join(' ');
+  const projectStyle = isProject && !item.completed
+    ? { background: `${item.color}26`, color: item.color, borderColor: `${item.color}80` }
+    : undefined;
   return (
     <div
       className={cls}
+      style={projectStyle}
       onClick={(e) => { e.stopPropagation(); onClick(item); }}
       draggable={canDrag}
       onDragStart={canDrag ? (e) => {
@@ -81,16 +88,20 @@ export function SpanChip({ slot, onClick, onToggle, onDragStart }) {
     >
       {labeled ? (
         <>
-          <span
-            className="chip-check"
-            onClick={(e) => { e.stopPropagation(); onToggle(item.id); }}
-            role="checkbox"
-            aria-checked={item.completed}
-            tabIndex={0}
-            onKeyDown={(e) => e.key === ' ' && (e.preventDefault(), onToggle(item.id))}
-          >
-            {item.completed ? '✓' : '○'}
-          </span>
+          {isProject ? (
+            <span className="chip-check" style={{ opacity: 1 }} aria-hidden="true">🏁</span>
+          ) : (
+            <span
+              className="chip-check"
+              onClick={(e) => { e.stopPropagation(); onToggle(item.id); }}
+              role="checkbox"
+              aria-checked={item.completed}
+              tabIndex={0}
+              onKeyDown={(e) => e.key === ' ' && (e.preventDefault(), onToggle(item.id))}
+            >
+              {item.completed ? '✓' : '○'}
+            </span>
+          )}
           {item.time && <span className="chip-time">{item.time}</span>}
           <span className="chip-title">{item.title}</span>
         </>
@@ -220,9 +231,11 @@ export default function CalendarView({ currentMonth, setCurrentMonth, items = []
   // (칸마다 칩 개수가 달라서, 그냥 섞어 두면 막대가 들쭉날쭉해진다)
   const spanLanes = useMemo(() => {
     const byDate = {};
-    const spans = (items ?? [])
-      .filter(isSpanItem)
-      .filter(it => !filterType || it.type === filterType);
+    const spans = [
+      ...(items ?? []).filter(isSpanItem).filter(it => !filterType || it.type === filterType),
+      // 카테고리 기간 막대 — 종류 필터가 걸려 있으면 마감 칩과 마찬가지로 숨긴다
+      ...(filterType ? [] : buildProjectSpans(projects)),
+    ];
     const dayCount = (it) => Math.round((new Date(spanEndOf(it)) - new Date(it.date)) / 86400000);
     for (let w = 0; w * 7 < grid.length; w++) {
       const week = grid.slice(w * 7, w * 7 + 7).map(g => toDateString(g.date));
@@ -261,7 +274,7 @@ export default function CalendarView({ currentMonth, setCurrentMonth, items = []
       });
     }
     return byDate;
-  }, [items, grid, filterType]);
+  }, [items, projects, grid, filterType]);
 
   return (
     <div className="calendar-view" onDragEnd={endDrag}>
@@ -324,6 +337,8 @@ export default function CalendarView({ currentMonth, setCurrentMonth, items = []
             : (deadlineMap[ds] ?? [])
               // 계획일~마감일 막대로 그린 할일은 막대 끝이 곧 마감일이라, 📕 마감 칩까지 찍으면 같은 칸에 두 번 나온다
               .filter(entry => !(entry.type === 'item' && isSpanItem(entry.item)))
+              // 시작일~마감 기한 막대로 그린 카테고리도 마찬가지 (🏁 는 막대 제목에 붙는다)
+              .filter(entry => !(entry.type === 'project' && hasProjectSpan(entry.project)))
               .sort((a, b) => (!!a.done - !!b.done));
           const googleEvents = filterType ? [] : (getGoogleEventsForDate?.(ds) ?? []);
           const combined = mergeByTime(allItems, googleEvents);
@@ -373,7 +388,7 @@ export default function CalendarView({ currentMonth, setCurrentMonth, items = []
                   ? <SpanChip
                       key={`span-${slot.item.id}`}
                       slot={slot}
-                      onClick={onItemClick}
+                      onClick={(it) => (it._project ? onProjectClick?.(it._project) : onItemClick(it))}
                       onToggle={onToggle}
                       onDragStart={onMoveItem ? (it) => setDragInfo({ id: it.id, from: ds }) : undefined}
                     />

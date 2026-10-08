@@ -9,6 +9,7 @@ import { habitAppliesToDate } from '../hooks/useHabits';
 import { isWeekBar, isSpanTodo, weekBarEnd } from '../hooks/useItems';
 import { SpanChip } from './CalendarView';
 import { buildDeadlineMap } from '../utils/deadlines';
+import { buildProjectSpans, hasProjectSpan } from '../utils/projectSpans';
 import { readStored, writeStored } from '../utils/safeStorage';
 
 // 마감 칩의 종류별 기호: 카테고리 🏁 · 태스크 📌 · 할일 📕(목록의 마감일 칩과 같은 기호)
@@ -353,10 +354,14 @@ export default function WeeklyView({
   // 이 주에 걸친 막대들에 줄 번호(lane)를 미리 매긴다 (달력의 막대와 같은 방식).
   const weekFirst = toDateString(days[0]);
   const weekLast = toDateString(days[days.length - 1]);
+  // 카테고리(시작일~마감 기한)도 전체 행 막대로 (종류 필터가 걸려 있으면 마감 칩처럼 숨긴다)
+  const projectSpans = useMemo(() => (filterType ? [] : buildProjectSpans(projects)), [projects, filterType]);
   const spanLaneOf = useMemo(() => {
-    const spans = items
-      .filter(i => isWeekBar(i) && (!filterType || i.type === filterType)
-        && i.date <= weekLast && weekBarEnd(i) >= weekFirst)
+    const spans = [
+      ...items.filter(i => isWeekBar(i) && (!filterType || i.type === filterType)),
+      ...projectSpans,
+    ]
+      .filter(i => i.date <= weekLast && weekBarEnd(i) >= weekFirst)
       .sort((a, b) => a.date.localeCompare(b.date) || weekBarEnd(b).localeCompare(weekBarEnd(a)));
     const laneEnds = [];
     const laneOf = {};
@@ -368,7 +373,7 @@ export default function WeeklyView({
       laneOf[it.id] = lane;
     });
     return laneOf;
-  }, [items, filterType, weekFirst, weekLast]);
+  }, [items, projectSpans, filterType, weekFirst, weekLast]);
   const deadlineMap = useMemo(() => buildDeadlineMap(projects, items), [projects, items]);
 
   const prevWeek = () => { const d = new Date(currentWeek); d.setDate(d.getDate() - 7); setCurrentWeek(d); };
@@ -445,6 +450,7 @@ export default function WeeklyView({
     const spanLanes = [];
     if (slotKey === 'all') {
       allItems.filter(isWeekBar).forEach(it => { spanLanes[spanLaneOf[it.id] ?? 0] = it; });
+      projectSpans.filter(p => p.date <= ds && p.endDate >= ds).forEach(p => { spanLanes[spanLaneOf[p.id] ?? 0] = p; });
       allItems = allItems.filter(i => !isWeekBar(i));
     }
 
@@ -470,7 +476,7 @@ export default function WeeklyView({
           ? <SpanChip key={`span-${it.id}`}
               slot={{ item: it, isStart: it.date === ds, isEnd: weekBarEnd(it) === ds,
                 labeled: it.date === ds || ds === weekFirst }}
-              onClick={onItemClick} onToggle={onToggle}
+              onClick={(it) => (it._project ? onProjectClick?.(it._project) : onItemClick(it))} onToggle={onToggle}
               // 시작일 막대를 끌어 다른 날 전체 칸으로 옮긴다 (종료일은 moveItem 이 같은 간격으로 옮김)
               onDragStart={() => setDragItemType('allday')} />
           : <div key={`lane-${lane}`} className="chip chip--span chip--span-gap" aria-hidden="true">&nbsp;</div>
@@ -479,6 +485,7 @@ export default function WeeklyView({
         {/* 마감일 칩 (전체 행만). 막대로 그린 할일은 막대 끝이 곧 마감일이라 📕 칩을 또 찍지 않는다 */}
         {slotKey === 'all' && (deadlineMap[ds] ?? [])
           .filter(entry => !(entry.type === 'item' && isSpanTodo(entry.item)))
+          .filter(entry => !(entry.type === 'project' && hasProjectSpan(entry.project)))
           .map(entry => (
           <div key={entry.key}
             className={`chip chip--deadline${entry.done ? ' chip--done' : ''}`}

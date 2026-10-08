@@ -547,6 +547,8 @@ input, textarea, select { font-family: inherit; }
 .wg-cell--all .chip--span-end { margin-right: 0; }
 /* 하루짜리는 양끝 모두 둥글게 */
 .chip--span-start.chip--span-end { border-radius: 4px; }
+/* 카테고리 기간 막대: 색은 카테고리 색을 인라인으로, 여기선 테두리와 굵기만 */
+.chip--span-project { border: 1px solid transparent; font-weight: 600; }
 
 .chip-time { font-size: 10px; font-weight: 700; opacity: 0.75; flex-shrink: 0; }
 .chip-title { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
