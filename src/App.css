@@ -281,6 +281,21 @@ input, textarea, select { font-family: inherit; }
   flex-shrink: 0;
 }
 .gcal-action-btn:hover { background: var(--purple-light); }
+/* 연동 끊긴 사이에 구글에 못 올라간 일정을 한 번에 올리는 버튼 */
+.gcal-backfill-btn {
+  display: block;
+  width: 100%;
+  margin-top: 4px;
+  padding: 5px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--purple-mid);
+  background: var(--purple-light);
+  border-radius: 6px;
+  text-align: left;
+}
+.gcal-backfill-btn:disabled { opacity: 0.6; cursor: default; }
+.sidebar--collapsed .gcal-backfill-btn { display: none; }
 
 /* Add button */
 .sidebar-add-btn {

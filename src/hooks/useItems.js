@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { getTimeSlotFromTime, TIME_SLOT_ORDER, timeToSlotPx, addDays } from '../utils/dateUtils';
-import { applyGoogleSync, deleteGoogleEvent } from '../lib/googleCalendarApi';
+import { applyGoogleSync, deleteGoogleEvent, getValidToken } from '../lib/googleCalendarApi';
 
 // 실제 시간이 없는 옛 항목 대비: 제목 앞 숫자를 HHMM 형태의 시간으로 해석
 function legacyTitleMinutes(title) {
@@ -243,6 +243,29 @@ export function useItems(userId) {
     if (error) console.error('[updateItem]', error);
   }, [userId, items]);
 
+  // 구글 이벤트가 없는 🟢일정 = 연동이 끊긴 사이에(또는 연동 전에) 만들어져 구글에 못 올라간 것.
+  // 오늘 이후 것만 골라 차례로 올린다. (지난 일정까지 구글에 쌓는 건 쓸모가 적고 양이 많다)
+  const findMissingGoogleItems = useCallback((fromDate) =>
+    items.filter(i => i.type === 'schedule' && !!i.date && !i.googleEventId && i.date >= fromDate),
+  [items]);
+
+  const syncMissingGoogleEvents = useCallback(async (fromDate) => {
+    const targets = findMissingGoogleItems(fromDate);
+    if (!targets.length) return { total: 0, ok: 0, failed: 0 };
+    // 토큰이 죽어 있으면 항목마다 재발급을 시도하느라 느려지기만 한다 → 먼저 한 번만 확인
+    if (!(await getValidToken(userId))) return { total: targets.length, ok: 0, failed: targets.length, expired: true };
+    let ok = 0;
+    for (const item of targets) {
+      const synced = await applyGoogleSync(userId, null, item);
+      if (!synced.googleEventId) continue;
+      const error = await updateItemRow(item.id, { google_event_id: synced.googleEventId });
+      if (error) { console.error('[syncMissingGoogleEvents]', error); continue; }
+      setItems(prev => prev.map(i => i.id === item.id ? { ...i, googleEventId: synced.googleEventId } : i));
+      ok++;
+    }
+    return { total: targets.length, ok, failed: targets.length - ok };
+  }, [userId, findMissingGoogleItems]);
+
   const deleteItem = useCallback(async (id) => {
     const item = items.find(i => i.id === id);
     setItems(prev => prev.filter(i => i.id !== id));
@@ -362,5 +385,5 @@ export function useItems(userId) {
   const getBacklogItems = useCallback(() =>
     items.filter(i => i.type === 'todo' && !i.date), [items]);
 
-  return { items, loading, addItem, addRecurringItems, updateItem, deleteItem, toggleComplete, setStatus, setPriority, setProject, reorderItems, moveItem, getItemsForDate, getItemsForCell, getBacklogItems };
+  return { items, loading, addItem, addRecurringItems, updateItem, deleteItem, toggleComplete, setStatus, setPriority, setProject, reorderItems, moveItem, getItemsForDate, getItemsForCell, getBacklogItems, findMissingGoogleItems, syncMissingGoogleEvents };
 }
