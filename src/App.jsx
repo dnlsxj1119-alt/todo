@@ -95,7 +95,10 @@ export default function App() {
   const push = usePush(userId);
   // 연동이 끊긴 사이에 만들어져 구글에 못 올라간 🟢일정(지난 것 포함) — 사이드바에서 한 번에 올린다
   const todayStr = toDateString(new Date());
-  const missingGoogleAll = googleConnected && !googleError ? findMissingGoogleItems() : [];
+  const missingGoogleAll = useMemo(
+    () => (googleConnected && !googleError ? findMissingGoogleItems() : []),
+    [googleConnected, googleError, findMissingGoogleItems]
+  );
   const missingGoogleCount = missingGoogleAll.length;
   const [gcalBackfilling, setGcalBackfilling] = useState(false);
   const backfillGoogle = useCallback(async () => {
