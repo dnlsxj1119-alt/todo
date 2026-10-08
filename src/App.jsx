@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, Component } from 'react';
+import { useState, useCallback, useMemo, useEffect, useRef, Component } from 'react';
 import { useAuth } from './hooks/useAuth';
 import { useItems } from './hooks/useItems';
 import { useGoogleCalendar } from './hooks/useGoogleCalendar';
@@ -135,6 +135,30 @@ export default function App() {
       setGcalBackfilling(false);
     }
   }, [gcalBackfilling, missingGoogleAll, missingGoogleCount, syncMissingGoogleEvents, todayStr]);
+
+  // 버튼을 누르지 않아도 되게, 앱을 열 때 자동으로 한 번 돌린다.
+  // - 구글 이벤트 ID 가 없는 🟢일정: 바로 올린다 (연동이 끊긴 사이 만든 것)
+  // - 오늘 이후 일정이 구글에 실제로 있는지 대조: 조회가 많아서 하루에 한 번만
+  // (사용자: "내가 작성하면 바로바로 100% 다 올라가게")
+  const autoSyncRan = useRef(false);
+  useEffect(() => {
+    if (autoSyncRan.current || loading || !userId || !googleConnected || googleError) return;
+    autoSyncRan.current = true;
+    const verifyKey = `googleVerifyAt:${userId}`;
+    const lastVerify = Number(readStored(verifyKey) ?? 0);
+    const verify = Date.now() - lastVerify > 20 * 60 * 60 * 1000;
+    (async () => {
+      setGcalBackfilling(true);
+      try {
+        const r = await syncMissingGoogleEvents(verify ? todayStr : undefined);
+        if (!r.expired && verify) writeStored(verifyKey, String(Date.now()));
+      } catch (e) {
+        console.error('[google auto sync]', e);
+      } finally {
+        setGcalBackfilling(false);
+      }
+    })();
+  }, [loading, userId, googleConnected, googleError, syncMissingGoogleEvents, todayStr]);
   const { projects, addProject, updateProject, deleteProject, completeProject, uncompleteProject, reorderProjects } = useProjects(userId);
   const { habits, archivedHabits, addHabit, updateHabit, deleteHabit, toggleHabitDate, reorderHabits, archiveHabit, restoreHabit } = useHabits(userId);
   const { getForMonth: getMonthlyGoal, updateNotes: updateGoalNotes, addItem: addGoalItem, toggleItem: toggleGoalItem, deleteItem: deleteGoalItem, editItem: editGoalItem, reorderItems: reorderGoalItems } = useMonthlyGoals(userId);
