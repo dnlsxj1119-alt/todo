@@ -295,7 +295,10 @@ input, textarea, select { font-family: inherit; }
   text-align: left;
 }
 .gcal-backfill-btn:disabled { opacity: 0.6; cursor: default; }
-.sidebar--collapsed .gcal-backfill-btn { display: none; }
+.gcal-backfill-short { display: none; }
+/* 접힌 사이드바에선 '📤N' 로 줄여서 보여준다 (안 보이면 버튼이 있는지조차 모른다) */
+.sidebar--collapsed .gcal-backfill-btn { text-align: center; padding-left: 0; padding-right: 0; }
+.sidebar--collapsed .gcal-backfill-short { display: inline; }
 
 /* Add button */
 .sidebar-add-btn {

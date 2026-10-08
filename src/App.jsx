@@ -329,7 +329,8 @@ export default function App() {
               disabled={gcalBackfilling}
               title="구글 이벤트가 없는 오늘 이후 🟢일정을 구글 캘린더에 올립니다"
             >
-              {gcalBackfilling ? '올리는 중…' : `미반영 일정 ${missingGoogleCount}개 올리기`}
+              <span className="gcal-backfill-short">{gcalBackfilling ? '…' : `📤${missingGoogleCount}`}</span>
+              <span className="filter-label">{gcalBackfilling ? '올리는 중…' : `미반영 일정 ${missingGoogleCount}개 올리기`}</span>
             </button>
           ) : null}
           {googleConnected ? null : (
