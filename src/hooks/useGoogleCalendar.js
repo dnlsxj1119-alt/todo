@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { googleCalendarTokenKey, googleCalendarRefreshKey } from './useAuth';
+import { googleCalendarTokenKey, googleCalendarRefreshKey, googleCalendarRefreshAtKey } from './useAuth';
+import { fetchServerRefreshToken, saveServerRefreshToken, deleteServerRefreshToken } from '../lib/googleTokenStore';
 import {
   readToken, hasRefreshToken, getValidToken, fetchWithAuth,
   GOOGLE_SYNC_EVENT, GOOGLE_SYNC_EXPIRED_MSG,
@@ -71,6 +72,31 @@ export function useGoogleCalendar(userId, rangeStart, rangeEnd) {
 
   useEffect(() => {
     setConnected(!!readToken(userId) || hasRefreshToken(userId));
+  }, [userId]);
+
+  // 서버(google_tokens)와 브라우저의 refresh token 을 맞춘다 — 더 최신 쪽이 이긴다.
+  // - 이 기기에 없고 서버에 있으면(다른 기기에서 연동) → 받아와서 바로 연동 상태로
+  // - 이 기기 것이 더 새것이면(여기서 방금 연동) → 서버에 올려 다른 기기도 쓰게
+  useEffect(() => {
+    if (!userId) return;
+    let cancelled = false;
+    (async () => {
+      const server = await fetchServerRefreshToken(userId);
+      if (cancelled) return;
+      const local = readStored(googleCalendarRefreshKey(userId));
+      const localAt = Number(readStored(googleCalendarRefreshAtKey(userId)) ?? 0);
+      if (server && (!local || (server.token !== local && server.updatedAt > localAt))) {
+        writeStored(googleCalendarRefreshKey(userId), server.token);
+        writeStored(googleCalendarRefreshAtKey(userId), String(server.updatedAt));
+        // 예전 기기의 access token 이 남아 있으면 그걸 먼저 쓰다 401 → 재발급으로 넘어가니 지워 둔다
+        removeStored(googleCalendarTokenKey(userId));
+        setError(null);
+        setConnected(true);
+      } else if (local && (!server || (server.token !== local && localAt > server.updatedAt))) {
+        saveServerRefreshToken(userId, local, localAt || Date.now());
+      }
+    })();
+    return () => { cancelled = true; };
   }, [userId]);
 
   // '연동됨'은 저장소에 토큰이 있다는 뜻일 뿐이라, 앱을 열 때 실제로 쓸 수 있는 토큰인지 한 번 확인한다.
@@ -162,6 +188,8 @@ export function useGoogleCalendar(userId, rangeStart, rangeEnd) {
   const disconnect = useCallback(() => {
     removeStored(googleCalendarTokenKey(userId));
     removeStored(googleCalendarRefreshKey(userId));
+    removeStored(googleCalendarRefreshAtKey(userId));
+    deleteServerRefreshToken(userId);
     setConnected(false);
     setError(null);
     setEvents([]);
