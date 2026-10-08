@@ -123,7 +123,10 @@ export async function createGoogleEvent(userId, item) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
-  if (!res.ok) throw new Error(`구글 캘린더 생성 실패 (${res.status})`);
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '');
+    throw Object.assign(new Error(`구글 캘린더 생성 실패 (${res.status}) ${detail}`.trim()), { status: res.status });
+  }
   return res.json();
 }
 
@@ -145,7 +148,7 @@ export async function updateGoogleEvent(userId, eventId, item) {
   // 왜 실패했는지 모르면 손댈 수가 없어서 응답 본문까지 남긴다
   if (!res.ok) {
     const detail = await res.text().catch(() => '');
-    throw new Error(`구글 캘린더 수정 실패 (${res.status}) ${detail}`.trim());
+    throw Object.assign(new Error(`구글 캘린더 수정 실패 (${res.status}) ${detail}`.trim()), { status: res.status });
   }
   return res.json();
 }
@@ -210,7 +213,14 @@ export async function applyGoogleSync(userId, prevItem, nextItem) {
     return result;
   } catch (err) {
     console.error('구글 캘린더 동기화 실패', err);
-    notifySync({ ok: false, message: `${GOOGLE_SYNC_FAILED_MSG} (${err?.message ?? '알 수 없는 오류'})` });
+    // 401 은 연동이 죽은 것(다시 연결로 해결). 그 밖(400 잘못된 시간, 403 권한 등)은 그 일정만의 문제라
+    // '연동 끊김'으로 보이면 안 된다 — 다시 연결해도 안 풀려서 사용자가 헤맸다.
+    if (err?.status === 401) {
+      notifySync({ ok: false, expired: true, message: GOOGLE_SYNC_EXPIRED_MSG });
+    } else {
+      const title = nextItem.title ? `「${nextItem.title}」 ` : '';
+      notifySync({ ok: false, message: `${title}${GOOGLE_SYNC_FAILED_MSG} (${err?.message ?? '알 수 없는 오류'})` });
+    }
     return { ...nextItem, googleEventId: existingId };
   }
 }

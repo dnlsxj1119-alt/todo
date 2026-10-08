@@ -83,13 +83,13 @@ export default function App() {
   };
 
   const userId = user?.id;
-  const { items, loading, addItem, addRecurringItems, updateItem, deleteItem, toggleComplete, setStatus, setPriority, setProject, getItemsForDate, getItemsForCell, getBacklogItems, findMissingGoogleItems, syncMissingGoogleEvents } = useItems(userId);
+  const { items, loading, addItem, addRecurringItems, updateItem, deleteItem, toggleComplete, setStatus, setPriority, setProject, getItemsForDate, getItemsForCell, getBacklogItems, syncMissingGoogleEvents } = useItems(userId);
 
   // 구글 캘린더에서 가져온 일정은 앱 화면에 표시하지 않음(범위를 비워 조회 자체를 막음).
   // 앱 → 구글 캘린더 쓰기 동기화는 useItems 쪽에서 별도로 동작하므로 영향 없음.
   const googleRange = useMemo(() => ({ start: null, end: null }), []);
   const {
-    connected: googleConnected, loading: googleLoading, error: googleError,
+    connected: googleConnected, loading: googleLoading, error: googleError, syncIssue: googleSyncIssue,
     getGoogleEventsForDate, toggleGoogleEventDone, disconnect: disconnectGoogle,
   } = useGoogleCalendar(userId, googleRange.start, googleRange.end);
   const push = usePush(userId);
@@ -97,72 +97,38 @@ export default function App() {
   const confirmDisconnectGoogle = useCallback(() => {
     if (window.confirm('구글 캘린더 연동을 해제할까요?\n(모든 기기에서 해제되고, 이후 만든 일정은 구글에 안 올라가요)')) disconnectGoogle();
   }, [disconnectGoogle]);
-  // 연동이 끊긴 사이에 만들어져 구글에 못 올라간 🟢일정(지난 것 포함) — 사이드바에서 한 번에 올린다
+  // 구글에 못 올라간 🟢일정은 사용자가 버튼을 누르지 않아도 자동으로 올린다.
+  // - 앱을 열 때, 그리고 다른 앱에 갔다가 돌아올 때마다: 구글 이벤트 ID 가 없는 일정을 올린다 (없으면 네트워크 호출 0)
+  // - 오늘 이후 일정이 구글에 실제로 있는지 대조(없으면 다시 생성)는 조회가 많아 하루에 한 번만
+  // (사용자: "올리는 버튼 없애고 그냥 100% 올라가게")
   const todayStr = toDateString(new Date());
-  const missingGoogleAll = useMemo(
-    () => (googleConnected && !googleError ? findMissingGoogleItems() : []),
-    [googleConnected, googleError, findMissingGoogleItems]
-  );
-  const missingGoogleCount = missingGoogleAll.length;
-  const [gcalBackfilling, setGcalBackfilling] = useState(false);
-  const backfillGoogle = useCallback(async () => {
-    if (gcalBackfilling) return;
-    // 지난 일정은 양이 많을 수 있어서, 몇 개를 올리는지 보여주고 확인을 받는다.
-    // 올릴 게 없어도 누를 수 있다: 오늘 이후 일정이 구글에 실제로 있는지 대조해서 없으면 다시 올린다.
-    const upcoming = missingGoogleAll.filter(i => i.date >= todayStr).length;
-    const past = missingGoogleCount - upcoming;
-    const parts = [upcoming ? `오늘 이후 ${upcoming}개` : null, past ? `지난 일정 ${past}개` : null].filter(Boolean);
-    const msg = parts.length
-      ? `${parts.join(', ')}를 구글 캘린더에 올릴까요?\n(오늘 이후 일정이 구글에 실제로 있는지도 함께 확인해요)`
-      : '오늘 이후 일정이 구글 캘린더에 실제로 있는지 확인하고, 없으면 다시 올릴까요?';
-    if (!window.confirm(msg)) return;
-    setGcalBackfilling(true);
+  const autoSyncBusy = useRef(false);
+  const runGoogleAutoSync = useCallback(async () => {
+    if (autoSyncBusy.current || loading || !userId || !googleConnected || googleError) return;
+    autoSyncBusy.current = true;
+    const verifyKey = `googleVerifyAt:${userId}`;
+    const lastVerify = Number(readStored(verifyKey) ?? 0);
+    const verify = Date.now() - lastVerify > 20 * 60 * 60 * 1000;
     try {
-      const r = await syncMissingGoogleEvents(todayStr);
-      if (r.expired) { window.alert('구글 로그인이 만료됐어요. 다시 연결한 뒤 눌러 주세요.'); return; }
-      const listOf = (arr) => {
-        const shown = arr.slice(0, 20).map(i => `  · ${i.date}${i.time ? ` ${i.time}` : ''} ${i.title}`);
-        if (arr.length > 20) shown.push(`  · 외 ${arr.length - 20}개`);
-        return shown.join('\n');
-      };
-      const lines = [];
-      if (r.total) {
-        lines.push(`새로 올림 ${r.ok}개${r.failed ? ` (실패 ${r.failed}개)` : ''}`);
-        if (r.uploaded?.length) lines.push(listOf(r.uploaded));
-      }
-      if (r.checked) {
-        lines.push(`구글과 대조 ${r.checked}개 → 구글에 없던 일정 ${r.recreated}개 다시 올림`);
-        if (r.recreatedItems?.length) lines.push(listOf(r.recreatedItems));
-      }
-      window.alert(lines.length ? lines.join('\n') : '확인할 일정이 없어요.');
+      const r = await syncMissingGoogleEvents(verify ? todayStr : undefined);
+      if (!r.expired && verify) writeStored(verifyKey, String(Date.now()));
+    } catch (e) {
+      console.error('[google auto sync]', e);
     } finally {
-      setGcalBackfilling(false);
+      autoSyncBusy.current = false;
     }
-  }, [gcalBackfilling, missingGoogleAll, missingGoogleCount, syncMissingGoogleEvents, todayStr]);
-
-  // 버튼을 누르지 않아도 되게, 앱을 열 때 자동으로 한 번 돌린다.
-  // - 구글 이벤트 ID 가 없는 🟢일정: 바로 올린다 (연동이 끊긴 사이 만든 것)
-  // - 오늘 이후 일정이 구글에 실제로 있는지 대조: 조회가 많아서 하루에 한 번만
-  // (사용자: "내가 작성하면 바로바로 100% 다 올라가게")
+  }, [loading, userId, googleConnected, googleError, syncMissingGoogleEvents, todayStr]);
   const autoSyncRan = useRef(false);
   useEffect(() => {
     if (autoSyncRan.current || loading || !userId || !googleConnected || googleError) return;
     autoSyncRan.current = true;
-    const verifyKey = `googleVerifyAt:${userId}`;
-    const lastVerify = Number(readStored(verifyKey) ?? 0);
-    const verify = Date.now() - lastVerify > 20 * 60 * 60 * 1000;
-    (async () => {
-      setGcalBackfilling(true);
-      try {
-        const r = await syncMissingGoogleEvents(verify ? todayStr : undefined);
-        if (!r.expired && verify) writeStored(verifyKey, String(Date.now()));
-      } catch (e) {
-        console.error('[google auto sync]', e);
-      } finally {
-        setGcalBackfilling(false);
-      }
-    })();
-  }, [loading, userId, googleConnected, googleError, syncMissingGoogleEvents, todayStr]);
+    runGoogleAutoSync();
+  }, [loading, userId, googleConnected, googleError, runGoogleAutoSync]);
+  useEffect(() => {
+    const onVisible = () => { if (document.visibilityState === 'visible') runGoogleAutoSync(); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, [runGoogleAutoSync]);
   const { projects, addProject, updateProject, deleteProject, completeProject, uncompleteProject, reorderProjects } = useProjects(userId);
   const { habits, archivedHabits, addHabit, updateHabit, deleteHabit, toggleHabitDate, reorderHabits, archiveHabit, restoreHabit } = useHabits(userId);
   const { getForMonth: getMonthlyGoal, updateNotes: updateGoalNotes, addItem: addGoalItem, toggleItem: toggleGoalItem, deleteItem: deleteGoalItem, editItem: editGoalItem, reorderItems: reorderGoalItems } = useMonthlyGoals(userId);
@@ -358,17 +324,19 @@ export default function App() {
         {/* Google Calendar */}
         <div className="sidebar-section sidebar-section--gcal">
           <div className="sidebar-section-title">구글 캘린더</div>
+          {/* 점 색: 초록 연동됨 · 빨강 연동 끊김(누르면 다시 연결) · 주황 일정 하나가 거부됨(누르면 이유 표시).
+              휴대폰에선 글자가 없어서 점이 곧 설명이다 */}
           {googleConnected ? (
             <div className="gcal-status">
               <span
-                className={`gcal-status-dot ${googleError ? 'gcal-status-dot--error' : ''}`}
-                onClick={googleError ? signInWithGoogle : confirmDisconnectGoogle}
+                className={`gcal-status-dot ${googleError ? 'gcal-status-dot--error' : googleSyncIssue ? 'gcal-status-dot--warn' : ''}`}
+                onClick={googleError ? signInWithGoogle : googleSyncIssue ? () => window.alert(googleSyncIssue) : confirmDisconnectGoogle}
                 role="button"
                 tabIndex={0}
-                title={googleError ? '다시 연결' : '탭하여 연동 해제'}
+                title={googleError ? '다시 연결' : googleSyncIssue ? googleSyncIssue : '탭하여 연동 해제'}
               />
-              <span className="gcal-status-label" title={googleError ?? undefined}>
-                {googleLoading ? '불러오는 중…' : googleError ? googleError : '연동됨'}
+              <span className="gcal-status-label" title={googleError ?? googleSyncIssue ?? undefined}>
+                {googleLoading ? '불러오는 중…' : googleError ? googleError : googleSyncIssue ? googleSyncIssue : '연동됨'}
               </span>
               {googleError ? (
                 <button className="gcal-action-btn" onClick={signInWithGoogle}>다시 연결</button>
@@ -376,26 +344,7 @@ export default function App() {
                 <button className="gcal-action-btn" onClick={confirmDisconnectGoogle}>해제</button>
               )}
             </div>
-          ) : null}
-          {/* 올릴 게 없어도 회색으로 항상 보여서, 초록으로 바뀌면 '올릴 게 생겼다'는 걸 알 수 있다 */}
-          {googleConnected ? (
-            <button
-              className={`gcal-backfill-btn ${missingGoogleCount > 0 ? 'gcal-backfill-btn--ready' : ''}`}
-              onClick={backfillGoogle}
-              disabled={gcalBackfilling}
-              title={missingGoogleCount > 0
-                ? '구글 이벤트가 없는 🟢일정(지난 것 포함)을 구글 캘린더에 올립니다'
-                : '오늘 이후 일정이 구글 캘린더에 실제로 있는지 대조하고, 없으면 다시 올립니다'}
-            >
-              <span className="gcal-backfill-short">
-                {gcalBackfilling ? '…' : missingGoogleCount > 0 ? `📤${missingGoogleCount}` : '📤'}
-              </span>
-              <span className="filter-label">
-                {gcalBackfilling ? '올리는 중…' : missingGoogleCount > 0 ? `미반영 일정 ${missingGoogleCount}개 올리기` : '구글과 대조하기'}
-              </span>
-            </button>
-          ) : null}
-          {googleConnected ? null : (
+          ) : (
             <button className="gcal-connect-btn" onClick={signInWithGoogle} title="구글 캘린더 불러오기">
               <span>📆</span>
               <span className="filter-label">구글 캘린더 연동</span>

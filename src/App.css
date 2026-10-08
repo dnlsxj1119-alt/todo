@@ -271,6 +271,7 @@ input, textarea, select { font-family: inherit; }
   flex-shrink: 0;
 }
 .gcal-status-dot--error { background: #DC2626; }
+.gcal-status-dot--warn { background: #F59E0B; }
 .gcal-status-label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .gcal-action-btn {
   font-size: 11px;
@@ -281,31 +282,6 @@ input, textarea, select { font-family: inherit; }
   flex-shrink: 0;
 }
 .gcal-action-btn:hover { background: var(--purple-light); }
-/* 연동 끊긴 사이에 구글에 못 올라간 일정을 한 번에 올리는 버튼 */
-.gcal-backfill-btn {
-  display: block;
-  width: 100%;
-  margin-top: 4px;
-  padding: 5px 8px;
-  font-size: 11px;
-  font-weight: 600;
-  /* 기본(올릴 게 없음): 회색 */
-  color: var(--text-muted);
-  background: #F1F2F6;
-  border-radius: 6px;
-  text-align: left;
-  transition: background 0.2s, color 0.2s;
-}
-.gcal-backfill-btn:hover:not(:disabled) { background: #E6E8EF; }
-.gcal-backfill-btn:disabled { cursor: default; opacity: 0.6; }
-/* 올릴 게 있음: 초록 */
-.gcal-backfill-btn--ready { color: var(--green-dark); background: var(--green-light); }
-.gcal-backfill-btn--ready:hover:not(:disabled) { background: #d2e6b4; }
-.gcal-backfill-btn--ready:disabled { opacity: 0.6; }
-.gcal-backfill-short { display: none; }
-/* 접힌 사이드바에선 '📤N' 로 줄여서 보여준다 (안 보이면 버튼이 있는지조차 모른다) */
-.sidebar--collapsed .gcal-backfill-btn { text-align: center; padding-left: 0; padding-right: 0; }
-.sidebar--collapsed .gcal-backfill-short { display: inline; }
 
 /* Add button */
 .sidebar-add-btn {

@@ -55,6 +55,8 @@ export function useGoogleCalendar(userId, rangeStart, rangeEnd) {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  // 연동은 살아 있는데 특정 일정이 구글에서 거부된 경우 (빨간 '끊김'과 구분해 주황으로)
+  const [syncIssue, setSyncIssue] = useState(null);
   const [completedIds, setCompletedIds] = useState(() => readCompletedSet(userId));
 
   useEffect(() => {
@@ -116,7 +118,9 @@ export function useGoogleCalendar(userId, rangeStart, rangeEnd) {
   useEffect(() => {
     const onSync = (e) => {
       const d = e.detail ?? {};
-      setError(d.ok ? null : (d.message ?? '구글 캘린더에 반영하지 못했어요.'));
+      if (d.ok) { setError(null); setSyncIssue(null); return; }
+      if (d.expired) setError(d.message ?? GOOGLE_SYNC_EXPIRED_MSG);
+      else setSyncIssue(d.message ?? '구글 캘린더에 반영하지 못했어요.');
     };
     window.addEventListener(GOOGLE_SYNC_EVENT, onSync);
     return () => window.removeEventListener(GOOGLE_SYNC_EVENT, onSync);
@@ -192,6 +196,7 @@ export function useGoogleCalendar(userId, rangeStart, rangeEnd) {
     deleteServerRefreshToken(userId);
     setConnected(false);
     setError(null);
+    setSyncIssue(null);
     setEvents([]);
   }, [userId]);
 
@@ -221,5 +226,5 @@ export function useGoogleCalendar(userId, rangeStart, rangeEnd) {
 
   const getGoogleEventsForDate = useCallback((ds) => eventsByDate[ds] ?? [], [eventsByDate]);
 
-  return { connected, loading, error, events: displayEvents, getGoogleEventsForDate, toggleGoogleEventDone, disconnect };
+  return { connected, loading, error, syncIssue, events: displayEvents, getGoogleEventsForDate, toggleGoogleEventDone, disconnect };
 }
