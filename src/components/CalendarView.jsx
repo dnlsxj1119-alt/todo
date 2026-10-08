@@ -42,9 +42,16 @@ function ItemChip({ item, onClick, onToggle, onDragStart }) {
   );
 }
 
-// 여러 날에 걸친 🟢일정(달력 전용). 할일은 해당 없음 — 할일엔 종료일 개념이 없다.
+// 막대의 끝 날짜. 일정은 종료일, 할일은 마감일(할일엔 종료일 대신 '계획일 + 마감일'이 있다).
+function spanEndOf(it) {
+  return it.type === 'todo' ? it.dueDate : it.endDate;
+}
+
+// 여러 날에 걸친 항목(달력 전용). 🟢일정은 시작일~종료일, 할일은 계획일~마감일.
+// 예전엔 할일을 뺐는데, 그러면 계획일 칸과 마감일 칸에만 따로 찍혀 '기간'이 안 보였다.
 function isSpanItem(it) {
-  return it.type !== 'todo' && !!it.date && !!it.endDate && it.endDate > it.date;
+  const end = spanEndOf(it);
+  return !!it.date && !!end && end > it.date;
 }
 
 // 칸마다 '↩ 제목' 칩을 따로 그리는 대신, 하나의 막대처럼 이어 그린다.
@@ -70,7 +77,7 @@ export function SpanChip({ slot, onClick, onToggle, onDragStart }) {
         e.dataTransfer.effectAllowed = 'move';
         onDragStart(item);
       } : undefined}
-      title={item.endDate ? `${item.title} (${item.date}~${item.endDate})` : item.title}
+      title={spanEndOf(item) ? `${item.title} (${item.date}~${spanEndOf(item)})` : item.title}
     >
       {labeled ? (
         <>
@@ -93,7 +100,7 @@ export function SpanChip({ slot, onClick, onToggle, onDragStart }) {
         // 보이지 않는 체크 동그라미를 같이 넣어 같은 구조로 만든다.
         <>
           <span className="chip-check" style={{ visibility: 'hidden' }} aria-hidden="true">○</span>
-          <span className="chip-title">&nbsp;</span>
+          <span className="chip-title" style={{ textDecoration: 'none' }}>&nbsp;</span>
         </>
       )}
     </div>
@@ -216,14 +223,14 @@ export default function CalendarView({ currentMonth, setCurrentMonth, items = []
     const spans = (items ?? [])
       .filter(isSpanItem)
       .filter(it => !filterType || it.type === filterType);
-    const dayCount = (it) => Math.round((new Date(it.endDate) - new Date(it.date)) / 86400000);
+    const dayCount = (it) => Math.round((new Date(spanEndOf(it)) - new Date(it.date)) / 86400000);
     for (let w = 0; w * 7 < grid.length; w++) {
       const week = grid.slice(w * 7, w * 7 + 7).map(g => toDateString(g.date));
       if (!week.length) continue;
       const wStart = week[0];
       const wEnd = week[week.length - 1];
       const here = spans
-        .filter(it => it.date <= wEnd && it.endDate >= wStart)
+        .filter(it => it.date <= wEnd && spanEndOf(it) >= wStart)
         // 먼저 시작한 것 · 긴 것이 위 줄로 (줄이 덜 갈라진다)
         .sort((a, b) => a.date.localeCompare(b.date)
           || dayCount(b) - dayCount(a)
@@ -231,7 +238,7 @@ export default function CalendarView({ currentMonth, setCurrentMonth, items = []
       const lanes = [];
       here.forEach(it => {
         const from = it.date > wStart ? it.date : wStart;
-        const to = it.endDate < wEnd ? it.endDate : wEnd;
+        const to = spanEndOf(it) < wEnd ? spanEndOf(it) : wEnd;
         let li = lanes.findIndex(lane => lane.every(seg => seg.to < from || seg.from > to));
         if (li === -1) { lanes.push([]); li = lanes.length - 1; }
         lanes[li].push({ from, to, item: it });
@@ -243,7 +250,7 @@ export default function CalendarView({ currentMonth, setCurrentMonth, items = []
           return {
             item: seg.item,
             isStart: seg.item.date === ds,
-            isEnd: seg.item.endDate === ds,
+            isEnd: spanEndOf(seg.item) === ds,
             labeled: seg.from === ds,
           };
         });
@@ -314,7 +321,10 @@ export default function CalendarView({ currentMonth, setCurrentMonth, items = []
             .map(item => ({ ...item, _isCont: item.date !== ds }));
           const deadlines = filterType
             ? []
-            : [...(deadlineMap[ds] ?? [])].sort((a, b) => (!!a.done - !!b.done));
+            : (deadlineMap[ds] ?? [])
+              // 계획일~마감일 막대로 그린 할일은 막대 끝이 곧 마감일이라, 📕 마감 칩까지 찍으면 같은 칸에 두 번 나온다
+              .filter(entry => !(entry.type === 'item' && isSpanItem(entry.item)))
+              .sort((a, b) => (!!a.done - !!b.done));
           const googleEvents = filterType ? [] : (getGoogleEventsForDate?.(ds) ?? []);
           const combined = mergeByTime(allItems, googleEvents);
           const today = isToday(date);
