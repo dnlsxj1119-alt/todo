@@ -23,7 +23,20 @@ function readCompletedSet(userId) {
 }
 
 // 구글 이벤트를 앱 내부 아이템과 비슷한 모양으로 변환 (읽기 전용 오버레이용)
-function toDisplayEvent(raw, calendar) {
+// 구글이 주는 htmlLink 에는 계정 정보가 없어서, 브라우저에 여러 구글 계정이 로그인돼 있으면
+// 기본 계정으로 열려 "일정을 찾을 수 없음"이 뜬다. 연동한 계정(기본 캘린더 id = 이메일)을 authuser 로 붙여준다.
+function withAccount(link, accountEmail) {
+  if (!link || !accountEmail) return link;
+  try {
+    const url = new URL(link);
+    url.searchParams.set('authuser', accountEmail);
+    return url.toString();
+  } catch {
+    return link;
+  }
+}
+
+function toDisplayEvent(raw, calendar, accountEmail) {
   const isAllDay = !!raw.start?.date;
   const startStr = raw.start?.date ?? raw.start?.dateTime;
   const endStr = raw.end?.date ?? raw.end?.dateTime;
@@ -44,7 +57,7 @@ function toDisplayEvent(raw, calendar) {
     endDate: endDate !== date ? endDate : '',
     endTime: isAllDay ? '' : (raw.end?.dateTime?.slice(11, 16) ?? ''),
     allDay: isAllDay,
-    htmlLink: raw.htmlLink,
+    htmlLink: withAccount(raw.htmlLink, accountEmail),
     calendarSummary: calendar.summary,
     calendarColor: calendar.backgroundColor,
   };
@@ -152,6 +165,7 @@ export function useGoogleCalendar(userId, rangeStart, rangeEnd) {
         if (listRes.status === 401) throw Object.assign(new Error('unauthorized'), { code: 401 });
         const listData = await listRes.json();
         const calendars = (listData.items ?? []).filter(c => c.selected !== false && !c.hidden);
+        const accountEmail = (listData.items ?? []).find(c => c.primary)?.id ?? null;
 
         const results = await Promise.all(calendars.map(async (cal) => {
           const url = new URL(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(cal.id)}/events`);
@@ -166,7 +180,7 @@ export function useGoogleCalendar(userId, rangeStart, rangeEnd) {
           const data = await res.json();
           return (data.items ?? [])
             .filter(ev => ev.status !== 'cancelled' && (ev.start?.date || ev.start?.dateTime))
-            .map(ev => toDisplayEvent(ev, cal));
+            .map(ev => toDisplayEvent(ev, cal, accountEmail));
         }));
 
         if (!cancelled) setEvents(results.flat());
