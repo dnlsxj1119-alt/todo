@@ -50,7 +50,10 @@ function spanEndOf(it) {
 
 // 여러 날에 걸친 항목(달력 전용). 🟢일정은 시작일~종료일, 할일은 계획일~마감일.
 // 예전엔 할일을 뺐는데, 그러면 계획일 칸과 마감일 칸에만 따로 찍혀 '기간'이 안 보였다.
+// 완료·취소한 항목은 막대로 안 그린다 — 막대는 줄을 맞추려고 늘 칸 맨 위에 와서,
+// 끝낸 할일이 안 끝낸 것보다 위에 보였다. 끝낸 건 보통 칩처럼 칸 뒤쪽으로 보낸다.
 function isSpanItem(it) {
+  if (it.completed || it.status === 'cancelled') return false;
   const end = spanEndOf(it);
   return !!it.date && !!end && end > it.date;
 }
@@ -344,15 +347,20 @@ export default function CalendarView({ currentMonth, setCurrentMonth, items = []
           const combined = mergeByTime(allItems, googleEvents);
           const today = isToday(date);
           const isExpanded = expanded[ds];
-          const totalCount = combined.length + deadlines.length;
+          // 칸 안 순서: 남은 마감 → 항목·구글 일정(끝낸 건 뒤로) → 끝낸 마감.
+          // 끝낸 것은 종류를 가리지 않고 전부 뒤쪽이어야 '+N개 더보기'에 안 끝낸 게 묻히지 않는다.
+          const rows = [
+            ...deadlines.filter(d => !d.done).map(d => ({ kind: 'deadline', data: d })),
+            ...combined,
+            ...deadlines.filter(d => d.done).map(d => ({ kind: 'deadline', data: d })),
+          ];
+          const totalCount = rows.length;
           // 막대는 항상 보여야 이어짐이 끊기지 않으므로, 나머지 칩이 쓸 자리에서 뺀다.
           // 단 카테고리 막대는 빼지 않는다 — 카테고리 두 개가 걸쳐 있으면 할일이 하나밖에 안 보였다.
           const itemLaneCount = laneRow.filter(slot => slot && !slot.item._project).length;
           const budget = Math.max(1, VISIBLE_MAX - itemLaneCount);
-          const visibleDeadlines = isExpanded ? deadlines : deadlines.slice(0, budget);
-          const combinedBudget = Math.max(0, budget - visibleDeadlines.length);
-          const visibleCombined = isExpanded ? combined : combined.slice(0, combinedBudget);
-          const hidden = totalCount - visibleCombined.length - visibleDeadlines.length;
+          const visibleRows = isExpanded ? rows : rows.slice(0, budget);
+          const hidden = totalCount - visibleRows.length;
           const dow = date.getDay();
 
           const isDragOver = dragOverDate === ds;
@@ -396,16 +404,15 @@ export default function CalendarView({ currentMonth, setCurrentMonth, items = []
                     />
                   : <div key={`lane-${i}`} className="chip chip--span chip--span-gap" aria-hidden="true">&nbsp;</div>
                 ))}
-                {visibleDeadlines.map(entry => (
-                  <DeadlineChip
-                    key={entry.key}
-                    entry={entry}
-                    onProjectClick={onProjectClick}
-                    onItemClick={onItemClick}
-                  />
-                ))}
-                {visibleCombined.map(entry => (
-                  entry.kind === 'google'
+                {visibleRows.map(entry => (
+                  entry.kind === 'deadline'
+                    ? <DeadlineChip
+                        key={entry.data.key}
+                        entry={entry.data}
+                        onProjectClick={onProjectClick}
+                        onItemClick={onItemClick}
+                      />
+                    : entry.kind === 'google'
                     ? <GoogleEventChip key={`${entry.data.id}-${ds}`} event={entry.data} onToggle={onToggleGoogleEvent} />
                     : <ItemChip
                         key={`${entry.data.id}-${ds}`}
