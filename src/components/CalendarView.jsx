@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { getMonthGrid, toDateString, isToday, formatMonthYear, DAY_NAMES } from '../utils/dateUtils';
 import { buildDeadlineMap } from '../utils/deadlines';
 import { buildProjectSpans, hasProjectSpan } from '../utils/projectSpans';
@@ -172,6 +172,20 @@ function mergeByTime(items, googleEvents) {
     .sort((a, b) => (a.done - b.done) || (b.prio - a.prio) || (a.time - b.time) || (a.index - b.index));
 }
 
+// 좁은 화면(App.css 의 달력 모바일 브레이크포인트와 같은 600px)인지. 회전·창 크기 변경에 따라간다.
+const MOBILE_QUERY = '(max-width: 600px)';
+function useIsMobile() {
+  const [mobile, setMobile] = useState(() => window.matchMedia?.(MOBILE_QUERY).matches ?? false);
+  useEffect(() => {
+    const mq = window.matchMedia?.(MOBILE_QUERY);
+    if (!mq) return undefined;
+    const onChange = (e) => setMobile(e.matches);
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
+  return mobile;
+}
+
 // 마감 칩의 종류별 표시/클릭 대상: 카테고리 🏁 · 태스크 📌 · 할일 📕(목록의 마감일 칩과 같은 기호)
 const DEADLINE_EMOJI = { task: '📌', item: '📕', project: '🏁' };
 
@@ -198,6 +212,7 @@ function DeadlineChip({ entry, onProjectClick, onItemClick }) {
 
 export default function CalendarView({ currentMonth, setCurrentMonth, items = [], getItemsForDate, onItemClick, onDayClick, onDateNumClick, reflectionDates, onToggle, filterType, projects = [], onProjectClick, getGoogleEventsForDate, onToggleGoogleEvent, onMoveItem }) {
   const [expanded, setExpanded] = useState({});
+  const isMobile = useIsMobile();
   const [notionUrl, setNotionUrl] = useState(() => readStored(NOTION_URL_KEY) ?? '');
   const [editingNotion, setEditingNotion] = useState(false);
   const saveNotion = (raw) => {
@@ -349,10 +364,12 @@ export default function CalendarView({ currentMonth, setCurrentMonth, items = []
           const isExpanded = expanded[ds];
           // 칸 안 순서: 남은 마감 → 항목·구글 일정(끝낸 건 뒤로) → 끝낸 마감.
           // 끝낸 것은 종류를 가리지 않고 전부 뒤쪽이어야 '+N개 더보기'에 안 끝낸 게 묻히지 않는다.
+          // 휴대폰에선 칸이 좁아 끝낸 칩까지 보이면 글자가 다 잘린다. 끝낸 건 숨기고 남은 것만 보여준다
+          // (PC 에선 그대로 보인다. 끝낸 항목은 목록 탭에서 확인·되돌릴 수 있다).
           const rows = [
             ...deadlines.filter(d => !d.done).map(d => ({ kind: 'deadline', data: d })),
-            ...combined,
-            ...deadlines.filter(d => d.done).map(d => ({ kind: 'deadline', data: d })),
+            ...combined.filter(entry => !(isMobile && entry.done)),
+            ...(isMobile ? [] : deadlines.filter(d => d.done).map(d => ({ kind: 'deadline', data: d }))),
           ];
           const totalCount = rows.length;
           // 막대는 항상 보여야 이어짐이 끊기지 않으므로, 나머지 칩이 쓸 자리에서 뺀다.
