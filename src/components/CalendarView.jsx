@@ -364,8 +364,10 @@ export default function CalendarView({ currentMonth, setCurrentMonth, items = []
           const isExpanded = expanded[ds];
           // 칸 안 순서: 남은 마감 → 항목·구글 일정(끝낸 건 뒤로) → 끝낸 마감.
           // 끝낸 것은 종류를 가리지 않고 전부 뒤쪽이어야 '+N개 더보기'에 안 끝낸 게 묻히지 않는다.
-          // 휴대폰에선 칸이 좁아 끝낸 칩까지 보이면 글자가 다 잘린다. 접힌 상태에선 끝낸 건 숨기고
-          // '✓N' 로 개수만 보여 주며, 누르면(펼치면) 끝낸 칩도 나온다. PC 에선 그대로 보인다.
+          // 휴대폰의 **오늘** 칸은 끝낸 칩까지 보이면 남은 할 일 글자가 다 잘린다. 접힌 상태에선 끝낸 건
+          // 숨기고 '✓N' 로 개수만 보여 주며, 누르면(펼치면) 끝낸 칩도 나온다.
+          // 다른 날과 PC 는 그대로 보인다 (지난 날은 '뭘 했는지'가 보여야 해서 사용자가 오늘만 원했다).
+          const foldDone = isMobile && today;
           const openRows = [
             ...deadlines.filter(d => !d.done).map(d => ({ kind: 'deadline', data: d })),
             ...combined.filter(entry => !entry.done),
@@ -374,7 +376,7 @@ export default function CalendarView({ currentMonth, setCurrentMonth, items = []
             ...combined.filter(entry => entry.done),
             ...deadlines.filter(d => d.done).map(d => ({ kind: 'deadline', data: d })),
           ];
-          const rows = isMobile ? openRows : [...openRows, ...doneRows];
+          const rows = foldDone ? openRows : [...openRows, ...doneRows];
           const totalCount = rows.length;
           // 막대는 항상 보여야 이어짐이 끊기지 않으므로, 나머지 칩이 쓸 자리에서 뺀다.
           // 단 카테고리 막대는 빼지 않는다 — 카테고리 두 개가 걸쳐 있으면 할일이 하나밖에 안 보였다.
@@ -382,7 +384,7 @@ export default function CalendarView({ currentMonth, setCurrentMonth, items = []
           const budget = Math.max(1, VISIBLE_MAX - itemLaneCount);
           const visibleRows = isExpanded ? [...openRows, ...doneRows] : rows.slice(0, budget);
           const hidden = isExpanded ? 0 : totalCount - visibleRows.length;
-          const mobileDone = isMobile ? doneRows.length : 0;
+          const mobileDone = foldDone ? doneRows.length : 0;
           const canCollapse = totalCount > VISIBLE_MAX || mobileDone > 0;
           const dow = date.getDay();
 
