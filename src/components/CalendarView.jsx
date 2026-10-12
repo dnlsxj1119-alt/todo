@@ -364,20 +364,26 @@ export default function CalendarView({ currentMonth, setCurrentMonth, items = []
           const isExpanded = expanded[ds];
           // 칸 안 순서: 남은 마감 → 항목·구글 일정(끝낸 건 뒤로) → 끝낸 마감.
           // 끝낸 것은 종류를 가리지 않고 전부 뒤쪽이어야 '+N개 더보기'에 안 끝낸 게 묻히지 않는다.
-          // 휴대폰에선 칸이 좁아 끝낸 칩까지 보이면 글자가 다 잘린다. 끝낸 건 숨기고 남은 것만 보여준다
-          // (PC 에선 그대로 보인다. 끝낸 항목은 목록 탭에서 확인·되돌릴 수 있다).
-          const rows = [
+          // 휴대폰에선 칸이 좁아 끝낸 칩까지 보이면 글자가 다 잘린다. 접힌 상태에선 끝낸 건 숨기고
+          // '✓N' 로 개수만 보여 주며, 누르면(펼치면) 끝낸 칩도 나온다. PC 에선 그대로 보인다.
+          const openRows = [
             ...deadlines.filter(d => !d.done).map(d => ({ kind: 'deadline', data: d })),
-            ...combined.filter(entry => !(isMobile && entry.done)),
-            ...(isMobile ? [] : deadlines.filter(d => d.done).map(d => ({ kind: 'deadline', data: d }))),
+            ...combined.filter(entry => !entry.done),
           ];
+          const doneRows = [
+            ...combined.filter(entry => entry.done),
+            ...deadlines.filter(d => d.done).map(d => ({ kind: 'deadline', data: d })),
+          ];
+          const rows = isMobile ? openRows : [...openRows, ...doneRows];
           const totalCount = rows.length;
           // 막대는 항상 보여야 이어짐이 끊기지 않으므로, 나머지 칩이 쓸 자리에서 뺀다.
           // 단 카테고리 막대는 빼지 않는다 — 카테고리 두 개가 걸쳐 있으면 할일이 하나밖에 안 보였다.
           const itemLaneCount = laneRow.filter(slot => slot && !slot.item._project).length;
           const budget = Math.max(1, VISIBLE_MAX - itemLaneCount);
-          const visibleRows = isExpanded ? rows : rows.slice(0, budget);
-          const hidden = totalCount - visibleRows.length;
+          const visibleRows = isExpanded ? [...openRows, ...doneRows] : rows.slice(0, budget);
+          const hidden = isExpanded ? 0 : totalCount - visibleRows.length;
+          const mobileDone = isMobile ? doneRows.length : 0;
+          const canCollapse = totalCount > VISIBLE_MAX || mobileDone > 0;
           const dow = date.getDay();
 
           const isDragOver = dragOverDate === ds;
@@ -439,15 +445,18 @@ export default function CalendarView({ currentMonth, setCurrentMonth, items = []
                         onDragStart={onMoveItem ? (it) => setDragInfo({ id: it.id, from: ds }) : undefined}
                       />
                 ))}
-                {!isExpanded && hidden > 0 && (
+                {!isExpanded && (hidden > 0 || mobileDone > 0) && (
                   <button
                     className="show-more-btn"
                     onClick={(e) => { e.stopPropagation(); toggleExpand(ds); }}
+                    aria-label={hidden > 0 ? `${hidden}개 더보기` : `완료 ${mobileDone}개 보기`}
                   >
-                    +{hidden}개 더보기
+                    {hidden > 0 ? `+${hidden}개 더보기` : ''}
+                    {hidden > 0 && mobileDone > 0 ? ' · ' : ''}
+                    {mobileDone > 0 ? `✓${mobileDone}` : ''}
                   </button>
                 )}
-                {isExpanded && totalCount > VISIBLE_MAX && (
+                {isExpanded && canCollapse && (
                   <button
                     className="show-more-btn"
                     onClick={(e) => { e.stopPropagation(); toggleExpand(ds); }}
