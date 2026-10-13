@@ -1374,6 +1374,7 @@ input, textarea, select { font-family: inherit; }
     font-size: 10px;
     margin-bottom: 2px;
   }
+  .cal-habit-pct { font-size: 8px; margin-bottom: 2px; }
   .chip-stack {
     flex: 1;
     min-height: 0;
@@ -1556,6 +1557,19 @@ input, textarea, select { font-family: inherit; }
 }
 .habit-chip:hover { opacity: 0.82; }
 .habit-chip--agenda.habit-chip--done { text-decoration: line-through; }
+
+/* 목록 탭 '오늘' 그룹 맨 위 습관 줄 */
+.lv-habits { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0 0 8px; padding: 0 2px; }
+.lv-habit { font-size: 12px; padding: 4px 11px; border-radius: 14px; margin: 0; font-family: inherit; }
+.lv-habit-streak { font-size: 10.5px; font-weight: 700; margin-left: 4px; opacity: 0.9; }
+.lv-habits-ct { font-size: 10.5px; font-weight: 600; color: var(--text-muted); margin-left: 2px; }
+
+/* 월간 달력 — 날짜 옆 습관 달성률 (칸이 세로 flex 라 날짜와 한 줄에 두려면 감싸는 줄이 필요하다) */
+.cal-cell-head { display: flex; align-items: center; gap: 3px; flex-shrink: 0; }
+.cal-habit-pct { font-size: 9.5px; font-weight: 700; color: var(--text-muted); line-height: 1;
+  font-variant-numeric: tabular-nums; margin-bottom: 3px; }
+.cal-habit-pct--full { color: #3B6D11; }
+.cal-habit-pct--zero { color: #E5534B; opacity: 0.8; }
 
 /* ===================== Habit Tracker View ===================== */
 .habit-view {

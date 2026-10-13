@@ -2,6 +2,7 @@ import { useMemo, useState, useRef, useEffect, useLayoutEffect } from 'react';
 import { toDateString, addDays, DAY_NAMES } from '../utils/dateUtils';
 import { getProjectType, CATEGORY_PALETTE } from '../utils/projectTypes';
 import { buildCategoryIndex, suggestCategory } from '../utils/autoCategory';
+import { habitAppliesToDate, habitStreak, habitRecentStats } from '../utils/habitStats';
 
 function catColor(p) {
   return p.color || getProjectType(p.type).border;
@@ -638,7 +639,7 @@ function doneProjectRows(projects) {
 // doneCatIds: '완료 처리'한 카테고리들. 이 카테고리 항목은 아카이브라 **앞으로의 계획**
 // (일정·날짜 그룹)에서는 빼지만, **최근 3일 안에 끝낸 것은 프로젝트를 완료했든 아니든 싣는다**
 // — 프로젝트를 끝냈다고 그 안에서 오늘 한 일까지 통째로 사라지면 '뭘 했는지'가 안 남는다.
-function buildSummaryText(rows, items, categories, dayKeys, doneCatIds, allProjects) {
+function buildSummaryText(rows, items, categories, dayKeys, doneCatIds, allProjects, habits = []) {
   const { today } = dayKeys;
   const archivedCat = new Set(doneCatIds ?? []);
   const rowInDoneCat = (r) => !!(r.cat && archivedCat.has(r.cat.id));
@@ -680,6 +681,19 @@ function buildSummaryText(rows, items, categories, dayKeys, doneCatIds, allProje
     lines.push('\n[🏁 카테고리 마감]');
     lines.push(...catDeadlineLines);
   }
+  // 습관: 오늘 해당하는 것만 체크 여부 + 🔥연속 + 최근 7일 — 보관한 습관은 habits 에 없다.
+  // 한때 일부러 뺐는데, 습관을 기르려면 현황을 넘길 때 같이 보여야 피드백을 받는다.
+  const todayHabits = habits.filter(h => habitAppliesToDate(h, today));
+  if (todayHabits.length) {
+    const doneCount = todayHabits.filter(h => (h.completedDates ?? []).includes(today)).length;
+    lines.push(`\n[🔁 습관] (오늘 ${doneCount}/${todayHabits.length})`);
+    todayHabits.forEach(h => {
+      const done = (h.completedDates ?? []).includes(today);
+      const streak = habitStreak(h, today);
+      const recent = habitRecentStats(h, today, 7);
+      lines.push(`  - [${done ? '✓' : ' '}] ${h.title}${streak > 0 ? ` 🔥${streak}일 연속` : ''} · 최근 7일 ${recent.done}/${recent.total}`);
+    });
+  }
   Object.entries(grouped).forEach(([key, list]) => {
     if (!list.length && key !== 'today') return;
     lines.push(`\n[${LABEL[key]}] (${list.length}개)`);
@@ -718,6 +732,7 @@ export default function ListView({
   onAddItem, onUpdateItem, onDeleteItem,
   onEditProject, onSaveProject,
   onAddCategory, onCompleteCategory, onUncompleteCategory, onDeleteCategory, onReorderCategories,
+  habits = [], onToggleHabit,
 }) {
   const dayKeys = useDayKeys();
   const [copied, setCopied] = useState(false);
@@ -747,6 +762,7 @@ export default function ListView({
   const rows = useMemo(() => buildRows(items, projects), [items, projects]);
 
   const activeCats = projects.filter(p => !catDone(p));
+  const todayHabits = useMemo(() => habits.filter(h => habitAppliesToDate(h, TODAY)), [habits, TODAY]);
   // 카테고리 자동 추천: 이미 카테고리가 붙은 항목들의 제목에서 배운다 (utils/autoCategory.js)
   const catIndex = useMemo(() => buildCategoryIndex(rows), [rows]);
   const suggestable = activeCats.map(catOf);
@@ -762,7 +778,7 @@ export default function ListView({
   const copySummary = () => {
     // 전체를 넘기고, 완료 처리한 카테고리를 어디서 뺄지는 buildSummaryText 가 판단한다
     // (계획 섹션에서만 빼고 '최근 완료'에는 남긴다)
-    const text = buildSummaryText(rows, items, activeCats, dayKeys, doneCatIds, projects);
+    const text = buildSummaryText(rows, items, activeCats, dayKeys, doneCatIds, projects, habits);
     // 클립보드는 보안 컨텍스트(https/localhost)와 권한이 필요해서 실패할 수 있다.
     // 조용히 넘어가면 눌러도 아무 일도 없는 것처럼 보이므로 알려준다.
     navigator.clipboard?.writeText(text)
@@ -1371,6 +1387,33 @@ export default function ListView({
                     </>
                   )}
                 </div>
+                {/* 오늘의 습관 — 할일을 체크하러 온 김에 같이 체크하게 '오늘' 맨 위에. 습관 탭은 기록 보는 곳으로.
+                    🔥는 연속 일수(오늘 아직 안 했으면 어제까지). 해당 습관이 없는 날은 줄 자체가 없다. */}
+                {g.key === 'today' && todayHabits.length > 0 && (
+                  <div className="lv-habits" role="group" aria-label="오늘의 습관">
+                    {todayHabits.map(h => {
+                      const done = (h.completedDates ?? []).includes(TODAY);
+                      const streak = habitStreak(h, TODAY);
+                      return (
+                        <button
+                          key={`habit-${h.id}`}
+                          type="button"
+                          className={`habit-chip lv-habit ${done ? 'habit-chip--done' : ''}`}
+                          style={done
+                            ? { background: h.color, borderColor: h.color, color: '#fff' }
+                            : { borderColor: h.color, color: h.color, background: h.color + '14' }}
+                          aria-pressed={done}
+                          title={done ? '오늘 했음 — 누르면 취소' : '누르면 오늘 한 것으로 표시'}
+                          onClick={() => onToggleHabit?.(h.id, TODAY)}
+                        >
+                          {done ? '✓' : '○'} {h.title}
+                          {streak > 0 && <span className="lv-habit-streak">🔥{streak}</span>}
+                        </button>
+                      );
+                    })}
+                    <span className="lv-habits-ct">{todayHabits.filter(h => (h.completedDates ?? []).includes(TODAY)).length}/{todayHabits.length}</span>
+                  </div>
+                )}
                 {list.map(r => renderRow(r))}
                 {list.length === 0 && g.key !== 'unplanned' && <div className="lv-empty">비어 있음</div>}
                 {g.add && (

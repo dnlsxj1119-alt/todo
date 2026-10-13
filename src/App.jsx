@@ -422,6 +422,7 @@ export default function App() {
             getGoogleEventsForDate={getGoogleEventsForDate}
             onToggleGoogleEvent={toggleGoogleEventDone}
             onMoveItem={moveItemTo}
+            habits={habits}
           />
         ) : activeTab === 'week' ? (
           <WeeklyView
@@ -464,6 +465,8 @@ export default function App() {
             onUncompleteCategory={uncompleteProject}
             onDeleteCategory={deleteProject}
             onReorderCategories={reorderProjects}
+            habits={habits}
+            onToggleHabit={toggleHabitDate}
           />
         ) : activeTab === 'habits' ? (
           <HabitTracker

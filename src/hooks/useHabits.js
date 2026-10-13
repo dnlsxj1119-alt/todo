@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
+import { toDateString } from '../utils/dateUtils';
 
 function toLocal(row) {
   return {
@@ -10,17 +11,13 @@ function toLocal(row) {
     completedDates: row.completed_dates ?? [],
     sortOrder: row.sort_order ?? 0,
     archived: row.archived ?? false,
+    // 만든 날(로컬 날짜). 달력 달성률에서 '습관이 생기기 전 날'을 0% 로 찍지 않으려고 쓴다
+    createdAt: row.created_at ? toDateString(new Date(row.created_at)) : null,
   };
 }
 
-export function habitAppliesToDate(habit, dateStr) {
-  const [y, m, d] = dateStr.split('-').map(Number);
-  const dow = new Date(y, m - 1, d).getDay();
-  if (habit.frequency === 'daily') return true;
-  if (habit.frequency === 'weekday') return dow >= 1 && dow <= 5;
-  if (habit.frequency === 'weekend') return dow === 0 || dow === 6;
-  return false;
-}
+// 빈도 판정은 utils/habitStats.js 로 옮겼다 (집계와 같이 두고 node 로 검증하려고). 경로 호환용 re-export.
+export { habitAppliesToDate } from '../utils/habitStats';
 
 export function useHabits(userId) {
   const [allHabits, setHabits] = useState([]);

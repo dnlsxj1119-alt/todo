@@ -3,6 +3,7 @@ import { getMonthGrid, toDateString, isToday, formatMonthYear, DAY_NAMES } from 
 import { buildDeadlineMap } from '../utils/deadlines';
 import { buildProjectSpans, hasProjectSpan } from '../utils/projectSpans';
 import { readStored, writeStored, removeStored } from '../utils/safeStorage';
+import { habitDayStats } from '../utils/habitStats';
 
 const TYPE_COLOR = {
   todo:      'chip--purple',
@@ -210,9 +211,10 @@ function DeadlineChip({ entry, onProjectClick, onItemClick }) {
   );
 }
 
-export default function CalendarView({ currentMonth, setCurrentMonth, items = [], getItemsForDate, onItemClick, onDayClick, onDateNumClick, reflectionDates, onToggle, filterType, projects = [], onProjectClick, getGoogleEventsForDate, onToggleGoogleEvent, onMoveItem }) {
+export default function CalendarView({ currentMonth, setCurrentMonth, items = [], getItemsForDate, onItemClick, onDayClick, onDateNumClick, reflectionDates, onToggle, filterType, projects = [], onProjectClick, getGoogleEventsForDate, onToggleGoogleEvent, onMoveItem, habits = [] }) {
   const [expanded, setExpanded] = useState({});
   const isMobile = useIsMobile();
+  const todayStr = toDateString(new Date());
   const [notionUrl, setNotionUrl] = useState(() => readStored(NOTION_URL_KEY) ?? '');
   const [editingNotion, setEditingNotion] = useState(false);
   const saveNotion = (raw) => {
@@ -388,6 +390,11 @@ export default function CalendarView({ currentMonth, setCurrentMonth, items = []
           const canCollapse = totalCount > VISIBLE_MAX || mobileDone > 0;
           const dow = date.getDay();
 
+          // 습관 달성률 — 지난 날과 오늘만 (앞날은 잴 게 없다). 해당 습관이 없는 날도 비운다.
+          // 달력을 볼 때마다 한 달 흐름이 보이게 날짜 옆에 작게. 100% 는 초록, 0% 는 붉게.
+          const habitStat = (ds <= todayStr) ? habitDayStats(habits, ds) : null;
+          const habitPct = habitStat && habitStat.total > 0 ? Math.round(habitStat.done / habitStat.total * 100) : null;
+
           const isDragOver = dragOverDate === ds;
 
           return (
@@ -411,13 +418,23 @@ export default function CalendarView({ currentMonth, setCurrentMonth, items = []
                 if (rawId && from !== ds) onMoveItem(rawId, ds);
               } : undefined}
             >
-              <span
-                className={`cal-date-num ${today ? 'today-num' : ''} ${reflectionDates?.has(ds) ? 'cal-date-num--has-reflection' : ''}`}
-                onClick={(e) => { e.stopPropagation(); onDateNumClick?.(ds); }}
-                title="오늘의 회고 보기/작성"
-              >
-                {date.getDate()}
-              </span>
+              <div className="cal-cell-head">
+                <span
+                  className={`cal-date-num ${today ? 'today-num' : ''} ${reflectionDates?.has(ds) ? 'cal-date-num--has-reflection' : ''}`}
+                  onClick={(e) => { e.stopPropagation(); onDateNumClick?.(ds); }}
+                  title="오늘의 회고 보기/작성"
+                >
+                  {date.getDate()}
+                </span>
+                {habitPct != null && (
+                  <span
+                    className={`cal-habit-pct ${habitPct === 100 ? 'cal-habit-pct--full' : habitPct === 0 ? 'cal-habit-pct--zero' : ''}`}
+                    title={`습관 ${habitStat.done}/${habitStat.total}`}
+                  >
+                    {habitPct}%
+                  </span>
+                )}
+              </div>
               <div className="chip-stack">
                 {laneRow.map((slot, i) => (slot
                   ? <SpanChip
