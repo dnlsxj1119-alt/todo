@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { toDateString, getMonthKey } from '../utils/dateUtils';
 import { getProjectType } from '../utils/projectTypes';
-import { habitAppliesToDate } from '../hooks/useHabits';
+import { habitAppliesToDate, isWeeklyHabit } from '../utils/habitStats';
 
 // '목표' 탭 — 왼쪽은 이번 달, 오른쪽은 언젠가 꼭.
 // 핵심: 진행 숫자를 손으로 세지 않는다. 연결한 프로젝트(카테고리)의 태스크,
@@ -103,9 +103,14 @@ function computeProgress(goal, projects, habits, items, monthKey) {
         total = 0;
         const [y, m] = monthKey.split('-').map(Number);
         const end = new Date(y, m, 0).getDate();
-        for (let d = 1; d <= end; d++) {
-          const ds = `${monthKey}-${String(d).padStart(2, '0')}`;
-          if (habitAppliesToDate(h, ds)) total += 1;
+        if (isWeeklyHabit(h)) {
+          // 주 N회는 날마다 해당되므로 날 수가 아니라 '주 수 × N' 이 분모
+          total = Math.ceil(end / 7) * Math.max(1, Number(h.weeklyTarget) || 1);
+        } else {
+          for (let d = 1; d <= end; d++) {
+            const ds = `${monthKey}-${String(d).padStart(2, '0')}`;
+            if (habitAppliesToDate(h, ds)) total += 1;
+          }
         }
       }
       return {

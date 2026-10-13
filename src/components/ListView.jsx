@@ -2,7 +2,7 @@ import { useMemo, useState, useRef, useEffect, useLayoutEffect } from 'react';
 import { toDateString, addDays, DAY_NAMES } from '../utils/dateUtils';
 import { getProjectType, CATEGORY_PALETTE } from '../utils/projectTypes';
 import { buildCategoryIndex, suggestCategory } from '../utils/autoCategory';
-import { habitAppliesToDate, habitStreak, habitRecentStats } from '../utils/habitStats';
+import { habitAppliesToDate, habitStreak, habitRecentStats, habitChipLabel, habitStreakLabel, isWeeklyHabit, habitWeekStats, habitWeekStreak } from '../utils/habitStats';
 
 function catColor(p) {
   return p.color || getProjectType(p.type).border;
@@ -689,6 +689,13 @@ function buildSummaryText(rows, items, categories, dayKeys, doneCatIds, allProje
     lines.push(`\n[🔁 습관] (오늘 ${doneCount}/${todayHabits.length})`);
     todayHabits.forEach(h => {
       const done = (h.completedDates ?? []).includes(today);
+      if (isWeeklyHabit(h)) {
+        // 주 N회(요일 자유): 날짜별 체크 대신 이번 주 진행과 주 단위 연속
+        const { done: wd, target } = habitWeekStats(h, today);
+        const ws = habitWeekStreak(h, today);
+        lines.push(`  - [${done ? '✓' : ' '}] ${h.title} (주 ${target}회) 이번 주 ${wd}/${target}${ws > 0 ? ` 🔥${ws}주 연속` : ''}`);
+        return;
+      }
       const streak = habitStreak(h, today);
       const recent = habitRecentStats(h, today, 7);
       lines.push(`  - [${done ? '✓' : ' '}] ${h.title}${streak > 0 ? ` 🔥${streak}일 연속` : ''} · 최근 7일 ${recent.done}/${recent.total}`);
@@ -1393,7 +1400,7 @@ export default function ListView({
                   <div className="lv-habits" role="group" aria-label="오늘의 습관">
                     {todayHabits.map(h => {
                       const done = (h.completedDates ?? []).includes(TODAY);
-                      const streak = habitStreak(h, TODAY);
+                      const streak = habitStreakLabel(h, TODAY); // 매일류 '5', 주 N회 '2주'
                       return (
                         <button
                           key={`habit-${h.id}`}
@@ -1406,8 +1413,8 @@ export default function ListView({
                           title={done ? '오늘 했음 — 누르면 취소' : '누르면 오늘 한 것으로 표시'}
                           onClick={() => onToggleHabit?.(h.id, TODAY)}
                         >
-                          {done ? '✓' : '○'} {h.title}
-                          {streak > 0 && <span className="lv-habit-streak">🔥{streak}</span>}
+                          {done ? '✓' : '○'} {habitChipLabel(h, TODAY)}
+                          {streak && <span className="lv-habit-streak">🔥{streak}</span>}
                         </button>
                       );
                     })}

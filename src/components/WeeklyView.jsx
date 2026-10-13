@@ -5,7 +5,7 @@ import {
   getTimeSlotFromTime, getEndTimeSlot, getSpanCount, getCardStyle, getEndDayCardStyle,
   SLOT_HEIGHTS, timeToSlotPx,
 } from '../utils/dateUtils';
-import { habitAppliesToDate } from '../hooks/useHabits';
+import { habitAppliesToDate, habitChipLabel } from '../utils/habitStats';
 import { isWeekBar, isSpanTodo, weekBarEnd } from '../hooks/useItems';
 import { SpanChip } from './CalendarView';
 import { buildDeadlineMap } from '../utils/deadlines';
@@ -592,7 +592,7 @@ export default function WeeklyView({
               : { borderColor: habit.color, color: habit.color, background: habit.color + '14' }
             }
             onClick={(e) => { e.stopPropagation(); onToggleHabit?.(habit.id, ds); }}>
-            {done ? '✓' : '○'} {habit.title}
+            {done ? '✓' : '○'} {habitChipLabel(habit, ds)}
           </div>
         );
       })}
@@ -807,7 +807,7 @@ export default function WeeklyView({
                               }
                               onClick={(e) => { e.stopPropagation(); onToggleHabit?.(habit.id, ds); }}
                             >
-                              {done ? '✓' : '○'} {habit.title}
+                              {done ? '✓' : '○'} {habitChipLabel(habit, ds)}
                             </div>
                           );
                         })}

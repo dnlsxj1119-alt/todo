@@ -1,8 +1,23 @@
 import { useState, useRef, useEffect } from 'react';
-import { getWeekDays, toDateString, isToday, formatWeekRange, getWeekStart, DAY_NAMES_WEEK } from '../utils/dateUtils';
-import { habitAppliesToDate } from '../hooks/useHabits';
+import { getWeekDays, toDateString, isToday, formatWeekRange, getWeekStart, DAY_NAMES_WEEK, addDays } from '../utils/dateUtils';
+import { habitAppliesToDate, isHabitPausedOn, isWeeklyHabit, habitWeekStats } from '../utils/habitStats';
 
-const FREQ_LABELS = { daily: '매일', weekday: '평일', weekend: '주말' };
+const FREQ_LABELS = { daily: '매일', weekday: '평일', weekend: '주말', weekly: '주 N회' };
+// 배지용: 주 N회는 실제 횟수로 ('주 3회')
+function freqLabel(habit) {
+  if (isWeeklyHabit(habit)) return `주 ${Math.max(1, Number(habit.weeklyTarget) || 1)}회`;
+  return FREQ_LABELS[habit.frequency] ?? habit.frequency;
+}
+function mdLabel(ds) {
+  const [, m, d] = ds.split('-');
+  return `${Number(m)}/${Number(d)}`;
+}
+// 잠깐 쉬기 — 기간 보기. 오늘부터 세서 '1주' 는 오늘 포함 7일.
+const PAUSE_PRESETS = [
+  { label: '1주', days: 7 },
+  { label: '2주', days: 14 },
+  { label: '한 달', days: 30 },
+];
 
 // 다른 모달들과 동작을 맞춘다 (습관/보관함 모달은 Escape 로 닫히지 않았다)
 function useEscapeClose(onClose) {
@@ -16,16 +31,20 @@ function useEscapeClose(onClose) {
 }
 const PRESET_COLORS = ['#6366F1', '#EC4899', '#10B981', '#F59E0B', '#3B82F6', '#EF4444', '#8B5CF6', '#14B8A6'];
 
-function HabitModal({ habit, onSave, onDelete, onArchive, onClose }) {
+function HabitModal({ habit, onSave, onDelete, onArchive, onPause, onResume, onClose }) {
   const isEdit = !!habit;
   const [form, setForm] = useState({
     title: habit?.title ?? '',
     frequency: habit?.frequency ?? 'daily',
     color: habit?.color ?? PRESET_COLORS[0],
+    weeklyTarget: habit?.weeklyTarget ?? 3,
   });
+  const [pauseDate, setPauseDate] = useState('');
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
   const titleRef = useRef(null);
   useEscapeClose(onClose);
+  const today = toDateString(new Date());
+  const pausedNow = isEdit && isHabitPausedOn(habit, today);
 
   // 공백만 입력했을 때 조용히 무시되지 않도록 안내 + 이름은 앞뒤 공백 제거해 저장
   const submit = (e) => {
@@ -56,7 +75,7 @@ function HabitModal({ habit, onSave, onDelete, onArchive, onClose }) {
           <div className="field-group">
             <label className="field-label">반복</label>
             <div style={{ display: 'flex', gap: 8 }}>
-              {['daily', 'weekday', 'weekend'].map(f => (
+              {['daily', 'weekday', 'weekend', 'weekly'].map(f => (
                 <button key={f} type="button"
                   style={{
                     flex: 1, padding: '8px 0', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer',
@@ -69,6 +88,19 @@ function HabitModal({ habit, onSave, onDelete, onArchive, onClose }) {
                 </button>
               ))}
             </div>
+            {form.frequency === 'weekly' && (
+              <div className="habit-weekly-target">
+                <label htmlFor="habit-weekly-target">일주일에</label>
+                <input
+                  id="habit-weekly-target"
+                  className="field-input"
+                  type="number" min={1} max={7} step={1}
+                  value={form.weeklyTarget}
+                  onChange={e => set('weeklyTarget', Math.min(7, Math.max(1, Number(e.target.value) || 1)))}
+                />
+                <span>번 — 요일은 자유, 월~일 안에 채우면 됩니다</span>
+              </div>
+            )}
           </div>
 
           <div className="field-group">
@@ -85,6 +117,35 @@ function HabitModal({ habit, onSave, onDelete, onArchive, onClose }) {
               ))}
             </div>
           </div>
+
+          {/* 잠깐 쉬기 — 보관과 달리 기간이 끝나면 저절로 돌아오고, 쉬는 날은 🔥연속이 끊기지 않는다.
+              '글쓰기 한 달만 쉬기' 같은 용도. 시작은 항상 오늘. */}
+          {isEdit && (
+            <div className="field-group habit-pause">
+              <label className="field-label">잠깐 쉬기</label>
+              {pausedNow ? (
+                <div className="habit-pause-now">
+                  <span>💤 {mdLabel(habit.pausedUntil)}까지 쉬는 중 — 그동안 목록·달력에서 빠지고 연속도 안 끊깁니다.</span>
+                  <button type="button" className="btn btn--ghost" onClick={() => onResume(habit.id)}>다시 시작</button>
+                </div>
+              ) : (
+                <div className="habit-pause-pick">
+                  {PAUSE_PRESETS.map(p => (
+                    <button key={p.label} type="button" className="btn btn--ghost"
+                      onClick={() => onPause(habit.id, addDays(today, p.days - 1))}>
+                      {p.label}
+                    </button>
+                  ))}
+                  <input className="field-input" type="date" min={today} value={pauseDate}
+                    onChange={e => setPauseDate(e.target.value)} aria-label="쉬기 끝나는 날" />
+                  <button type="button" className="btn btn--ghost" disabled={!pauseDate || pauseDate < today}
+                    onClick={() => onPause(habit.id, pauseDate)}>
+                    그날까지
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="modal-actions">
             {isEdit && (
@@ -126,7 +187,7 @@ function ArchiveModal({ habits, onRestore, onClose }) {
               <span className="habit-dot" style={{ background: habit.color }} />
               <span style={{ flex: 1, fontSize: 14, fontWeight: 500, color: 'var(--text-secondary)' }}>{habit.title}</span>
               <span className="habit-freq-badge" style={{ color: habit.color, background: habit.color + '22' }}>
-                {FREQ_LABELS[habit.frequency]}
+                {freqLabel(habit)}
               </span>
               <button type="button" className="btn btn--ghost" style={{ padding: '4px 10px', fontSize: 12 }}
                 onClick={() => onRestore(habit.id)}>복원</button>
@@ -138,7 +199,7 @@ function ArchiveModal({ habits, onRestore, onClose }) {
   );
 }
 
-export default function HabitTracker({ habits, archivedHabits = [], onAdd, onUpdate, onDelete, onToggle, onReorder, onArchive, onRestore }) {
+export default function HabitTracker({ habits, archivedHabits = [], onAdd, onUpdate, onDelete, onToggle, onReorder, onArchive, onRestore, onPause, onResume }) {
   const [showModal, setShowModal] = useState(false);
   const [showArchive, setShowArchive] = useState(false);
   const [editHabit, setEditHabit] = useState(null);
@@ -222,15 +283,20 @@ export default function HabitTracker({ habits, archivedHabits = [], onAdd, onUpd
 
           {/* Habit rows */}
           {habits.map(habit => {
-            const weekApply = days.filter(day => habitAppliesToDate(habit, toDateString(day))).length;
+            const weekly = isWeeklyHabit(habit);
+            // 주 N회는 분모가 '해당 날 수'가 아니라 목표 횟수
+            const weekApply = weekly
+              ? habitWeekStats(habit, toDateString(days[0])).target
+              : days.filter(day => habitAppliesToDate(habit, toDateString(day))).length;
             const weekDone = days.filter(day => {
               const ds = toDateString(day);
               return habitAppliesToDate(habit, ds) && habit.completedDates.includes(ds);
             }).length;
+            const pausedNow = isHabitPausedOn(habit, toDateString(new Date()));
 
             return (
               <div key={habit.id}
-                className="habit-row"
+                className={`habit-row ${pausedNow ? 'habit-row--paused' : ''}`}
                 draggable
                 onDragStart={() => handleDragStart(habit.id)}
                 onDragOver={(e) => handleDragOver(e, habit.id)}
@@ -249,7 +315,7 @@ export default function HabitTracker({ habits, archivedHabits = [], onAdd, onUpd
                   <div className="habit-name-info">
                     <span className="habit-name-text">{habit.title}</span>
                     <span className="habit-freq-badge" style={{ color: habit.color, background: habit.color + '22' }}>
-                      {FREQ_LABELS[habit.frequency]}
+                      {freqLabel(habit)}{pausedNow ? ` · 💤 ${mdLabel(habit.pausedUntil)}까지 쉼` : ''}
                     </span>
                   </div>
                   <span className="habit-week-count" style={{ color: habit.color }}>{weekDone}/{weekApply}</span>
@@ -283,12 +349,22 @@ export default function HabitTracker({ habits, archivedHabits = [], onAdd, onUpd
             {/* Header: habit columns */}
             <div className="habit-row habit-row--header">
               <div className="habit-name-col habit-name-col--day" />
-              {habits.map(habit => (
-                <div key={habit.id} className="habit-day-col habit-day-col--header">
-                  <span className="habit-dot" style={{ background: habit.color }} />
-                  <span className="habit-col-title">{habit.title}</span>
-                </div>
-              ))}
+              {habits.map(habit => {
+                const pausedNow = isHabitPausedOn(habit, toDateString(new Date()));
+                return (
+                  // 휴대폰 표는 전치돼 있어 습관이 열 머리글이다. 여기서도 눌러서 수정·쉬기를 열 수 있어야 한다
+                  // (PC 는 이름 칸을 누르지만, 휴대폰엔 그 칸이 없었다).
+                  <div key={habit.id} className="habit-day-col habit-day-col--header habit-col-head--btn"
+                    role="button" tabIndex={0}
+                    onClick={() => { setEditHabit(habit); setShowModal(true); }}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setEditHabit(habit); setShowModal(true); } }}
+                    title={pausedNow ? `${mdLabel(habit.pausedUntil)}까지 쉬는 중 — 누르면 수정` : '누르면 수정'}
+                  >
+                    <span className="habit-dot" style={{ background: habit.color }} />
+                    <span className="habit-col-title">{pausedNow ? '💤 ' : ''}{habit.title}</span>
+                  </div>
+                );
+              })}
             </div>
 
             {/* Day rows */}
@@ -329,6 +405,8 @@ export default function HabitTracker({ habits, archivedHabits = [], onAdd, onUpd
           onSave={handleSave}
           onDelete={(id) => { onDelete(id); setShowModal(false); }}
           onArchive={(id) => { onArchive(id); setShowModal(false); }}
+          onPause={(id, until) => { onPause?.(id, until); setShowModal(false); }}
+          onResume={(id) => { onResume?.(id); setShowModal(false); }}
           onClose={() => setShowModal(false)}
         />
       )}

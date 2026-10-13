@@ -130,7 +130,7 @@ export default function App() {
     return () => document.removeEventListener('visibilitychange', onVisible);
   }, [runGoogleAutoSync]);
   const { projects, addProject, updateProject, deleteProject, completeProject, uncompleteProject, reorderProjects } = useProjects(userId);
-  const { habits, archivedHabits, addHabit, updateHabit, deleteHabit, toggleHabitDate, reorderHabits, archiveHabit, restoreHabit } = useHabits(userId);
+  const { habits, archivedHabits, addHabit, updateHabit, deleteHabit, toggleHabitDate, reorderHabits, archiveHabit, restoreHabit, pauseHabit, resumeHabit } = useHabits(userId);
   const { getForMonth: getMonthlyGoal, updateNotes: updateGoalNotes, addItem: addGoalItem, toggleItem: toggleGoalItem, deleteItem: deleteGoalItem, editItem: editGoalItem, reorderItems: reorderGoalItems } = useMonthlyGoals(userId);
   const { goals, ready: goalsReady, addGoal, updateGoal, deleteGoal, setGoalDone } = useGoals(userId);
 
@@ -479,6 +479,8 @@ export default function App() {
             onReorder={reorderHabits}
             onArchive={archiveHabit}
             onRestore={restoreHabit}
+            onPause={pauseHabit}
+            onResume={resumeHabit}
           />
         ) : activeTab === 'goals' ? (
           showLegacyGoals ? (
