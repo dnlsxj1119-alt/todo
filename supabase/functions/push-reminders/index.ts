@@ -1,10 +1,12 @@
 import webpush from 'npm:web-push@3.6.7';
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 
-// 할 일 푸시 알림 — pg_cron 이 매시 정각에 부른다 (supabase/migrations/20261007_push_cron.sql).
+// 할 일 푸시 알림 — pg_cron 이 **10분마다** 부른다 (supabase/migrations/20261015_push_cron_10min.sql).
 //
-//  · 9시      : 아침 브리핑 — 오늘 🟢일정 + 남은 할 일
-//  · 10~22시  : 남은 할 일이 있으면 매시간. 다 끝내면 그날은 더 안 온다(보낼 게 없으니까).
+//  · 9시 정각      : 아침 브리핑 — 오늘 🟢일정 + 남은 할 일
+//  · 10~22시 정각  : 남은 할 일이 있으면 매시간. 다 끝내면 그날은 더 안 온다(보낼 게 없으니까).
+//  · 10분마다      : 시간을 정해 둔 오늘 항목(할일·🟢일정)이 LEAD_MINUTES 뒤에 시작하면 "⏰ 30분 뒤" 알림.
+//                   10분 단위 칸(slot)으로 창을 잡아서, 크론이 1~2분 늦어도 한 번만·빠짐없이 보낸다.
 //
 // '남은 할 일' = 목록 탭의 지난/어제/오늘 그룹과 같은 기준:
 //   할일(+옛 '매우중요')과 카테고리 태스크 중 완료·취소가 아니고, 계획일이나 마감일이 오늘 이하.
@@ -15,18 +17,55 @@ import { createClient } from 'jsr:@supabase/supabase-js@2';
 // 배포: verify_jwt 를 끈다(cron 은 사용자 토큰이 없다). 대신 x-cron-secret 헤더로 막는다.
 // 비밀값: VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, CRON_SECRET (SUPABASE_URL / SERVICE_ROLE_KEY 는 기본 제공)
 //
-// 수동 테스트: body 에 { "hour": 9 } 처럼 시각을 넣으면 그 시각인 것처럼 바로 보낸다.
+// 수동 테스트: body 에 { "hour": 9 } 를 넣으면 그 시각 정각인 것처럼(매시 알림), { "at": "13:30" } 을 넣으면
+// 그 시각인 것처럼(⏰ 미리 알림: 14:00~14:09 항목) 바로 보낸다.
 
 const BRIEFING_HOUR = 9;
 const LAST_HOUR = 22;
+const LEAD_MINUTES = 30;        // 시작 몇 분 전에 알릴지 (사용자 요청: 30분)
+const SLOT_MINUTES = 10;        // 크론 주기와 같아야 한다 (*/10)
 const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
 
 type Todo = { title: string; priority: number; date: string | null; due: string | null };
 type Schedule = { title: string; time: string; date: string; endDate: string };
+type Timed = { title: string; time: string; type: string };
 
 function kstNow() {
   const d = new Date(Date.now() + KST_OFFSET_MS);
-  return { today: d.toISOString().slice(0, 10), hour: d.getUTCHours() };
+  return { today: d.toISOString().slice(0, 10), hour: d.getUTCHours(), minute: d.getUTCMinutes() };
+}
+
+const hhmm = (mins: number) => `${String(Math.floor(mins / 60) % 24).padStart(2, '0')}:${String(mins % 60).padStart(2, '0')}`;
+const toMins = (t: string) => { const [h, m] = t.split(':').map(Number); return h * 60 + (m || 0); };
+
+// ⏰ 미리 알림 대상: 오늘, 시간이 있고, 끝내지 않은 할일·🟢일정 중 [slot+LEAD, slot+LEAD+SLOT) 에 시작하는 것.
+// 여러 날 일정은 시작일에만. 카테고리 태스크는 시간이 없어서 대상이 아니다.
+async function loadUpcoming(db: ReturnType<typeof createClient>, userId: string, today: string, slotStartMin: number) {
+  const fromMin = slotStartMin + LEAD_MINUTES;
+  if (fromMin + SLOT_MINUTES > 24 * 60) return [] as Timed[]; // 자정을 넘기는 창은 없다(23:30 이후 시작 항목은 알리지 않는다)
+  const from = hhmm(fromMin);
+  const to = hhmm(fromMin + SLOT_MINUTES);
+  const { data, error } = await db.from('items')
+    .select('title, type, status, completed, time')
+    .eq('user_id', userId)
+    .eq('date', today)
+    .gte('time', from)
+    .lt('time', to);
+  if (error) throw error;
+  return (data ?? [])
+    .filter(it => it.time && !isArchived(it.status) && !it.completed)
+    .map(it => ({ title: it.title, time: it.time as string, type: it.type as string }))
+    .sort((a, b) => a.time.localeCompare(b.time));
+}
+
+function buildUpcomingMessage(list: Timed[]) {
+  if (!list.length) return null;
+  const mark = (t: Timed) => (t.type === 'schedule' ? '🟢' : '🟣');
+  const lines = list.map(t => `${t.time} ${mark(t)} ${t.title}`);
+  const title = list.length === 1
+    ? `⏰ ${LEAD_MINUTES}분 뒤 ${list[0].time} — ${list[0].title}`
+    : `⏰ ${LEAD_MINUTES}분 뒤 시작 ${list.length}개`;
+  return { title, body: list.length === 1 ? '' : lines.join('\n'), tag: 'flow-upcoming' };
 }
 
 const isArchived = (s: string | null | undefined) => s === 'done' || s === 'cancelled';
@@ -133,10 +172,15 @@ Deno.serve(async (req) => {
 
   const body = await req.json().catch(() => ({}));
   const now = kstNow();
-  const hour = Number.isInteger(body?.hour) ? body.hour : now.hour;
-  if (hour < BRIEFING_HOUR || hour > LAST_HOUR) {
-    return Response.json({ skipped: 'outside hours', hour });
-  }
+  // 수동 테스트 보정: hour → 그 시각 정각, at → 그 시각(HH:MM)
+  let hour = now.hour;
+  let minute = now.minute;
+  if (Number.isInteger(body?.hour)) { hour = body.hour; minute = 0; }
+  else if (typeof body?.at === 'string' && /^\d{2}:\d{2}$/.test(body.at)) { hour = Math.floor(toMins(body.at) / 60); minute = toMins(body.at) % 60; }
+
+  // 정각(10분 칸의 첫 칸)이고 9~22시면 매시 알림, 그 외 칸은 ⏰ 미리 알림만
+  const slotStartMin = Math.floor((hour * 60 + minute) / SLOT_MINUTES) * SLOT_MINUTES;
+  const hourly = minute < SLOT_MINUTES && hour >= BRIEFING_HOUR && hour <= LAST_HOUR;
 
   webpush.setVapidDetails(
     'mailto:noreply@todoo-9x7.pages.dev',
@@ -154,29 +198,20 @@ Deno.serve(async (req) => {
   const byUser = new Map<string, typeof subs>();
   for (const s of subs ?? []) byUser.set(s.user_id, [...(byUser.get(s.user_id) ?? []), s]);
 
-  const result = { hour, users: byUser.size, sent: 0, removed: 0, failed: 0, nothing: 0 };
+  const result = { hour, minute, hourly, users: byUser.size, sent: 0, upcoming: 0, removed: 0, failed: 0, nothing: 0 };
 
-  for (const [userId, userSubs] of byUser) {
-    let msg;
-    try {
-      const { todos, schedules } = await loadUser(db, userId, now.today);
-      msg = buildMessage(hour, now.today, todos, schedules);
-    } catch (e) {
-      console.error('[load]', userId, e);
-      result.failed += userSubs.length;
-      continue;
-    }
-    if (!msg) { result.nothing++; continue; }
-
+  // 한 사용자의 모든 기기에 같은 알림을 보낸다. 만료된 구독(404/410)은 지운다.
+  const sendAll = async (userSubs: NonNullable<typeof subs>, msg: { title: string; body: string; tag: string }, ttlSec: number) => {
     const payload = JSON.stringify({ ...msg, url: '/' });
+    let sent = 0;
     for (const s of userSubs) {
       try {
         await webpush.sendNotification(
           { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
           payload,
-          { TTL: 60 * 50, urgency: 'normal' },   // 다음 알림 전까지만 유효 — 늦게 도착한 옛 알림은 버린다
+          { TTL: ttlSec, urgency: 'normal' },
         );
-        result.sent++;
+        sent++;
       } catch (e) {
         const code = (e as { statusCode?: number }).statusCode;
         if (code === 404 || code === 410) {
@@ -189,6 +224,33 @@ Deno.serve(async (req) => {
         }
       }
     }
+    return sent;
+  };
+
+  for (const [userId, userSubs] of byUser) {
+    // ① ⏰ 미리 알림 (10분마다) — 매시 알림과 tag 가 달라서 서로 덮지 않는다
+    try {
+      const upcoming = await loadUpcoming(db, userId, now.today, slotStartMin);
+      const umsg = buildUpcomingMessage(upcoming);
+      if (umsg) result.upcoming += await sendAll(userSubs, umsg, 60 * 15); // 시작 전까지만 의미 있다
+    } catch (e) {
+      console.error('[upcoming]', userId, e);
+      result.failed += userSubs.length;
+    }
+
+    // ② 매시 정각 알림
+    if (!hourly) continue;
+    let msg;
+    try {
+      const { todos, schedules } = await loadUser(db, userId, now.today);
+      msg = buildMessage(hour, now.today, todos, schedules);
+    } catch (e) {
+      console.error('[load]', userId, e);
+      result.failed += userSubs.length;
+      continue;
+    }
+    if (!msg) { result.nothing++; continue; }
+    result.sent += await sendAll(userSubs, msg, 60 * 50); // 다음 알림 전까지만 유효 — 늦게 도착한 옛 알림은 버린다
   }
 
   return Response.json(result);
