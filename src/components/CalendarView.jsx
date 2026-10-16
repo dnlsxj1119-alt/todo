@@ -3,7 +3,7 @@ import { getMonthGrid, toDateString, isToday, formatMonthYear, DAY_NAMES } from 
 import { buildDeadlineMap } from '../utils/deadlines';
 import { buildProjectSpans, hasProjectSpan } from '../utils/projectSpans';
 import { readStored, writeStored, removeStored } from '../utils/safeStorage';
-import { habitDayStats } from '../utils/habitStats';
+import { habitDayStats, firstHabitCheckDate } from '../utils/habitStats';
 
 const TYPE_COLOR = {
   todo:      'chip--purple',
@@ -232,6 +232,7 @@ export default function CalendarView({ currentMonth, setCurrentMonth, items = []
   const year = currentMonth.getFullYear();
   const month = currentMonth.getMonth();
   const grid = useMemo(() => getMonthGrid(year, month), [year, month]);
+  const habitStartDate = useMemo(() => firstHabitCheckDate(habits), [habits]);
 
   const prevMonth = () => setCurrentMonth(new Date(year, month - 1, 1));
   const nextMonth = () => setCurrentMonth(new Date(year, month + 1, 1));
@@ -390,9 +391,9 @@ export default function CalendarView({ currentMonth, setCurrentMonth, items = []
           const canCollapse = totalCount > VISIBLE_MAX || mobileDone > 0;
           const dow = date.getDay();
 
-          // 습관 달성률 — 지난 날과 오늘만 (앞날은 잴 게 없다). 해당 습관이 없는 날도 비운다.
+          // 습관 달성률 — 처음 체크한 날부터 오늘까지만 (그 전은 안 쓰던 기간, 앞날은 잴 게 없다). 해당 습관이 없는 날도 비운다.
           // 달력을 볼 때마다 한 달 흐름이 보이게 날짜 옆에 작게. 100% 는 초록, 0% 는 붉게.
-          const habitStat = (ds <= todayStr) ? habitDayStats(habits, ds) : null;
+          const habitStat = (habitStartDate && habitStartDate <= ds && ds <= todayStr) ? habitDayStats(habits, ds) : null;
           const habitPct = habitStat && habitStat.total > 0 ? Math.round(habitStat.done / habitStat.total * 100) : null;
 
           const isDragOver = dragOverDate === ds;
