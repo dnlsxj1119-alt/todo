@@ -87,11 +87,19 @@ export function habitDayStats(habits, dateStr) {
   return { total: due.length, done: done.length, due, doneSet: new Set(done.map(h => h.id)) };
 }
 
-// 습관을 처음 체크한 날 — 달력 달성률은 이 날부터 찍는다. 습관을 만들어 두고 안 쓰던 기간이
+// 달성률이 처음 0% 보다 커진 날 — 달력 달성률은 이 날부터 찍는다. 습관을 만들어 두고 안 쓰던 기간이
 // 전부 0% 로 붉게 찍히는 걸 막는다 (만든 날만으로는 부족: 미리 만들어 둔 습관이 있다). 체크가 없으면 null.
+// habitDayStats 가 세는 체크만 본다 — 주 N회 습관이나 해당 안 하는 날 체크로 시작일이 앞당겨지면 그 사이가 다시 0% 로 찍힌다.
 export function firstHabitCheckDate(habits) {
   let first = null;
-  for (const h of habits ?? []) for (const d of h.completedDates ?? []) if (!first || d < first) first = d;
+  for (const h of habits ?? []) {
+    if (isWeeklyHabit(h)) continue;
+    for (const d of h.completedDates ?? []) {
+      if (h.createdAt && d < h.createdAt) continue;
+      if (!habitAppliesToDate(h, d)) continue;
+      if (!first || d < first) first = d;
+    }
+  }
   return first;
 }
 
