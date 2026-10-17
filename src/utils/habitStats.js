@@ -80,9 +80,10 @@ export function weekStartOf(dateStr) {
 
 // 그 날에 해당하는 습관과 그중 체크한 수. 해당 습관이 없으면 total 0.
 // 습관을 만들기 전 날은 세지 않는다 (만든 날이 없는 옛 데이터는 포함) — 안 그러면 과거가 전부 0% 로 붉게 찍힌다.
-// 주 N회 습관은 '그 날 안 했다'가 실패가 아니라서 날짜별 달성률에서 뺀다.
+// 주 N회 습관은 '그 날 안 했다'가 실패가 아니라서, **한 날에만** 넣는다 — 하면 달성률이 오르고 안 한 날은 안 깎인다.
 export function habitDayStats(habits, dateStr) {
-  const due = (habits ?? []).filter(h => !isWeeklyHabit(h) && habitAppliesToDate(h, dateStr) && (!h.createdAt || h.createdAt <= dateStr));
+  const due = (habits ?? []).filter(h => habitAppliesToDate(h, dateStr) && (!h.createdAt || h.createdAt <= dateStr)
+    && (!isWeeklyHabit(h) || (h.completedDates ?? []).includes(dateStr)));
   const done = due.filter(h => (h.completedDates ?? []).includes(dateStr));
   return { total: due.length, done: done.length, due, doneSet: new Set(done.map(h => h.id)) };
 }
