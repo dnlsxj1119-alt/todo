@@ -37,7 +37,7 @@ export default function ItemModal({ item, defaultDate, defaultSlot, defaultType,
 
   const [form, setForm] = useState({
     // 목록 탭의 '+ 새 할일' 처럼 여는 곳에 따라 기본 종류를 다르게 쓸 수 있게 한다
-    type: item?.type ?? (SELECTABLE_TYPES.includes(defaultType) ? defaultType : 'schedule'),
+    type: item?.type ?? (SELECTABLE_TYPES.includes(defaultType) ? defaultType : 'todo'),
     title: item?.title ?? '',
     description: item?.description ?? '',
     date: item?.date ?? defaultDate ?? '',
