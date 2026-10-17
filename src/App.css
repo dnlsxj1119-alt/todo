@@ -546,6 +546,10 @@ input, textarea, select { font-family: inherit; }
   transition: color var(--transition);
 }
 .show-more-btn:hover { color: var(--accent); }
+/* '+N개 더보기' 와 '✓N'(끝낸 것 보기)은 따로 누른다 — 한 줄에 나란히 */
+.show-more-row { display: flex; gap: 2px; }
+.show-more-row .show-more-btn { flex: 1; min-width: 0; }
+.show-more-row .show-more-btn--done { flex: 0 0 auto; width: auto; }
 
 /* ===================== Weekly View ===================== */
 .weekly-view {

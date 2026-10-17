@@ -244,7 +244,7 @@ export default function CalendarView({ currentMonth, setCurrentMonth, items = []
   const today = new Date();
   const isCurrentMonth = year === today.getFullYear() && month === today.getMonth();
 
-  const toggleExpand = (key) => setExpanded(prev => ({ ...prev, [key]: !prev[key] }));
+  const setExpand = (key, mode) => setExpanded(prev => ({ ...prev, [key]: mode }));
 
   const VISIBLE_MAX = 3;
 
@@ -388,10 +388,13 @@ export default function CalendarView({ currentMonth, setCurrentMonth, items = []
           // 단 카테고리 막대는 빼지 않는다 — 카테고리 두 개가 걸쳐 있으면 할일이 하나밖에 안 보였다.
           const itemLaneCount = laneRow.filter(slot => slot && !slot.item._project).length;
           const budget = Math.max(1, VISIBLE_MAX - itemLaneCount);
-          const visibleRows = isExpanded ? [...openRows, ...doneRows] : rows.slice(0, budget);
+          // 펼침은 두 단계: '+N개 더보기'(expanded 'open')는 남은 것만 다 펴고, '✓N'('all')을 눌러야 끝낸 칩까지 나온다.
+          // 휴대폰에서 더보기만 눌러도 끝낸 게 섞여 나오면 접어 둔 의미가 없어서.
+          const showDone = !foldDone || isExpanded === 'all';
+          const visibleRows = isExpanded ? (showDone ? [...openRows, ...doneRows] : openRows) : rows.slice(0, budget);
           const hidden = isExpanded ? 0 : totalCount - visibleRows.length;
-          const mobileDone = foldDone ? doneRows.length : 0;
-          const canCollapse = totalCount > VISIBLE_MAX || mobileDone > 0;
+          const mobileDone = showDone ? 0 : doneRows.length;
+          const canCollapse = totalCount > VISIBLE_MAX || (foldDone && doneRows.length > 0);
           const dow = date.getDay();
 
           // 습관 달성률 — HABIT_PCT_START 부터 오늘까지만 (앞날은 잴 게 없다). 해당 습관이 없는 날도 비운다.
@@ -468,21 +471,28 @@ export default function CalendarView({ currentMonth, setCurrentMonth, items = []
                         onDragStart={onMoveItem ? (it) => setDragInfo({ id: it.id, from: ds }) : undefined}
                       />
                 ))}
-                {!isExpanded && (hidden > 0 || mobileDone > 0) && (
-                  <button
-                    className="show-more-btn"
-                    onClick={(e) => { e.stopPropagation(); toggleExpand(ds); }}
-                    aria-label={hidden > 0 ? `${hidden}개 더보기` : `완료 ${mobileDone}개 보기`}
-                  >
-                    {hidden > 0 ? `+${hidden}개 더보기` : ''}
-                    {hidden > 0 && mobileDone > 0 ? ' · ' : ''}
-                    {mobileDone > 0 ? `✓${mobileDone}` : ''}
-                  </button>
+                {(hidden > 0 || mobileDone > 0) && (
+                  <div className="show-more-row">
+                    {hidden > 0 && (
+                      <button className="show-more-btn" onClick={(e) => { e.stopPropagation(); setExpand(ds, 'open'); }}>
+                        +{hidden}개 더보기
+                      </button>
+                    )}
+                    {mobileDone > 0 && (
+                      <button
+                        className="show-more-btn show-more-btn--done"
+                        onClick={(e) => { e.stopPropagation(); setExpand(ds, 'all'); }}
+                        aria-label={`완료 ${mobileDone}개 보기`}
+                      >
+                        ✓{mobileDone}
+                      </button>
+                    )}
+                  </div>
                 )}
                 {isExpanded && canCollapse && (
                   <button
                     className="show-more-btn"
-                    onClick={(e) => { e.stopPropagation(); toggleExpand(ds); }}
+                    onClick={(e) => { e.stopPropagation(); setExpand(ds, null); }}
                   >
                     접기
                   </button>
