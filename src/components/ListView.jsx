@@ -2,6 +2,7 @@ import { useMemo, useState, useRef, useEffect, useLayoutEffect } from 'react';
 import { toDateString, addDays, DAY_NAMES } from '../utils/dateUtils';
 import { getProjectType, CATEGORY_PALETTE } from '../utils/projectTypes';
 import { buildCategoryIndex, suggestCategory } from '../utils/autoCategory';
+import { linkify } from '../utils/linkify';
 import { habitAppliesToDate, habitStreak, habitRecentStats, habitChipLabel, habitStreakLabel, isWeeklyHabit, habitWeekStats, habitWeekStreak } from '../utils/habitStats';
 
 function catColor(p) {
@@ -494,7 +495,7 @@ function InlineTitle({ value, onSave }) {
   }
   return (
     <span className="lv-name" onClick={e => { e.stopPropagation(); setEditing(true); }} title="클릭해서 제목 수정">
-      {value}
+      {linkify(value)}
     </span>
   );
 }
