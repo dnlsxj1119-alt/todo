@@ -83,6 +83,9 @@ function itemToGoogleEvent(item) {
       const d = new Date(2000, 0, 1, h, m + 60);
       endTime = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
     }
+    // 끝이 시작과 같거나 앞서면 구글이 400(timeRangeEmpty)으로 거절해 저장할 때마다 오류 창이 뜬다.
+    // 이런 일정은 구글에 안 올린다 (사용자 결정: 「경진대회 마무리」처럼 올릴 필요 없는 일정이었다)
+    if (`${endDate}T${endTime}` <= `${item.date}T${item.time}`) return null;
     body.start = { dateTime: `${item.date}T${item.time}:00`, timeZone };
     body.end = { dateTime: `${endDate}T${endTime}:00`, timeZone };
   } else {
