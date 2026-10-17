@@ -211,6 +211,10 @@ function DeadlineChip({ entry, onProjectClick, onItemClick }) {
   );
 }
 
+// 습관을 실제로 쓰기 시작한 날(사용자 지정). 그 전은 안 쓰던 기간이라 전부 0% 로 붉게 찍혀서 달성률을 비운다.
+// 체크 기록으로 시작일을 추정해 봤지만 사용자가 원한 날과 안 맞아서 날짜로 못 박았다.
+const HABIT_PCT_START = '2026-10-12';
+
 export default function CalendarView({ currentMonth, setCurrentMonth, items = [], getItemsForDate, onItemClick, onDayClick, onDateNumClick, reflectionDates, onToggle, filterType, projects = [], onProjectClick, getGoogleEventsForDate, onToggleGoogleEvent, onMoveItem, habits = [] }) {
   const [expanded, setExpanded] = useState({});
   const isMobile = useIsMobile();
@@ -390,11 +394,10 @@ export default function CalendarView({ currentMonth, setCurrentMonth, items = []
           const canCollapse = totalCount > VISIBLE_MAX || mobileDone > 0;
           const dow = date.getDay();
 
-          // 습관 달성률 — 지난 날과 오늘만 (앞날은 잴 게 없다). 해당 습관이 없는 날도 비운다.
-          // 달력을 볼 때마다 한 달 흐름이 보이게 날짜 옆에 작게. 100% 는 초록.
-          // 0% 는 안 찍는다 — 습관을 안 쓰던 기간까지 전부 붉은 0% 로 도배돼서 사용자가 지워 달라고 했다.
-          const habitStat = (ds <= todayStr) ? habitDayStats(habits, ds) : null;
-          const habitPct = habitStat && habitStat.done > 0 ? Math.round(habitStat.done / habitStat.total * 100) : null;
+          // 습관 달성률 — HABIT_PCT_START 부터 오늘까지만 (앞날은 잴 게 없다). 해당 습관이 없는 날도 비운다.
+          // 달력을 볼 때마다 한 달 흐름이 보이게 날짜 옆에 작게. 100% 는 초록, 0% 는 붉게.
+          const habitStat = (HABIT_PCT_START <= ds && ds <= todayStr) ? habitDayStats(habits, ds) : null;
+          const habitPct = habitStat && habitStat.total > 0 ? Math.round(habitStat.done / habitStat.total * 100) : null;
 
           const isDragOver = dragOverDate === ds;
 
@@ -429,7 +432,7 @@ export default function CalendarView({ currentMonth, setCurrentMonth, items = []
                 </span>
                 {habitPct != null && (
                   <span
-                    className={`cal-habit-pct ${habitPct === 100 ? 'cal-habit-pct--full' : ''}`}
+                    className={`cal-habit-pct ${habitPct === 100 ? 'cal-habit-pct--full' : habitPct === 0 ? 'cal-habit-pct--zero' : ''}`}
                     title={`습관 ${habitStat.done}/${habitStat.total}`}
                   >
                     {habitPct}%

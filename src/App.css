@@ -1569,6 +1569,7 @@ input, textarea, select { font-family: inherit; }
 .cal-habit-pct { font-size: 9.5px; font-weight: 700; color: var(--text-muted); line-height: 1;
   font-variant-numeric: tabular-nums; margin-bottom: 3px; }
 .cal-habit-pct--full { color: #3B6D11; }
+.cal-habit-pct--zero { color: #E5534B; opacity: 0.8; }
 
 /* 습관 — 주 N회 입력 · 잠깐 쉬기 */
 .habit-weekly-target { display: flex; align-items: center; gap: 8px; margin-top: 8px; font-size: 12.5px; color: var(--text-secondary); }
