@@ -87,20 +87,24 @@ export function habitDayStats(habits, dateStr) {
   return { total: due.length, done: done.length, due, doneSet: new Set(done.map(h => h.id)) };
 }
 
-// 달성률이 처음 0% 보다 커진 날 — 달력 달성률은 이 날부터 찍는다. 습관을 만들어 두고 안 쓰던 기간이
-// 전부 0% 로 붉게 찍히는 걸 막는다 (만든 날만으로는 부족: 미리 만들어 둔 습관이 있다). 체크가 없으면 null.
-// habitDayStats 가 세는 체크만 본다 — 주 N회 습관이나 해당 안 하는 날 체크로 시작일이 앞당겨지면 그 사이가 다시 0% 로 찍힌다.
-export function firstHabitCheckDate(habits) {
-  let first = null;
-  for (const h of habits ?? []) {
-    if (isWeeklyHabit(h)) continue;
-    for (const d of h.completedDates ?? []) {
-      if (h.createdAt && d < h.createdAt) continue;
-      if (!habitAppliesToDate(h, d)) continue;
-      if (!first || d < first) first = d;
+// 달력 달성률을 찍기 시작하는 날 — 오늘부터 거슬러 올라가며, 습관을 꾸준히 쓰기 시작한 날(0% 보다 큰 날)을 찾는다.
+// 그 전 '안 쓰던 기간'이 전부 0% 로 붉게 찍히는 걸 막으려고. 오래전 한두 번 눌러 본 체크가 있어도 시작일이
+// 거기까지 당겨지지 않게, 해당 습관이 있는데 하나도 안 한 날이 IDLE_GAP 일 넘게 이어지면 거기서 끊는다.
+// 습관이 해당 안 하는 날(total 0)은 세지 않고 건너뛴다. 0% 보다 큰 날이 없으면 null.
+const IDLE_GAP = 7;
+export function firstHabitCheckDate(habits, todayStr) {
+  let start = null;
+  let zeroRun = 0;
+  let d = todayStr;
+  for (let i = 0; i < 400; i++) {
+    const { total, done } = habitDayStats(habits, d);
+    if (total > 0) {
+      if (done > 0) { start = d; zeroRun = 0; }
+      else if (++zeroRun >= IDLE_GAP && start) break;
     }
+    d = addDays(d, -1);
   }
-  return first;
+  return start;
 }
 
 // 🔥 연속 일수 — 그 날(dateStr)부터 거슬러 올라가며 '해당하는 날'을 빠짐없이 체크한 수.
