@@ -370,14 +370,14 @@ export default function CalendarView({ currentMonth, setCurrentMonth, items = []
           const isExpanded = expanded[ds];
           // 칸 안 순서: 남은 마감 → 항목·구글 일정(끝낸 건 뒤로) → 끝낸 마감.
           // 끝낸 것은 종류를 가리지 않고 전부 뒤쪽이어야 '+N개 더보기'에 안 끝낸 게 묻히지 않는다.
-          // 휴대폰의 **오늘** 칸은 끝낸 칩까지 보이면 남은 할 일 글자가 다 잘린다. 접힌 상태에선 끝낸 건
-          // 숨기고 '✓N' 로 개수만 보여 주며, 누르면(펼치면) 끝낸 칩도 나온다.
-          // 다른 날과 PC 는 그대로 보인다 (지난 날은 '뭘 했는지'가 보여야 해서 사용자가 오늘만 원했다).
-          const foldDone = isMobile && today;
+          // 휴대폰에선 **아직 남은 게 있는 날** 칸에 끝낸 칩까지 보이면 남은 할 일 글자가 다 잘린다. 접힌 상태에선
+          // 끝낸 건 숨기고 '✓N' 로 개수만 보여 주며, 누르면(펼치면) 끝낸 칩도 나온다.
+          // 다 끝낸 날과 PC 는 그대로 보인다 — 다 끝낸 날은 '뭘 했는지'가 보여야 해서 (예전엔 오늘 칸만 접었다).
           const openRows = [
             ...deadlines.filter(d => !d.done).map(d => ({ kind: 'deadline', data: d })),
             ...combined.filter(entry => !entry.done),
           ];
+          const foldDone = isMobile && openRows.length > 0;
           const doneRows = [
             ...combined.filter(entry => entry.done),
             ...deadlines.filter(d => d.done).map(d => ({ kind: 'deadline', data: d })),
