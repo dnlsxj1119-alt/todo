@@ -3,7 +3,7 @@ import { getMonthGrid, toDateString, isToday, formatMonthYear, DAY_NAMES } from 
 import { buildDeadlineMap } from '../utils/deadlines';
 import { buildProjectSpans, hasProjectSpan } from '../utils/projectSpans';
 import { readStored, writeStored, removeStored } from '../utils/safeStorage';
-import { habitDayStats, firstHabitCheckDate } from '../utils/habitStats';
+import { habitDayStats } from '../utils/habitStats';
 
 const TYPE_COLOR = {
   todo:      'chip--purple',
@@ -232,7 +232,6 @@ export default function CalendarView({ currentMonth, setCurrentMonth, items = []
   const year = currentMonth.getFullYear();
   const month = currentMonth.getMonth();
   const grid = useMemo(() => getMonthGrid(year, month), [year, month]);
-  const habitStartDate = useMemo(() => firstHabitCheckDate(habits, todayStr), [habits, todayStr]);
 
   const prevMonth = () => setCurrentMonth(new Date(year, month - 1, 1));
   const nextMonth = () => setCurrentMonth(new Date(year, month + 1, 1));
@@ -391,10 +390,11 @@ export default function CalendarView({ currentMonth, setCurrentMonth, items = []
           const canCollapse = totalCount > VISIBLE_MAX || mobileDone > 0;
           const dow = date.getDay();
 
-          // 습관 달성률 — 꾸준히 쓰기 시작한 날부터 오늘까지만 (그 전은 안 쓰던 기간, 앞날은 잴 게 없다). 해당 습관이 없는 날도 비운다.
-          // 달력을 볼 때마다 한 달 흐름이 보이게 날짜 옆에 작게. 100% 는 초록, 0% 는 붉게.
-          const habitStat = (habitStartDate && habitStartDate <= ds && ds <= todayStr) ? habitDayStats(habits, ds) : null;
-          const habitPct = habitStat && habitStat.total > 0 ? Math.round(habitStat.done / habitStat.total * 100) : null;
+          // 습관 달성률 — 지난 날과 오늘만 (앞날은 잴 게 없다). 해당 습관이 없는 날도 비운다.
+          // 달력을 볼 때마다 한 달 흐름이 보이게 날짜 옆에 작게. 100% 는 초록.
+          // 0% 는 안 찍는다 — 습관을 안 쓰던 기간까지 전부 붉은 0% 로 도배돼서 사용자가 지워 달라고 했다.
+          const habitStat = (ds <= todayStr) ? habitDayStats(habits, ds) : null;
+          const habitPct = habitStat && habitStat.done > 0 ? Math.round(habitStat.done / habitStat.total * 100) : null;
 
           const isDragOver = dragOverDate === ds;
 
@@ -429,7 +429,7 @@ export default function CalendarView({ currentMonth, setCurrentMonth, items = []
                 </span>
                 {habitPct != null && (
                   <span
-                    className={`cal-habit-pct ${habitPct === 100 ? 'cal-habit-pct--full' : habitPct === 0 ? 'cal-habit-pct--zero' : ''}`}
+                    className={`cal-habit-pct ${habitPct === 100 ? 'cal-habit-pct--full' : ''}`}
                     title={`습관 ${habitStat.done}/${habitStat.total}`}
                   >
                     {habitPct}%
