@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { getMonthGrid, toDateString, isToday, formatMonthYear, DAY_NAMES } from '../utils/dateUtils';
 import { buildDeadlineMap } from '../utils/deadlines';
 import { buildProjectSpans, hasProjectSpan } from '../utils/projectSpans';
@@ -173,20 +173,6 @@ function mergeByTime(items, googleEvents) {
     .sort((a, b) => (a.done - b.done) || (b.prio - a.prio) || (a.time - b.time) || (a.index - b.index));
 }
 
-// 좁은 화면(App.css 의 달력 모바일 브레이크포인트와 같은 600px)인지. 회전·창 크기 변경에 따라간다.
-const MOBILE_QUERY = '(max-width: 600px)';
-function useIsMobile() {
-  const [mobile, setMobile] = useState(() => window.matchMedia?.(MOBILE_QUERY).matches ?? false);
-  useEffect(() => {
-    const mq = window.matchMedia?.(MOBILE_QUERY);
-    if (!mq) return undefined;
-    const onChange = (e) => setMobile(e.matches);
-    mq.addEventListener('change', onChange);
-    return () => mq.removeEventListener('change', onChange);
-  }, []);
-  return mobile;
-}
-
 // 마감 칩의 종류별 표시/클릭 대상: 카테고리 🏁 · 태스크 📌 · 할일 📕(목록의 마감일 칩과 같은 기호)
 const DEADLINE_EMOJI = { task: '📌', item: '📕', project: '🏁' };
 
@@ -217,7 +203,6 @@ const HABIT_PCT_START = '2026-10-12';
 
 export default function CalendarView({ currentMonth, setCurrentMonth, items = [], getItemsForDate, onItemClick, onDayClick, onDateNumClick, reflectionDates, onToggle, filterType, projects = [], onProjectClick, getGoogleEventsForDate, onToggleGoogleEvent, onMoveItem, habits = [] }) {
   const [expanded, setExpanded] = useState({});
-  const isMobile = useIsMobile();
   const todayStr = toDateString(new Date());
   const [notionUrl, setNotionUrl] = useState(() => readStored(NOTION_URL_KEY) ?? '');
   const [editingNotion, setEditingNotion] = useState(false);
@@ -370,14 +355,15 @@ export default function CalendarView({ currentMonth, setCurrentMonth, items = []
           const isExpanded = expanded[ds];
           // 칸 안 순서: 남은 마감 → 항목·구글 일정(끝낸 건 뒤로) → 끝낸 마감.
           // 끝낸 것은 종류를 가리지 않고 전부 뒤쪽이어야 '+N개 더보기'에 안 끝낸 게 묻히지 않는다.
-          // 휴대폰에선 **지난 날**과 **아직 남은 게 있는 날** 칸의 끝낸 **할일** 칩을 접어 '✓N' 로 개수만 보여 준다
-          // (누르면 펼쳐진다). 끝낸 🟢일정·구글 일정·마감 칩은 접지 않는다 — 일정은 '언제 뭐가 있었나'라 그대로 보여야 한다.
-          // 오늘·앞날인데 다 끝낸 칸과 PC 는 전부 보인다.
+          // **지난 날**과 **아직 남은 게 있는 날** 칸의 끝낸 **할일** 칩을 접어 '✓N' 로 개수만 보여 준다 (누르면 펼쳐진다).
+          // 끝낸 칩이 칸 자리를 먹으면 남은 할 일이 '+N개 더보기'에 묻힌다 — PC 도 칸당 칩 수가 정해져 있어 같이 접는다.
+          // 끝낸 🟢일정·구글 일정·마감 칩은 접지 않는다 — 일정은 '언제 뭐가 있었나'라 그대로 보여야 한다.
+          // 오늘·앞날인데 다 끝낸 칸은 전부 보인다.
           const openRows = [
             ...deadlines.filter(d => !d.done).map(d => ({ kind: 'deadline', data: d })),
             ...combined.filter(entry => !entry.done),
           ];
-          const foldDone = isMobile && (ds < todayStr || openRows.length > 0);
+          const foldDone = ds < todayStr || openRows.length > 0;
           const isDoneTodo = entry => entry.kind === 'item' && entry.data.type !== 'schedule';
           const doneKeepRows = [
             ...combined.filter(entry => entry.done && !(foldDone && isDoneTodo(entry))),
