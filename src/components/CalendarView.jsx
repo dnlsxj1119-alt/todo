@@ -370,31 +370,33 @@ export default function CalendarView({ currentMonth, setCurrentMonth, items = []
           const isExpanded = expanded[ds];
           // 칸 안 순서: 남은 마감 → 항목·구글 일정(끝낸 건 뒤로) → 끝낸 마감.
           // 끝낸 것은 종류를 가리지 않고 전부 뒤쪽이어야 '+N개 더보기'에 안 끝낸 게 묻히지 않는다.
-          // 휴대폰에선 **아직 남은 게 있는 날** 칸에 끝낸 칩까지 보이면 남은 할 일 글자가 다 잘린다. 접힌 상태에선
-          // 끝낸 건 숨기고 '✓N' 로 개수만 보여 주며, 누르면(펼치면) 끝낸 칩도 나온다.
-          // 다 끝낸 날과 PC 는 그대로 보인다 — 다 끝낸 날은 '뭘 했는지'가 보여야 해서 (예전엔 오늘 칸만 접었다).
+          // 휴대폰에선 **지난 날**과 **아직 남은 게 있는 날** 칸의 끝낸 **할일** 칩을 접어 '✓N' 로 개수만 보여 준다
+          // (누르면 펼쳐진다). 끝낸 🟢일정·구글 일정·마감 칩은 접지 않는다 — 일정은 '언제 뭐가 있었나'라 그대로 보여야 한다.
+          // 오늘·앞날인데 다 끝낸 칸과 PC 는 전부 보인다.
           const openRows = [
             ...deadlines.filter(d => !d.done).map(d => ({ kind: 'deadline', data: d })),
             ...combined.filter(entry => !entry.done),
           ];
-          const foldDone = isMobile && openRows.length > 0;
-          const doneRows = [
-            ...combined.filter(entry => entry.done),
+          const foldDone = isMobile && (ds < todayStr || openRows.length > 0);
+          const isDoneTodo = entry => entry.kind === 'item' && entry.data.type !== 'schedule';
+          const doneKeepRows = [
+            ...combined.filter(entry => entry.done && !(foldDone && isDoneTodo(entry))),
             ...deadlines.filter(d => d.done).map(d => ({ kind: 'deadline', data: d })),
           ];
-          const rows = foldDone ? openRows : [...openRows, ...doneRows];
+          const doneTodoRows = foldDone ? combined.filter(entry => entry.done && isDoneTodo(entry)) : [];
+          const rows = [...openRows, ...doneKeepRows];
           const totalCount = rows.length;
           // 막대는 항상 보여야 이어짐이 끊기지 않으므로, 나머지 칩이 쓸 자리에서 뺀다.
           // 단 카테고리 막대는 빼지 않는다 — 카테고리 두 개가 걸쳐 있으면 할일이 하나밖에 안 보였다.
           const itemLaneCount = laneRow.filter(slot => slot && !slot.item._project).length;
           const budget = Math.max(1, VISIBLE_MAX - itemLaneCount);
-          // 펼침은 두 단계: '+N개 더보기'(expanded 'open')는 남은 것만 다 펴고, '✓N'('all')을 눌러야 끝낸 칩까지 나온다.
-          // 휴대폰에서 더보기만 눌러도 끝낸 게 섞여 나오면 접어 둔 의미가 없어서.
-          const showDone = !foldDone || isExpanded === 'all';
-          const visibleRows = isExpanded ? (showDone ? [...openRows, ...doneRows] : openRows) : rows.slice(0, budget);
+          // 펼침은 두 단계: '+N개 더보기'(expanded 'open')는 접지 않은 것만 다 펴고, '✓N'('all')을 눌러야 끝낸 할일까지 나온다.
+          // 휴대폰에서 더보기만 눌러도 끝낸 할일이 섞여 나오면 접어 둔 의미가 없어서.
+          const showDone = isExpanded === 'all';
+          const visibleRows = isExpanded ? (showDone ? [...rows, ...doneTodoRows] : rows) : rows.slice(0, budget);
           const hidden = isExpanded ? 0 : totalCount - visibleRows.length;
-          const mobileDone = showDone ? 0 : doneRows.length;
-          const canCollapse = totalCount > VISIBLE_MAX || (foldDone && doneRows.length > 0);
+          const mobileDone = showDone ? 0 : doneTodoRows.length;
+          const canCollapse = totalCount > VISIBLE_MAX || doneTodoRows.length > 0;
           const dow = date.getDay();
 
           // 습관 달성률 — HABIT_PCT_START 부터 오늘까지만 (앞날은 잴 게 없다). 해당 습관이 없는 날도 비운다.
