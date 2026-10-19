@@ -203,6 +203,16 @@ const HABIT_PCT_START = '2026-10-12';
 
 export default function CalendarView({ currentMonth, setCurrentMonth, items = [], getItemsForDate, onItemClick, onDayClick, onDateNumClick, reflectionDates, onToggle, filterType, projects = [], onProjectClick, getGoogleEventsForDate, onToggleGoogleEvent, onMoveItem, habits = [] }) {
   const [expanded, setExpanded] = useState({});
+  // '한 일 모두 보이기' — 켜면 어느 칸도 끝낸 할일을 '✓N'으로 접지 않는다. 기기별로 기억(localStorage)
+  const [showAllDone, setShowAllDone] = useState(() => {
+    try { return localStorage.getItem('cal-show-all-done') === '1'; } catch { return false; }
+  });
+  const toggleShowAllDone = () => {
+    const next = !showAllDone;
+    setShowAllDone(next);
+    setExpanded({}); // 칸마다 따로 펼쳐 둔 것도 같이 정리해야 '모두 접기'가 정말 다 접힌다
+    try { localStorage.setItem('cal-show-all-done', next ? '1' : '0'); } catch { /* 저장 못 해도 지금 화면엔 반영 */ }
+  };
   const todayStr = toDateString(new Date());
   const [notionUrl, setNotionUrl] = useState(() => readStored(NOTION_URL_KEY) ?? '');
   const [editingNotion, setEditingNotion] = useState(false);
@@ -320,6 +330,10 @@ export default function CalendarView({ currentMonth, setCurrentMonth, items = []
           ) : (
             <button className="cal-notion" onClick={() => setEditingNotion(true)}>🔗 노션 연결</button>
           )}
+          {/* 휴대폰은 제목 줄이 좁아 '한 일'을 뺀 짧은 글자로 */}
+          <button className="today-btn cal-done-toggle" onClick={toggleShowAllDone} aria-label={showAllDone ? '한 일 모두 접기' : '한 일 모두 보이기'}>
+            ✓<span className="cal-done-toggle-long"> 한 일</span> 모두 {showAllDone ? '접기' : '보이기'}
+          </button>
         </div>
         <button className="nav-btn" onClick={nextMonth} aria-label="다음 달">›</button>
       </div>
@@ -363,7 +377,7 @@ export default function CalendarView({ currentMonth, setCurrentMonth, items = []
             ...deadlines.filter(d => !d.done).map(d => ({ kind: 'deadline', data: d })),
             ...combined.filter(entry => !entry.done),
           ];
-          const foldDone = ds < todayStr || openRows.length > 0;
+          const foldDone = !showAllDone && (ds < todayStr || openRows.length > 0);
           const isDoneTodo = entry => entry.kind === 'item' && entry.data.type !== 'schedule';
           const doneKeepRows = [
             ...combined.filter(entry => entry.done && !(foldDone && isDoneTodo(entry))),

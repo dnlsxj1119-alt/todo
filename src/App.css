@@ -327,6 +327,7 @@ input, textarea, select { font-family: inherit; }
   transition: background var(--transition);
 }
 .today-btn:hover { background: var(--purple-mid); color: #fff; }
+.cal-done-toggle { white-space: nowrap; }
 .nav-btn {
   font-size: 22px;
   font-weight: 300;
@@ -1357,6 +1358,7 @@ input, textarea, select { font-family: inherit; }
   .cal-nav { padding: 10px 12px 8px; }
   .cal-title { font-size: 15px; }
   .today-btn { font-size: 10px; padding: 3px 8px; }
+  .cal-done-toggle-long { display: none; }
   .nav-btn { font-size: 18px; padding: 2px 6px; }
   .cal-day-header { font-size: 10px; padding: 4px 2px; }
   .cal-grid--body {
