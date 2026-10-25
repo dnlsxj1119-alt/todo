@@ -122,6 +122,29 @@ export function timeToSlotPx(timeStr, slotKey) {
   return Math.max(0, Math.min(hours * PX_PER_HOUR, SLOT_HEIGHTS[slotKey]));
 }
 
+// 카드 최소 높이. 이보다 낮으면 셀 안에 못 들어가는 경우가 생기므로 fitInCell 로 보정한다
+const MIN_CARD_PX = 36;
+
+// 셀(스팬 포함) 전체 높이 — 카드는 이 안에 들어와야 .wg-cell 의 overflow:hidden 에 안 잘린다
+function cellHeightPx(startSlot, span) {
+  const startIdx = TIME_SLOT_ORDER.indexOf(startSlot);
+  let h = 0;
+  for (let i = 0; i < span; i++) {
+    const slot = TIME_SLOT_ORDER[startIdx + i];
+    if (!slot) break;
+    h += (i ? GRID_GAP : 0) + SLOT_HEIGHTS[slot];
+  }
+  return h;
+}
+
+// 슬롯 끝 가까이 시작하는 짧은 일정(예: 저녁 20:00)은 최소 높이 때문에 셀 아래로 삐져나와 잘렸다
+// → 셀 안에 들어오도록 위로 당기고, 그래도 넘치면(다음 슬롯까지 이어지는 구글 일정) 셀 끝에서 맞춘다
+function fitInCell(style, cellH) {
+  if (!cellH || style.top + style.height <= cellH) return style;
+  const top = Math.max(0, cellH - style.height);
+  return { ...style, top, height: cellH - top };
+}
+
 // 다일 이벤트 시작일: 시작 시간부터 밤 끝까지 채우는 높이
 function getMultiDayStartStyle(item) {
   const top = timeToSlotPx(item.time, item.timeSlot);
@@ -131,7 +154,7 @@ function getMultiDayStartStyle(item) {
   for (let i = startIdx + 1; i <= endIdx; i++) {
     height += GRID_GAP + SLOT_HEIGHTS[TIME_SLOT_ORDER[i]];
   }
-  return { position: 'absolute', top, left: 4, right: 4, height: Math.max(36, height) };
+  return { position: 'absolute', top, left: 4, right: 4, height: Math.max(MIN_CARD_PX, height) };
 }
 
 export function getEndDayCardStyle(item, slot) {
@@ -148,14 +171,16 @@ export function getEndDayCardStyle(item, slot) {
 export function getCardStyle(item, span, spanStartSlot = null) {
   if (item.type === 'todo' || !item.time) return {};
 
+  const cellStartSlot = spanStartSlot || item.timeSlot;
+  const cellH = cellHeightPx(cellStartSlot, span);
+
   // 다일 이벤트 시작일(자기 슬롯 셀): 밤 끝까지 채우는 스타일
   // spanStartSlot이 없거나 자기 슬롯과 같으면 primary 셀임
   if (item.endDate && item.endDate > item.date && (!spanStartSlot || spanStartSlot === item.timeSlot)) {
-    return getMultiDayStartStyle(item);
+    return fitInCell(getMultiDayStartStyle(item), cellH);
   }
 
   // 스패닝 셀 안에 있는 다른 슬롯 항목은 위 슬롯 높이만큼 top 오프셋 추가
-  const cellStartSlot = spanStartSlot || item.timeSlot;
   const cellStartIdx = TIME_SLOT_ORDER.indexOf(cellStartSlot);
   const itemSlotIdx  = TIME_SLOT_ORDER.indexOf(item.timeSlot);
   let topOffset = 0;
@@ -168,7 +193,7 @@ export function getCardStyle(item, span, spanStartSlot = null) {
 
   if (!item.endTime) {
     const maxH = SLOT_HEIGHTS[item.timeSlot] - startPx;
-    return { position: 'absolute', top, left: 4, right: 4, height: Math.max(36, maxH) };
+    return fitInCell({ position: 'absolute', top, left: 4, right: 4, height: Math.max(MIN_CARD_PX, maxH) }, cellH);
   }
 
   const endSlot  = getEndTimeSlot(item.endTime);
@@ -186,7 +211,7 @@ export function getCardStyle(item, span, spanStartSlot = null) {
     }
   }
 
-  return { position: 'absolute', top, left: 4, right: 4, height: Math.max(36, height) };
+  return fitInCell({ position: 'absolute', top, left: 4, right: 4, height: Math.max(MIN_CARD_PX, height) }, cellH);
 }
 
 export function getTimeSlotFromTime(time) {

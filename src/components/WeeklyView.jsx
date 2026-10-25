@@ -48,10 +48,14 @@ function BacklogQuickAdd({ onAdd }) {
   );
 }
 
+// 이보다 낮은 카드는 시간 줄이 카드 밖으로 삐져나오므로 제목만 보인다 (시간은 툴팁으로)
+const COMPACT_CARD_PX = 44;
+const isCompactCard = (style) => typeof style?.height === 'number' && style.height < COMPACT_CARD_PX;
+
 function GoogleWeekCard({ event, cardStyle, onToggle }) {
   return (
     <div
-      className={`week-card week-card--google ${event.completed ? 'week-card--done' : ''}`}
+      className={`week-card week-card--google ${event.completed ? 'week-card--done' : ''} ${isCompactCard(cardStyle) ? 'week-card--compact' : ''}`}
       style={cardStyle}
       onClick={(e) => { e.stopPropagation(); if (event.htmlLink) window.open(event.htmlLink, '_blank', 'noopener'); }}
       title={`${event.calendarSummary ?? 'Google 캘린더'}: ${event.title}`}
@@ -147,10 +151,15 @@ function AgendaGoogleChip({ event, onToggle }) {
 }
 
 function WeekCard({ item, onItemClick, onToggle, onDragStart, cardStyle, isContinuation }) {
+  const compact = isCompactCard(cardStyle);
+  const timeLabel = (item.time || item.endTime)
+    ? `${item.time ?? ''}${item.endTime ? ` – ${item.endTime}` : ''}${item.endDate ? ` (~ ${item.endDate})` : ''}`
+    : '';
   return (
     <div
-      className={`week-card ${TYPE_COLOR[item.type]} ${item.completed ? 'week-card--done' : ''} ${item.status === 'cancelled' ? 'week-card--cancelled' : ''} ${isContinuation ? 'week-card--continuation' : ''}`}
+      className={`week-card ${TYPE_COLOR[item.type]} ${item.completed ? 'week-card--done' : ''} ${item.status === 'cancelled' ? 'week-card--cancelled' : ''} ${isContinuation ? 'week-card--continuation' : ''} ${compact ? 'week-card--compact' : ''}`}
       style={cardStyle}
+      title={compact && timeLabel ? `${item.title} · ${timeLabel}` : undefined}
       draggable
       onDragStart={(e) => onDragStart(e, item.id, item.type)}
       onClick={() => onItemClick(item)}
@@ -163,11 +172,8 @@ function WeekCard({ item, onItemClick, onToggle, onDragStart, cardStyle, isConti
         </button>
         <span className="card-title">{isContinuation ? `↩ ${item.title}` : item.title}</span>
       </div>
-      {!isContinuation && (item.time || item.endTime) && (
-        <div className="card-time">
-          ⏰ {item.time}{item.endTime ? ` – ${item.endTime}` : ''}
-          {item.endDate ? ` (~ ${item.endDate})` : ''}
-        </div>
+      {!isContinuation && timeLabel && (
+        <div className="card-time">⏰ {timeLabel}</div>
       )}
     </div>
   );
@@ -508,7 +514,7 @@ export default function WeeklyView({
           <GoogleWeekCard
             key={event.id}
             event={event}
-            cardStyle={getCardStyle({ ...event, type: 'schedule', timeSlot: slotKey }, 1, slotKey)}
+            cardStyle={getCardStyle({ ...event, type: 'schedule', timeSlot: slotKey }, span, slotKey)}
             onToggle={onToggleGoogleEvent}
           />
         ))}
