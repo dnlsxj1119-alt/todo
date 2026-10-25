@@ -822,7 +822,7 @@ input, textarea, select { font-family: inherit; }
 
 .week-card-top { display: flex; align-items: center; gap: 5px; }
 /* 짧은 카드(44px 미만): 시간 줄을 숨기고 제목을 세로 가운데에 — 시간은 툴팁으로 */
-.week-card--compact { display: flex; flex-direction: column; justify-content: center; padding-top: 4px; padding-bottom: 4px; }
+.week-card--compact { display: flex; flex-direction: column; justify-content: center; padding-top: 3px; padding-bottom: 3px; line-height: 1.2; }
 .week-card--compact .card-time { display: none; }
 .card-check {
   font-size: 11px;

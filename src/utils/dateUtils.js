@@ -137,12 +137,18 @@ function cellHeightPx(startSlot, span) {
   return h;
 }
 
-// 슬롯 끝 가까이 시작하는 짧은 일정(예: 저녁 20:00)은 최소 높이 때문에 셀 아래로 삐져나와 잘렸다
-// → 셀 안에 들어오도록 위로 당기고, 그래도 넘치면(다음 슬롯까지 이어지는 구글 일정) 셀 끝에서 맞춘다
+// 제목 한 줄짜리 콤팩트 카드가 들어가는 최소 높이 (.week-card--compact 패딩 3px 기준)
+const MIN_COMPACT_PX = 26;
+
+// 슬롯 끝 가까이 시작하는 짧은 일정(예: 저녁 20:00)은 최소 높이 때문에 셀 아래로 삐져나와 잘렸다.
+// 한 줄 카드가 들어갈 자리가 남으면 시작 시각 자리는 지키고 높이만 줄인다 — 그래야 20:00에 끝나는
+// 앞 일정과 맞닿아 보이고 겹침 스택으로 밀리지 않는다. 그마저 없으면 최소한만 위로 당긴다.
 function fitInCell(style, cellH) {
   if (!cellH || style.top + style.height <= cellH) return style;
-  const top = Math.max(0, cellH - style.height);
-  return { ...style, top, height: cellH - top };
+  const room = cellH - style.top;
+  if (room >= MIN_COMPACT_PX) return { ...style, height: room };
+  const height = Math.min(cellH, MIN_COMPACT_PX);
+  return { ...style, top: cellH - height, height };
 }
 
 // 다일 이벤트 시작일: 시작 시간부터 밤 끝까지 채우는 높이
