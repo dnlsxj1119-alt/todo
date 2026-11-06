@@ -2922,3 +2922,151 @@ input, textarea, select { font-family: inherit; }
   .cal-notion-edit { min-width: 28px; min-height: 28px; }
   .cal-notion-ok, .cal-notion-cancel { min-height: 30px; }
 }
+
+/* ===================== 💼 면접 준비 탭 (InterviewView) =====================
+   섹션 > 소제목 > 항목 체크리스트. 카드·진행률 바는 목표 탭(gv-*)과 같은 결.
+   체크 상태는 Supabase(모든 기기), 접힘·완료 숨기기는 기기별(localStorage). */
+.interview-view { padding: 26px 24px 60px; max-width: 860px; }
+
+.iv-head { display: flex; align-items: flex-start; gap: 16px; margin-bottom: 16px; }
+.iv-head-t { flex: 1; min-width: 0; }
+.iv-h1 { font-size: 24px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.25; }
+.iv-h2 { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
+.iv-dday {
+  flex-shrink: 0; align-self: center;
+  font-size: 22px; font-weight: 800; letter-spacing: -0.02em; font-variant-numeric: tabular-nums;
+  color: var(--purple-dark); background: var(--purple-light);
+  border-radius: 12px; padding: 8px 16px;
+}
+.iv-dday--today { color: #fff; background: var(--red-mid); }
+
+.iv-summary {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: 14px 18px; margin-bottom: 18px;
+}
+.iv-summary-row { display: flex; align-items: center; gap: 10px; }
+.iv-summary-n { font-size: 13.5px; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+.iv-summary-n b { font-size: 18px; color: var(--text-primary); font-weight: 800; }
+.iv-toggle {
+  margin-left: auto; font-size: 11.5px; font-weight: 600; color: var(--text-secondary);
+  background: var(--surface); border: 1px solid var(--border); border-radius: 99px; padding: 5px 11px;
+  white-space: nowrap;
+}
+.iv-toggle:hover { border-color: var(--accent); color: var(--accent); }
+.iv-toggle--on { color: var(--purple-dark); background: var(--purple-light); border-color: var(--purple-light); }
+
+.iv-bar { display: block; height: 7px; border-radius: 999px; background: var(--border-light); overflow: hidden; }
+.iv-bar i { display: block; height: 100%; border-radius: 999px; background: var(--accent); transition: width 0.25s ease; }
+.iv-bar--big { height: 9px; margin-top: 10px; }
+.iv-bar--sm { width: 64px; height: 5px; flex-shrink: 0; }
+
+.iv-loading { padding: 24px 2px; font-size: 13px; color: var(--text-muted); }
+
+/* 섹션 카드 */
+.iv-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); margin-bottom: 12px; overflow: hidden;
+}
+.iv-card-head {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  padding: 14px 18px; text-align: left; color: var(--text-primary);
+}
+.iv-card-head:hover { background: var(--bg); }
+.iv-chev { font-size: 12px; color: var(--text-muted); width: 12px; flex-shrink: 0; }
+.iv-card-t { font-size: 15px; font-weight: 800; letter-spacing: -0.01em; flex: 1; min-width: 0; }
+.iv-card-n { font-size: 12.5px; color: var(--text-muted); font-variant-numeric: tabular-nums; flex-shrink: 0; }
+.iv-card--done .iv-card-t { color: var(--text-muted); }
+.iv-card--done .iv-bar i { background: var(--green-mid); }
+.iv-card-body { padding: 0 18px 8px; border-top: 1px solid var(--border-light); }
+
+.iv-note { font-size: 12.5px; color: var(--text-secondary); line-height: 1.6; padding: 12px 2px 4px; }
+
+.iv-group { padding-top: 10px; }
+.iv-group-t {
+  font-size: 11.5px; font-weight: 700; color: var(--text-muted); letter-spacing: 0.02em;
+  padding: 6px 2px 2px;
+}
+.iv-group--empty { padding-top: 6px; }
+.iv-group-done { font-weight: 500; color: var(--green-mid); margin-left: 4px; }
+.iv-all-done { font-size: 12.5px; color: var(--green-dark); padding: 12px 2px 6px; }
+
+/* 항목 줄 */
+.iv-list { list-style: none; }
+.iv-item {
+  display: flex; align-items: flex-start; gap: 6px;
+  border-bottom: 1px solid var(--border-light);
+  -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
+}
+.iv-item:last-child { border-bottom: none; }
+.iv-check-wrap {
+  flex: 1; min-width: 0; display: flex; align-items: flex-start; gap: 10px;
+  padding: 9px 2px; cursor: pointer;
+}
+.iv-check {
+  appearance: none; -webkit-appearance: none;
+  width: 18px; height: 18px; flex-shrink: 0; margin-top: 1px;
+  border: 1.5px solid var(--border); border-radius: 6px; background: var(--surface);
+  display: grid; place-items: center; cursor: pointer;
+  transition: background var(--transition), border-color var(--transition);
+}
+.iv-check:hover { border-color: var(--accent); }
+.iv-check:checked { background: var(--accent); border-color: var(--accent); }
+.iv-check:checked::after {
+  content: ''; width: 5px; height: 9px; margin-top: -2px;
+  border: solid #fff; border-width: 0 2px 2px 0; transform: rotate(45deg);
+}
+.iv-label { font-size: 13.5px; line-height: 1.5; color: var(--text-primary); word-break: keep-all; overflow-wrap: anywhere; }
+.iv-item--done .iv-label { color: var(--text-muted); text-decoration: line-through; }
+.iv-item--optional .iv-label { color: var(--text-muted); font-weight: 400; }
+.iv-item--optional .iv-check { border-style: dashed; }
+
+.iv-actions { display: flex; gap: 2px; align-self: center; opacity: 0; transition: opacity var(--transition); }
+.iv-item:hover .iv-actions, .iv-item--open .iv-actions, .iv-actions:focus-within { opacity: 1; }
+.iv-act {
+  font-size: 12.5px; color: var(--text-muted); width: 28px; height: 28px; border-radius: 7px;
+  display: grid; place-items: center;
+}
+.iv-act:hover { background: var(--bg); color: var(--accent); }
+.iv-act--danger:hover { color: var(--red-mid); background: var(--red-light); }
+.iv-item--open { background: var(--bg); border-radius: 8px; }
+
+/* 추가 · 수정 폼 */
+.iv-add-more {
+  display: block; width: 100%; text-align: left;
+  padding: 11px 2px; font-size: 12.5px; font-weight: 600; color: var(--text-muted);
+}
+.iv-add-more:hover { color: var(--accent); }
+.iv-item--editing { padding: 6px 0; }
+.iv-form { display: flex; flex-direction: column; gap: 7px; width: 100%; }
+.iv-form--add { padding: 10px 0 6px; }
+.iv-input {
+  width: 100%; padding: 8px 11px; font-size: 13px; font-family: inherit;
+  color: var(--text-primary); background: var(--surface);
+  border: 1px solid var(--accent); border-radius: 8px; outline: none;
+}
+.iv-form-actions { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.iv-select {
+  font-size: 12px; padding: 5px 8px; border: 1px solid var(--border); border-radius: 7px;
+  background: var(--surface); color: var(--text-secondary); max-width: 180px;
+}
+
+@media (max-width: 900px) { .interview-view { padding: 22px 20px 70px; } }
+@media (max-width: 560px) {
+  .interview-view { padding: 16px 14px 80px; }
+  .iv-h1 { font-size: 18px; }
+  .iv-dday { font-size: 17px; padding: 6px 12px; }
+  .iv-card-head { padding: 12px 14px; }
+  .iv-card-body { padding: 0 14px 6px; }
+  .iv-card-t { font-size: 14px; }
+  .iv-bar--sm { width: 44px; }
+  .iv-summary { padding: 12px 14px; }
+}
+@media (hover: none) {
+  /* 휴대폰은 hover 가 없다 → 길게 눌러 열기 전까지 버튼을 숨기되, 체크 영역은 넉넉하게 */
+  .iv-check-wrap { min-height: 44px; padding-top: 11px; padding-bottom: 11px; }
+  .iv-check { width: 20px; height: 20px; }
+  .iv-act { width: 34px; height: 34px; }
+  .iv-toggle, .iv-add-more { min-height: 34px; }
+  .iv-item:hover .iv-actions { opacity: 0; }
+  .iv-item--open .iv-actions { opacity: 1; }
+}

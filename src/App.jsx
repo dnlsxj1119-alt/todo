@@ -23,6 +23,7 @@ import { useProjects } from './hooks/useProjects';
 import { useHabits } from './hooks/useHabits';
 import { useMonthlyGoals } from './hooks/useMonthlyGoals';
 import { useGoals } from './hooks/useGoals';
+import { useInterviewChecklist } from './hooks/useInterviewChecklist';
 import { useDailyReflections } from './hooks/useDailyReflections';
 import { getWeekStart, toDateString, getMonthKey, addDays } from './utils/dateUtils';
 import { readStored, writeStored } from './utils/safeStorage';
@@ -35,6 +36,7 @@ import HabitTracker from './components/HabitTracker';
 import MonthlyGoalsView from './components/MonthlyGoalsView';
 import GoalsView from './components/GoalsView';
 import DailyReflectionView from './components/DailyReflectionView';
+import InterviewView from './components/InterviewView';
 import ReflectionEditorModal from './components/ReflectionEditorModal';
 import ItemModal from './components/ItemModal';
 import './App.css';
@@ -133,6 +135,7 @@ export default function App() {
   const { habits, archivedHabits, addHabit, updateHabit, deleteHabit, toggleHabitDate, reorderHabits, archiveHabit, restoreHabit, pauseHabit, resumeHabit } = useHabits(userId);
   const { getForMonth: getMonthlyGoal, updateNotes: updateGoalNotes, addItem: addGoalItem, toggleItem: toggleGoalItem, deleteItem: deleteGoalItem, editItem: editGoalItem, reorderItems: reorderGoalItems } = useMonthlyGoals(userId);
   const { goals, ready: goalsReady, addGoal, updateGoal, deleteGoal, setGoalDone } = useGoals(userId);
+  const interview = useInterviewChecklist(userId);
 
   // 목표에서 바로 할일을 만들어 오늘 계획으로 꽂는다 ('적어두고 끝'을 막는 동작).
   // 연결한 프로젝트가 있으면 그 카테고리로 넣어, 완료하면 목표의 '쌓인 것'에 그대로 잡힌다.
@@ -302,6 +305,14 @@ export default function App() {
           >
             <span className="nav-icon">💭</span>
             <span className="nav-label">오늘의 회고</span>
+          </button>
+          <button
+            className={`nav-item ${activeTab === 'interview' ? 'nav-item--active' : ''}`}
+            onClick={() => setActiveTab('interview')}
+            title="면접 준비"
+          >
+            <span className="nav-icon">💼</span>
+            <span className="nav-label">면접 준비</span>
           </button>
         </nav>
 
@@ -523,6 +534,16 @@ export default function App() {
             getReflection={getReflection}
             weekStats={getWeekStats(toDateString(new Date()))}
             onOpenDate={openReflection}
+          />
+        ) : activeTab === 'interview' ? (
+          <InterviewView
+            items={interview.items}
+            loading={interview.loading}
+            ready={interview.ready}
+            onToggle={interview.toggleDone}
+            onAdd={interview.addItem}
+            onEdit={interview.editLabel}
+            onDelete={interview.deleteItem}
           />
         ) : null}
         </ErrorBoundary>
