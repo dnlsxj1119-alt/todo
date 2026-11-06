@@ -258,6 +258,15 @@ export default function App() {
 
         {/* Nav */}
         <nav className="sidebar-nav">
+          {/* 면접(11/20)까지 매일 보는 탭이라 맨 위 (사용자 요청) */}
+          <button
+            className={`nav-item ${activeTab === 'interview' ? 'nav-item--active' : ''}`}
+            onClick={() => setActiveTab('interview')}
+            title="면접 준비"
+          >
+            <span className="nav-icon">💼</span>
+            <span className="nav-label">면접 준비</span>
+          </button>
           <button
             className={`nav-item ${activeTab === 'calendar' ? 'nav-item--active' : ''}`}
             onClick={() => setActiveTab('calendar')}
@@ -305,14 +314,6 @@ export default function App() {
           >
             <span className="nav-icon">💭</span>
             <span className="nav-label">오늘의 회고</span>
-          </button>
-          <button
-            className={`nav-item ${activeTab === 'interview' ? 'nav-item--active' : ''}`}
-            onClick={() => setActiveTab('interview')}
-            title="면접 준비"
-          >
-            <span className="nav-icon">💼</span>
-            <span className="nav-label">면접 준비</span>
           </button>
         </nav>
 
