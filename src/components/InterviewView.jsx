@@ -90,6 +90,7 @@ export default function InterviewView({ items, loading, ready, onToggle, onAdd, 
 
   return (
     <div className="interview-view">
+      <div className="iv-inner">
       <div className="iv-head">
         <div className="iv-head-t">
           <h1 className="iv-h1">{INTERVIEW_TITLE}</h1>
@@ -189,6 +190,7 @@ export default function InterviewView({ items, loading, ready, onToggle, onAdd, 
           </section>
         );
       })}
+      </div>
     </div>
   );
 }

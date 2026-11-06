@@ -2926,7 +2926,10 @@ input, textarea, select { font-family: inherit; }
 /* ===================== 💼 면접 준비 탭 (InterviewView) =====================
    섹션 > 소제목 > 항목 체크리스트. 카드·진행률 바는 목표 탭(gv-*)과 같은 결.
    체크 상태는 Supabase(모든 기기), 접힘·완료 숨기기는 기기별(localStorage). */
-.interview-view { padding: 26px 24px 60px; max-width: 860px; }
+/* .main-content 가 overflow:hidden 이라 뷰 스스로 스크롤해야 한다 (ListView 와 같은 방식).
+   스크롤바는 화면 오른쪽 끝에 두고, 내용 폭만 .iv-inner 로 제한한다. */
+.interview-view { width: 100%; height: 100%; align-self: stretch; overflow-y: auto; padding: 26px 24px 60px; }
+.iv-inner { max-width: 860px; }
 
 .iv-head { display: flex; align-items: flex-start; gap: 16px; margin-bottom: 16px; }
 .iv-head-t { flex: 1; min-width: 0; }
