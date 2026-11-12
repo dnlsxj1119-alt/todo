@@ -69,13 +69,23 @@ export default function ItemModal({ item, defaultDate, defaultSlot, defaultType,
     if (type === form.type) return;
     // 종류를 바꾸면 그 종류에 입력칸이 없는 값이 화면에서 사라진 채 남아서 저장됐다.
     // (일정의 '종료 날짜' 를 넣고 할일/매우중요로 바꾸면 며칠에 걸친 유령 항목이 생김)
+    // 시작·종료 시간은 모든 종류에 입력칸이 있으므로 **그대로 둔다** — 예전엔 같이 비워서
+    // 할일에 시간을 정해 두고 일정으로 바꾸면 시간을 다시 넣어야 했다.
     endDateManuallySet.current = false;
-    setForm(f => ({
-      ...f, type,
-      time: '', endTime: '', timeSlot: initialSlot,
-      endDate: '',
-      dueDate: type === 'schedule' ? '' : f.dueDate,
-    }));
+    setForm(f => {
+      // 시간대는 시간에서 다시 구한다. 시간이 없으면 처음 값으로 —
+      // 단 'all'(전체 행)은 할일 전용이라 다른 종류에선 아침으로.
+      const fallbackSlot = (type !== 'todo' && initialSlot === 'all') ? 'morning' : initialSlot;
+      const next = {
+        ...f, type,
+        timeSlot: f.time ? getTimeSlotFromTime(f.time) : fallbackSlot,
+        endDate: '',
+        dueDate: type === 'schedule' ? '' : f.dueDate,
+      };
+      // 종료 날짜를 비웠으니 '종료시간이 시작보다 이르면 다음날' 만 다시 계산
+      next.endDate = fixedEndDate(next);
+      return next;
+    });
   };
 
   // 같은 날인데 종료시간이 시작시간보다 이르거나 같으면 시간 범위가 뒤집힌다.
