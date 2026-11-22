@@ -8,8 +8,9 @@ import { readStored, writeStored } from '../utils/safeStorage';
    (주간엔 '백로그'가 있었지만 날짜 없는 것만, 월간엔 아예 없었다) → 같은 할일인데 화면마다 흩어져 보였다.
    그래서 목록 탭과 **같은 기준**(utils/todoRows)으로 '지난(놓친) / 미정' 두 묶음을 어느 화면에서나 보여 준다.
    - 행을 날짜 칸으로 끌어다 놓으면 그 날짜로 잡힌다. 격자의 할일을 패널로 끌어오면 날짜가 지워져 미정이 된다.
-   - 카테고리 태스크(projects.tasks)도 목록과 개수가 맞게 같이 보여 준다. 다만 태스크는 items 가 아니라
-     끌어 옮길 수 없고, 누르면 목록 탭으로 간다. */
+   - 카테고리 태스크(projects.tasks)도 목록과 개수가 맞게 같이 보여 준다. 보통 할일처럼 ○ 로 바로 완료할 수 있다
+     (처음엔 📌 만 붙이고 체크를 막았더니 '이게 뭐냐'는 말이 나왔다 — 사용자 눈엔 똑같은 할일이다).
+     다만 태스크는 items 가 아니라 달력 칸에 안 찍히므로 끌어 옮길 수는 없고, 누르면 목록 탭으로 간다. */
 
 // 폭·접힘은 예전 주간 백로그가 쓰던 키를 그대로 쓴다 (맞춰 둔 폭이 유지되게)
 const WIDTH_KEY = 'weekBacklogWidth';
@@ -59,19 +60,15 @@ function PanelRow({ r, today, onItemClick, onToggle, onOpenList, onDragStart }) 
       draggable={isItem}
       onDragStart={isItem ? (e) => onDragStart?.(e, r.raw) : undefined}
       onClick={() => (isItem ? onItemClick(r.raw) : onOpenList?.())}
-      title={[r.title, r.cat?.name, isItem ? '날짜 칸으로 끌어다 놓으면 그 날로 잡혀요' : '카테고리 태스크 — 누르면 목록에서 열려요']
+      title={[r.title, r.cat?.name, isItem ? '날짜 칸으로 끌어다 놓으면 그 날로 잡혀요' : '카테고리 안의 할일 — 누르면 목록에서 열려요']
         .filter(Boolean).join(' · ')}
     >
       <div className="week-card-top">
-        {isItem ? (
-          <button className="card-check"
-            onClick={(e) => { e.stopPropagation(); onToggle(r.raw.id); }}
-            aria-label="완료">
-            ○
-          </button>
-        ) : (
-          <span className="card-check" aria-hidden="true">📌</span>
-        )}
+        <button className="card-check"
+          onClick={(e) => { e.stopPropagation(); onToggle(r); }}
+          aria-label="완료">
+          ○
+        </button>
         <span className="card-title">{r.title}</span>
         {dateLabel && <span className="tp-date">{dateLabel}</span>}
       </div>
@@ -172,7 +169,16 @@ export default function TodoPanel({
     );
   }
 
-  const rowProps = { today: dayKeys.today, onItemClick, onToggle, onOpenList, onDragStart: onRowDragStart };
+  // 완료 처리. 태스크는 projects.tasks JSON 안에 있어서 목록 탭과 같은 방식으로 완료 시각을 같이 담아 저장한다.
+  const completeRow = (r) => {
+    if (r.kind === 'item') { onToggle(r.raw.id); return; }
+    const p = r.raw.project;
+    const tasks = (p.tasks ?? []).map(t => (
+      t.id === r.raw.task.id ? { ...t, status: 'done', completedAt: new Date().toISOString() } : t
+    ));
+    onSaveProject(p.id, { ...p, tasks });
+  };
+  const rowProps = { today: dayKeys.today, onItemClick, onToggle: completeRow, onOpenList, onDragStart: onRowDragStart };
 
   return (
     <>
