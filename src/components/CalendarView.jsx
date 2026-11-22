@@ -4,6 +4,7 @@ import { buildDeadlineMap } from '../utils/deadlines';
 import { buildProjectSpans, hasProjectSpan } from '../utils/projectSpans';
 import { readStored, writeStored, removeStored } from '../utils/safeStorage';
 import { habitDayStats } from '../utils/habitStats';
+import TodoPanel from './TodoPanel';
 
 const TYPE_COLOR = {
   todo:      'chip--purple',
@@ -201,7 +202,7 @@ function DeadlineChip({ entry, onProjectClick, onItemClick }) {
 // 체크 기록으로 시작일을 추정해 봤지만 사용자가 원한 날과 안 맞아서 날짜로 못 박았다.
 const HABIT_PCT_START = '2026-10-12';
 
-export default function CalendarView({ currentMonth, setCurrentMonth, items = [], getItemsForDate, onItemClick, onDayClick, onDateNumClick, reflectionDates, onToggle, filterType, projects = [], onProjectClick, getGoogleEventsForDate, onToggleGoogleEvent, onMoveItem, habits = [] }) {
+export default function CalendarView({ currentMonth, setCurrentMonth, items = [], getItemsForDate, onItemClick, onDayClick, onDateNumClick, reflectionDates, onToggle, filterType, projects = [], onProjectClick, getGoogleEventsForDate, onToggleGoogleEvent, onMoveItem, habits = [], todoPanel }) {
   const [expanded, setExpanded] = useState({});
   // '한 일 모두 보이기' — 켜면 어느 칸도 끝낸 할일을 '✓N'으로 접지 않는다. 기기별로 기억(localStorage)
   const [showAllDone, setShowAllDone] = useState(() => {
@@ -224,7 +225,7 @@ export default function CalendarView({ currentMonth, setCurrentMonth, items = []
     setEditingNotion(false);
   };
   // 항목을 다른 날짜 칸으로 끌어다 옮기기 (데스크톱 전용 — 터치에선 HTML5 드래그가 동작하지 않음)
-  const [dragInfo, setDragInfo] = useState(null); // { id, from }
+  const [dragInfo, setDragInfo] = useState(null); // { id, from(날짜 또는 'panel'), type }
   const [dragOverDate, setDragOverDate] = useState(null);
   const endDrag = () => { setDragInfo(null); setDragOverDate(null); };
 
@@ -338,6 +339,21 @@ export default function CalendarView({ currentMonth, setCurrentMonth, items = []
         <button className="nav-btn" onClick={nextMonth} aria-label="다음 달">›</button>
       </div>
 
+      <div className="cal-body">
+        {/* 주간 일정과 같은 할일 패널 (지난·미정). 행을 날짜 칸에 놓으면 그 날로, 할일 칩을 패널에 놓으면 미정으로 */}
+        {todoPanel && (
+          <TodoPanel
+            {...todoPanel}
+            onRowDragStart={onMoveItem ? (e, item) => {
+              e.dataTransfer.setData('itemId', String(item.id));
+              e.dataTransfer.effectAllowed = 'move';
+              setDragInfo({ id: item.id, from: 'panel', type: item.type });
+            } : undefined}
+            canDrop={!!onMoveItem && dragInfo?.type === 'todo'}
+            onDropItem={(id) => { endDrag(); onMoveItem(id, ''); }}
+          />
+        )}
+        <div className="cal-main">
       {/* Day headers */}
       <div className="cal-grid cal-grid--header">
         {DAY_NAMES.map((d, i) => (
@@ -451,7 +467,7 @@ export default function CalendarView({ currentMonth, setCurrentMonth, items = []
                       slot={slot}
                       onClick={(it) => (it._project ? onProjectClick?.(it._project) : onItemClick(it))}
                       onToggle={onToggle}
-                      onDragStart={onMoveItem ? (it) => setDragInfo({ id: it.id, from: ds }) : undefined}
+                      onDragStart={onMoveItem ? (it) => setDragInfo({ id: it.id, from: ds, type: it.type }) : undefined}
                     />
                   : <div key={`lane-${i}`} className="chip chip--span chip--span-gap" aria-hidden="true">&nbsp;</div>
                 ))}
@@ -470,7 +486,7 @@ export default function CalendarView({ currentMonth, setCurrentMonth, items = []
                         item={entry.data}
                         onClick={onItemClick}
                         onToggle={onToggle}
-                        onDragStart={onMoveItem ? (it) => setDragInfo({ id: it.id, from: ds }) : undefined}
+                        onDragStart={onMoveItem ? (it) => setDragInfo({ id: it.id, from: ds, type: it.type }) : undefined}
                       />
                 ))}
                 {(hidden > 0 || mobileDone > 0) && (
@@ -503,6 +519,8 @@ export default function CalendarView({ currentMonth, setCurrentMonth, items = []
             </div>
           );
         })}
+      </div>
+        </div>
       </div>
     </div>
   );

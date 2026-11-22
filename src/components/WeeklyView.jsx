@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, Fragment } from 'react';
+import { useState, useMemo, Fragment } from 'react';
 import {
   getWeekDays, getWeekStart, toDateString, isToday, formatWeekRange,
   TIME_SLOTS, TIME_SLOT_ORDER, DAY_NAMES_WEEK,
@@ -10,7 +10,7 @@ import { isWeekBar, isSpanTodo, weekBarEnd } from '../hooks/useItems';
 import { SpanChip } from './CalendarView';
 import { buildDeadlineMap } from '../utils/deadlines';
 import { buildProjectSpans, hasProjectSpan } from '../utils/projectSpans';
-import { readStored, writeStored } from '../utils/safeStorage';
+import TodoPanel from './TodoPanel';
 
 // 마감 칩의 종류별 기호: 카테고리 🏁 · 태스크 📌 · 할일 📕(목록의 마감일 칩과 같은 기호)
 const DEADLINE_EMOJI = { task: '📌', item: '📕', project: '🏁' };
@@ -20,33 +20,6 @@ const TYPE_COLOR = {
   education: 'week-card--red',
   schedule:  'week-card--green',
 };
-
-const BACKLOG_WIDTH_KEY = 'weekBacklogWidth';
-const BACKLOG_WIDTH_MIN = 200;
-const BACKLOG_WIDTH_MAX = 420;
-const BACKLOG_WIDTH_DEFAULT = 260;
-const BACKLOG_COLLAPSED_KEY = 'weekBacklogCollapsed';
-
-function BacklogQuickAdd({ onAdd }) {
-  const [text, setText] = useState('');
-  const submit = (e) => {
-    e.preventDefault();
-    const trimmed = text.trim();
-    if (!trimmed) return;
-    onAdd(trimmed);
-    setText('');
-  };
-  return (
-    <form className="backlog-add" onSubmit={submit}>
-      <input
-        className="backlog-add-input"
-        placeholder="+ 할일 추가"
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-      />
-    </form>
-  );
-}
 
 // 이보다 낮은 카드는 시간 줄이 카드 밖으로 삐져나오므로 제목만 보인다 (시간은 툴팁으로)
 const COMPACT_CARD_PX = 44;
@@ -277,73 +250,14 @@ export default function WeeklyView({
   currentWeek, setCurrentWeek, items, getItemsForCell,
   onItemClick, onDayClick, onToggle, moveItem, filterType,
   habits, onToggleHabit, projects, onProjectClick,
-  backlogItems, onAddBacklogItem,
+  todoPanel,
   getGoogleEventsForDate, onToggleGoogleEvent,
 }) {
   const [dragOverCell, setDragOverCell] = useState(null);
   const [dragItemType, setDragItemType] = useState(null);
-  const [dragOverBacklog, setDragOverBacklog] = useState(false);
-  const [backlogCollapsed, setBacklogCollapsed] = useState(
-    () => readStored(BACKLOG_COLLAPSED_KEY) === '1'
-  );
-  const [backlogWidth, setBacklogWidth] = useState(() => {
-    const saved = Number(readStored(BACKLOG_WIDTH_KEY));
-    return saved >= BACKLOG_WIDTH_MIN && saved <= BACKLOG_WIDTH_MAX ? saved : BACKLOG_WIDTH_DEFAULT;
-  });
-  const weekBodyRef = useRef(null);
-  const backlogResizeRef = useRef(null);
-
-  const toggleBacklog = () => {
-    setBacklogCollapsed(prev => {
-      const next = !prev;
-      writeStored(BACKLOG_COLLAPSED_KEY, next ? '1' : '0');
-      return next;
-    });
-  };
-
-  const startBacklogResize = (e) => {
-    e.preventDefault();
-    backlogResizeRef.current = { startX: e.clientX, startWidth: backlogWidth, current: backlogWidth };
-    const onMove = (moveEvent) => {
-      const next = Math.min(
-        BACKLOG_WIDTH_MAX,
-        Math.max(BACKLOG_WIDTH_MIN, backlogResizeRef.current.startWidth + (moveEvent.clientX - backlogResizeRef.current.startX))
-      );
-      backlogResizeRef.current.current = next;
-      weekBodyRef.current?.style.setProperty('--week-backlog-width', `${next}px`);
-    };
-    const onUp = () => {
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('mouseup', onUp);
-      document.body.style.cursor = '';
-      document.body.style.userSelect = '';
-      const finalWidth = backlogResizeRef.current.current;
-      setBacklogWidth(finalWidth);
-      writeStored(BACKLOG_WIDTH_KEY, String(finalWidth));
-    };
-    document.body.style.cursor = 'col-resize';
-    document.body.style.userSelect = 'none';
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseup', onUp);
-  };
-
-  const handleBacklogDragOver = (e) => {
-    if (dragItemType !== 'todo') return;
-    e.preventDefault();
-    setDragOverBacklog(true);
-  };
-
-  const handleBacklogDrop = (e) => {
-    e.preventDefault();
-    const type = e.dataTransfer.getData('itemType');
-    const id = Number(e.dataTransfer.getData('itemId'));
-    if (type === 'todo') moveItem(id, null, 'all');
-    setDragOverBacklog(false); setDragItemType(null);
-  };
-
   const days = getWeekDays(currentWeek);
 
-  // 이 주에서 아직 완료 안 한 할일 → 백로그로 (수동 버튼)
+  // 이 주에서 아직 완료 안 한 할일 → 날짜를 지워 할일 패널의 '미정'으로 (수동 버튼)
   const weekDateSet = new Set(days.map(d => toDateString(d)));
   const sweepTargets = items.filter(i =>
     i.type === 'todo' && !i.completed && i.date && weekDateSet.has(i.date)
@@ -351,7 +265,7 @@ export default function WeeklyView({
   const sweepCount = sweepTargets.length;
   const sweepWeekTodos = () => {
     if (sweepCount === 0) return;
-    if (!window.confirm(`이 주의 미완료 할일 ${sweepCount}개를 백로그로 보낼까요?\n(날짜만 지워지고 할일은 그대로 남아요)`)) return;
+    if (!window.confirm(`이 주의 미완료 할일 ${sweepCount}개를 '미정'으로 보낼까요?\n(날짜만 지워지고 할일은 그대로 남아요)`)) return;
     sweepTargets.forEach(i => moveItem(i.id, null, 'all'));
   };
   const { spanMap, covered } = useSpanData(items);
@@ -414,7 +328,7 @@ export default function WeeklyView({
     setDragOverCell(null); setDragItemType(null);
   };
 
-  const handleDragEnd = () => { setDragOverCell(null); setDragItemType(null); setDragOverBacklog(false); };
+  const handleDragEnd = () => { setDragOverCell(null); setDragItemType(null); };
 
   // 셀 렌더링 (슬롯 row 인덱스 포함)
   const renderCell = (ds, slotKey, rowNum, colNum) => {
@@ -614,46 +528,21 @@ export default function WeeklyView({
           {!isCurrentWeek && <button className="today-btn" onClick={goThisWeek}>이번 주</button>}
           {sweepCount > 0 && (
             <button className="week-sweep-btn" onClick={sweepWeekTodos}>
-              ↩ 미완료 {sweepCount}개 백로그로
+              ↩ 미완료 {sweepCount}개 미정으로
             </button>
           )}
         </div>
         <button className="nav-btn" onClick={nextWeek}>›</button>
       </div>
 
-      <div className="week-body" ref={weekBodyRef} style={{ '--week-backlog-width': `${backlogWidth}px` }}>
-        {backlogCollapsed ? (
-          <button className="week-backlog-expand-btn" onClick={toggleBacklog} aria-label="백로그 펼치기">
-            <span>📋</span><span>›</span>
-          </button>
-        ) : (
-          <>
-            <div
-              className={`week-backlog-pane ${dragOverBacklog ? 'week-backlog-pane--drag-over' : ''}`}
-              onDragOver={handleBacklogDragOver}
-              onDragLeave={() => setDragOverBacklog(false)}
-              onDrop={handleBacklogDrop}
-            >
-              <div className="week-backlog-header">
-                <span className="week-backlog-title">📋 할일 백로그</span>
-                <button className="week-backlog-collapse-btn" onClick={toggleBacklog} aria-label="백로그 접기">‹</button>
-              </div>
-              <div className="week-backlog-list">
-                {backlogItems.filter(i => !filterType || i.type === filterType).length === 0
-                  ? <div className="week-backlog-empty">이번 주 할일을 적어두고<br />날짜별로 드래그해 보세요</div>
-                  : backlogItems.filter(i => !filterType || i.type === filterType).map(item => (
-                      <WeekCard key={item.id} item={item}
-                        onItemClick={onItemClick} onToggle={onToggle}
-                        onDragStart={handleDragStart}
-                        isContinuation={false} cardStyle={{}} />
-                    ))
-                }
-              </div>
-              <BacklogQuickAdd onAdd={onAddBacklogItem} />
-            </div>
-            <div className="week-backlog-resizer" onMouseDown={startBacklogResize} />
-          </>
-        )}
+      <div className="week-body">
+        {/* 월간 달력과 같은 할일 패널 (지난·미정). 할일을 패널로 끌어오면 날짜가 지워져 미정이 된다 */}
+        <TodoPanel
+          {...todoPanel}
+          onRowDragStart={(e, item) => handleDragStart(e, item.id, item.type)}
+          canDrop={dragItemType === 'todo'}
+          onDropItem={(id) => { moveItem(id, null, 'all'); setDragItemType(null); }}
+        />
 
       <div className="week-grid-wrapper">
         <div className="week-grid">

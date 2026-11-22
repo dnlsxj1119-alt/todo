@@ -1,18 +1,14 @@
 import { useMemo, useState, useRef, useEffect, useLayoutEffect } from 'react';
 import { toDateString, addDays, DAY_NAMES } from '../utils/dateUtils';
-import { getProjectType, CATEGORY_PALETTE } from '../utils/projectTypes';
+import { CATEGORY_PALETTE } from '../utils/projectTypes';
+import {
+  catColor, catDone, catOf, isArchived, mdLabel, buildRows, dateBucket, compareRows,
+  clearOverdueRows, moveOverdueRowsToToday,
+} from '../utils/todoRows';
+import { useDayKeys } from '../hooks/useDayKeys';
 import { buildCategoryIndex, suggestCategory } from '../utils/autoCategory';
 import { linkify } from '../utils/linkify';
 import { habitAppliesToDate, habitStreak, habitRecentStats, habitChipLabel, habitStreakLabel, isWeeklyHabit, habitWeekStats, habitWeekStreak } from '../utils/habitStats';
-
-function catColor(p) {
-  return p.color || getProjectType(p.type).border;
-}
-
-// 카테고리 완료는 '완료 처리' 버튼으로만 결정 (태스크 진행률과 무관)
-function catDone(p) {
-  return !!p.forceCompleted;
-}
 
 // 새 카테고리엔 팔레트에서 기존에 가장 적게 쓴 색을 배정
 function pickNewCatColor(projects) {
@@ -33,49 +29,6 @@ function pickNewCatColor(projects) {
    - 중요도, 3단계 상태(안 함 / 하는 중 / 완료)
    - 지난 마감·오늘·미정(받은칸)·이번주·나중에 자동 그룹 */
 
-// 오늘/어제/내일/주말 기준 날짜. 모듈 로드 시점에 한 번만 계산하면
-// 앱을 켜둔 채 자정을 넘겼을 때 '오늘' 그룹이 어제 날짜로 남는다 → 매번 다시 계산한다.
-function endOfWeekStr() {
-  const d = new Date();
-  const fromMon = (d.getDay() + 6) % 7;
-  d.setDate(d.getDate() + (6 - fromMon));
-  return toDateString(d);
-}
-
-function computeDayKeys() {
-  const today = toDateString(new Date());
-  return {
-    today,
-    tomorrow: addDays(today, 1),
-    yesterday: addDays(today, -1),
-    eow: endOfWeekStr(),
-  };
-}
-
-// 자정을 넘기거나, 탭을 다시 열었을 때 날짜 기준을 갱신한다.
-function useDayKeys() {
-  const [keys, setKeys] = useState(computeDayKeys);
-  useEffect(() => {
-    const check = () => setKeys(prev => {
-      const next = computeDayKeys();
-      return prev.today === next.today ? prev : next;
-    });
-    const id = setInterval(check, 60000);
-    document.addEventListener('visibilitychange', check);
-    window.addEventListener('focus', check);
-    return () => {
-      clearInterval(id);
-      document.removeEventListener('visibilitychange', check);
-      window.removeEventListener('focus', check);
-    };
-  }, []);
-  return keys;
-}
-
-function mdLabel(s) {
-  const [, m, d] = s.split('-');
-  return `${+m}/${+d}`;
-}
 // 완료 탭의 날짜 그룹 제목. 오늘/어제는 이름으로, 그 전은 '9/15 (화)' 로.
 function doneDayLabel(ds, today) {
   if (ds === today) return '오늘';
@@ -98,95 +51,12 @@ const STATUS_OPTS = [
 ];
 const TASK_STATUS_MAP = { todo: 'upcoming', doing: 'in_progress', done: 'done', cancelled: 'cancelled' };
 
-// 완료·취소는 '끝난 것'이라 활성 목록에서 빠지고 보관 탭에서만 보인다.
-// 둘의 차이는 완료만 '최근 완료'·통계에 들어간다는 점.
-const isArchived = (status) => status === 'done' || status === 'cancelled';
 const PRIO = [
   null,
   { label: '낮음', color: '#8A94B8' },
   { label: '보통', color: '#E0942A' },
   { label: '높음', color: '#D9534F' },
 ];
-
-// 중요도는 1(낮음)/2(보통)/3(높음)만 유효하고 그 외는 '없음'.
-// 옛 '우선순위' 시절의 다른 척도 값(4 이상 등)이 남아 있으면 PRIO[4] 가 undefined 라
-// 막대가 투명해져 '중요도 없음'처럼 보이는데, 정렬에서는 높음(3)보다 위로 올라갔다.
-// 화면·정렬에서만 정규화한다 (DB 값은 그대로 둠 — 사용자가 다시 고르면 정상 값으로 저장됨).
-function normPrio(v) {
-  const n = Number(v);
-  return n === 1 || n === 2 || n === 3 ? n : 0;
-}
-
-function catOf(p) {
-  return { id: p.id, name: p.title, color: catColor(p) };
-}
-
-function buildRows(items, projects) {
-  const rows = [];
-  const projById = {};
-  projects.forEach(p => { projById[p.id] = p; });
-
-  items
-    .filter(it => it.type === 'todo' || it.type === 'education')
-    .forEach(it => {
-      const status = it.status || (it.completed ? 'done' : 'todo');
-      const p = it.projectId ? projById[it.projectId] : null;
-      rows.push({
-        key: `i-${it.id}`,
-        kind: 'item',
-        raw: it,
-        title: it.title,
-        cat: p ? catOf(p) : null,
-        expected: it.date || null,
-        due: it.dueDate || null,
-        time: it.time || null,
-        status,
-        priority: normPrio(it.priority),
-        sortOrder: it.sortOrder ?? null,
-        completedAt: it.completedAt ?? null,
-      });
-    });
-
-  projects.forEach(p => {
-    (p.tasks ?? []).forEach(t => {
-      rows.push({
-        key: `p-${t.id}`,
-        kind: 'task',
-        raw: { project: p, task: t },
-        title: t.label,
-        cat: catOf(p),
-        expected: t.planned || null,
-        due: t.deadline || null,
-        time: null,
-        status: t.status === 'done' ? 'done'
-          : t.status === 'cancelled' ? 'cancelled'
-          : t.status === 'in_progress' ? 'doing' : 'todo',
-        priority: normPrio(t.priority),
-        sortOrder: null,
-        completedAt: t.completedAt ?? null,
-      });
-    });
-  });
-
-  return rows;
-}
-
-function dateBucket(r, { today, tomorrow, yesterday, eow }) {
-  if (!isArchived(r.status)) {
-    const past = [r.due, r.expected].filter(d => d && d < today).sort();
-    if (past.length) return past[past.length - 1] === yesterday ? 'yesterday' : 'overdue';
-  }
-  if (r.expected === today || r.due === today) return 'today';
-  if (r.expected === tomorrow || r.due === tomorrow) return 'tomorrow';
-  // 계획일이 없어도 마감일이 있으면 '미정'이 아니다.
-  // 예전엔 '자소서 14일 마감'처럼 마감일만 적은 항목이 맨 아래 미정에 묻혀서 기한을 못 봤다.
-  if (!r.expected) {
-    if (!r.due) return 'unplanned';
-    return r.due <= eow ? 'week' : 'later';
-  }
-  if (r.expected <= eow) return 'week';
-  return 'later';
-}
 
 const GROUPS = [
   { key: 'overdue', label: '지난 (놓친 일정)', warn: true, add: false },
@@ -883,15 +753,7 @@ export default function ListView({
   // 예전엔 드래그로 지정한 수동 순서(sortOrder)가 중간에 끼어 같은 중요도끼리 고정됐는데,
   // 자동정렬이 안 되는 것처럼 느껴져서 정렬에서 뺐다. (DB 의 sort_order 값은 그대로 둠)
   // 완전히 같은 조건이면 Array.sort 가 안정 정렬이라 만든 순서가 유지된다.
-  Object.values(grouped).forEach(list => {
-    list.sort((a, b) => {
-      if (isArchived(a.status) !== isArchived(b.status)) return isArchived(a.status) ? 1 : -1;
-      if (a.priority !== b.priority) return b.priority - a.priority;
-      const da = a.expected || a.due || '9999-99-99';
-      const db = b.expected || b.due || '9999-99-99';
-      return da < db ? -1 : da > db ? 1 : 0;
-    });
-  });
+  Object.values(grouped).forEach(list => list.sort(compareRows));
 
   const setRowStatus = (r, status) => {
     if (r.kind === 'item') { onSetItemStatus(r.raw.id, status); return; }
@@ -962,62 +824,9 @@ export default function ListView({
     if (r.kind === 'item') onUpdateItem(r.raw.id, { title });
     else patchTask(r, { label: title });
   };
-  // 프로젝트 태스크를 하나씩 저장하면 저장할 때마다 태스크 배열 전체를 같은(낡은) 값으로
-  // 덮어써서 마지막 하나만 반영된다 → 카테고리별로 모아 한 번에 반영한다.
-  const patchTasksBulk = (taskRows, patchOf) => {
-    const byProject = new Map();
-    taskRows.forEach(r => {
-      const p = r.raw.project;
-      if (!byProject.has(p.id)) byProject.set(p.id, { project: p, ids: new Set() });
-      byProject.get(p.id).ids.add(r.raw.task.id);
-    });
-    byProject.forEach(({ project, ids }) => {
-      const tasks = (project.tasks ?? []).map(t => (ids.has(t.id) ? { ...t, ...patchOf(t) } : t));
-      onSaveProject(project.id, { ...project, tasks });
-    });
-  };
-
-  // 계획일을 지워 '미정'으로 보낸다.
-  // 마감일은 이미 지난 것만 지운다 — 아직 안 지난 마감일(예: 자소서 14일 마감)까지 지우면
-  // 사용자가 적어 둔 기한이 조용히 사라진다. 그런 항목은 마감일 기준 그룹으로 옮겨 간다.
-  const clearOverdue = (list) => {
-    if (!list.length) return;
-    const keepDue = list.filter(r => r.due && r.due >= TODAY).length;
-    const note = keepDue > 0
-      ? `\n(아직 안 지난 마감일 ${keepDue}개는 그대로 둬서, 그 항목은 마감일 그룹으로 옮겨져요)`
-      : '\n(항목은 그대로 남아요)';
-    if (!window.confirm(`지난 항목 ${list.length}개의 계획일을 지울까요?${note}`)) return;
-    list.filter(r => r.kind === 'item').forEach(r => {
-      const patch = { date: '' };
-      if (r.due && r.due < TODAY) patch.dueDate = '';
-      onUpdateItem(r.raw.id, patch);
-    });
-    patchTasksBulk(list.filter(r => r.kind === 'task'), t => (
-      t.deadline && t.deadline < TODAY ? { planned: '', deadline: '' } : { planned: '' }
-    ));
-  };
-
-  // 지난/어제 항목을 오늘로 다시 잡기.
-  // 마감일이 지난 채로 남으면 그룹 분류상 계속 '지난'에 남으므로,
-  // 이미 지나간 마감일만 오늘로 맞춘다 (아직 안 지난 마감일은 그대로 둔다).
-  const moveOverdueToToday = (list) => {
-    if (!list.length) return;
-    const pastDue = list.filter(r => r.due && r.due < TODAY).length;
-    const note = pastDue > 0
-      ? `\n(계획일을 오늘로 옮기고, 이미 지난 마감일 ${pastDue}개도 오늘로 맞춥니다)`
-      : '\n(계획일만 오늘로 옮기고 마감일은 그대로 둡니다)';
-    if (!window.confirm(`지난 항목 ${list.length}개를 오늘로 옮길까요?${note}`)) return;
-    list.filter(r => r.kind === 'item').forEach(r => {
-      const patch = { date: TODAY };
-      if (r.due && r.due < TODAY) patch.dueDate = TODAY;
-      onUpdateItem(r.raw.id, patch);
-    });
-    patchTasksBulk(list.filter(r => r.kind === 'task'), t => (
-      t.deadline && t.deadline < TODAY
-        ? { planned: TODAY, deadline: TODAY }
-        : { planned: TODAY }
-    ));
-  };
+  // 지난/어제 묶음 정리 — 달력·주간의 할일 패널과 같은 동작이라 utils/todoRows 에 둔다
+  const clearOverdue = (list) => clearOverdueRows(list, TODAY, { onUpdateItem, onSaveProject });
+  const moveOverdueToToday = (list) => moveOverdueRowsToToday(list, TODAY, { onUpdateItem, onSaveProject });
   const deleteRow = r => {
     if (r.kind === 'item') { onDeleteItem(r.raw.id); return; }
     // 되돌리기 대기(4.5초) 뒤에 실행되므로, 클릭 당시 스냅샷이 아니라 지금의 카테고리를 기준으로

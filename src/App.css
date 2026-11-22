@@ -576,9 +576,9 @@ input, textarea, select { font-family: inherit; }
   min-width: 0;
 }
 
-/* Backlog sidebar */
-.week-backlog-pane {
-  width: var(--week-backlog-width, 260px);
+/* 할일 패널 (월간 달력·주간 일정 공용 — 지난/미정) */
+.todo-panel-pane {
+  width: 260px;
   flex: none;
   display: flex;
   flex-direction: column;
@@ -587,16 +587,16 @@ input, textarea, select { font-family: inherit; }
   border-right: 1px solid var(--border);
   transition: background var(--transition);
 }
-.week-backlog-pane--drag-over { background: var(--purple-light); }
+.todo-panel-pane--drag-over { background: var(--purple-light); }
 
-.week-backlog-header {
+.todo-panel-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 12px 14px 8px;
   flex: none;
 }
-.week-backlog-title { font-size: 13px; font-weight: 700; color: var(--text-primary); }
+.todo-panel-title { font-size: 13px; font-weight: 700; color: var(--text-primary); }
 .week-sweep-btn {
   padding: 5px 11px;
   border: 1px solid var(--border);
@@ -607,7 +607,7 @@ input, textarea, select { font-family: inherit; }
   font-weight: 600;
 }
 .week-sweep-btn:hover { border-color: var(--purple-mid); color: var(--purple-dark); background: var(--purple-light); }
-.week-backlog-collapse-btn {
+.todo-panel-collapse-btn {
   border: none;
   background: transparent;
   color: var(--text-muted);
@@ -618,9 +618,9 @@ input, textarea, select { font-family: inherit; }
   border-radius: 4px;
   transition: background var(--transition), color var(--transition);
 }
-.week-backlog-collapse-btn:hover { background: var(--bg); color: var(--text-primary); }
+.todo-panel-collapse-btn:hover { background: var(--bg); color: var(--text-primary); }
 
-.week-backlog-list {
+.todo-panel-list {
   flex: 1;
   overflow-y: auto;
   display: flex;
@@ -628,21 +628,73 @@ input, textarea, select { font-family: inherit; }
   gap: 6px;
   padding: 0 14px 10px;
 }
-.week-backlog-empty {
+.todo-panel-empty {
   font-size: 12px;
   color: var(--text-muted);
   line-height: 1.6;
   text-align: center;
   margin-top: 24px;
 }
-.week-backlog-list .week-card { cursor: grab; }
+.todo-panel-list .week-card { cursor: grab; flex: none; }
+.todo-panel-list .tp-row--task { cursor: pointer; }
+.tp-section { display: flex; flex-direction: column; gap: 6px; }
+.tp-section + .tp-section { margin-top: 10px; }
+.tp-section-h {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  /* 목록이 길어 스크롤해도 어느 묶음인지 보이게 */
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--surface);
+  padding: 4px 0;
+}
+.tp-section-h--warn b { color: var(--red-mid); }
+.tp-ct { font-size: 11px; color: var(--text-muted); font-weight: 600; }
+.tp-action {
+  margin-left: auto;
+  padding: 3px 9px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.tp-action:hover { border-color: var(--purple-mid); color: var(--purple-dark); background: var(--purple-light); }
+.tp-date { flex: none; font-size: 10.5px; font-weight: 600; color: var(--red-mid); }
+.todo-panel-pane--drag-over .tp-section-h { background: var(--purple-light); }
 
-.backlog-add {
+/* 접힌 패널: 개수만 보이는 가는 줄. 놓친 할일은 붉게 */
+.tp-expand-label, .tp-badge-text { display: none; }
+.tp-badge {
+  min-width: 18px;
+  padding: 1px 4px;
+  border-radius: 999px;
+  background: var(--bg);
+  color: var(--text-secondary);
+  font-size: 10.5px;
+  font-weight: 700;
+  line-height: 1.5;
+  text-align: center;
+}
+.tp-badge--warn { background: var(--red-light); color: var(--red-dark); }
+
+/* 월간 달력: 패널 + 달력 격자를 가로로 */
+.cal-body { flex: 1; display: flex; min-height: 0; overflow: hidden; }
+.cal-main { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+
+.todo-panel-add {
   flex: none;
   padding: 10px 14px 14px;
   border-top: 1px solid var(--border-light);
 }
-.backlog-add-input {
+.todo-panel-add-input {
   width: 100%;
   box-sizing: border-box;
   border: 1px dashed var(--border);
@@ -653,10 +705,10 @@ input, textarea, select { font-family: inherit; }
   color: var(--text-primary);
   transition: border-color var(--transition), background var(--transition);
 }
-.backlog-add-input:focus { outline: none; border-color: var(--purple-mid); border-style: solid; background: var(--surface); }
-.backlog-add-input::placeholder { color: var(--text-muted); }
+.todo-panel-add-input:focus { outline: none; border-color: var(--purple-mid); border-style: solid; background: var(--surface); }
+.todo-panel-add-input::placeholder { color: var(--text-muted); }
 
-.week-backlog-resizer {
+.todo-panel-resizer {
   position: relative;
   width: 8px;
   flex: none;
@@ -664,7 +716,7 @@ input, textarea, select { font-family: inherit; }
   touch-action: none;
   background: var(--border);
 }
-.week-backlog-resizer::after {
+.todo-panel-resizer::after {
   content: '';
   position: absolute;
   top: 0;
@@ -677,13 +729,13 @@ input, textarea, select { font-family: inherit; }
   border-radius: 2px;
   transition: opacity 0.15s, background 0.15s;
 }
-.week-backlog-resizer:hover::after,
-.week-backlog-resizer:active::after {
+.todo-panel-resizer:hover::after,
+.todo-panel-resizer:active::after {
   opacity: 1;
   background: var(--purple-mid);
 }
 
-.week-backlog-expand-btn {
+.todo-panel-expand-btn {
   flex: none;
   width: 28px;
   display: flex;
@@ -699,7 +751,7 @@ input, textarea, select { font-family: inherit; }
   cursor: pointer;
   transition: background var(--transition), color var(--transition);
 }
-.week-backlog-expand-btn:hover { background: var(--bg); color: var(--purple-mid); }
+.todo-panel-expand-btn:hover { background: var(--bg); color: var(--purple-mid); }
 
 .week-grid {
   display: grid;
@@ -1353,9 +1405,21 @@ input, textarea, select { font-family: inherit; }
   .main-content { overflow-y: auto; }
   .weekly-view { height: auto; overflow: visible; }
   .week-body { flex-direction: column; overflow: visible; }
-  .week-backlog-pane { width: 100% !important; max-height: 220px; border-right: none; border-bottom: 1px solid var(--border); }
-  .week-backlog-resizer { display: none; }
-  .week-backlog-expand-btn { width: 100%; flex-direction: row; border-right: none; border-bottom: 1px solid var(--border); padding: 6px; }
+  /* 예전 백로그는 220px 였는데, 놓친 할일까지 들어오니 두 줄밖에 안 보였다 → 화면 높이의 절반 가까이 */
+  .todo-panel-pane { width: 100% !important; max-height: 46vh; border-right: none; border-bottom: 1px solid var(--border); }
+  .todo-panel-resizer { display: none; }
+  .todo-panel-expand-btn { width: 100%; flex-direction: row; gap: 6px; border-right: none; border-bottom: 1px solid var(--border); padding: 7px 12px; }
+  /* 접힌 줄에 글자로 풀어 쓴다: 📋 할일 · 놓친 3 · 미정 5 › */
+  .tp-expand-label { display: inline; font-size: 12px; font-weight: 700; color: var(--text-primary); }
+  .tp-badge-text { display: inline; }
+  .tp-badge { padding: 1px 8px; }
+  .tp-expand-arrow { margin-left: auto; }
+  /* 월간 달력: 패널을 달력 위에 얹는다. 펼치면 달력 6주가 눌려 칸이 납작해지므로,
+     그때만 달력 높이를 고정하고 화면 전체를 세로로 스크롤시킨다 (접혀 있을 땐 예전처럼 한 화면에 다 들어온다) */
+  .cal-body { flex-direction: column; }
+  .calendar-view:has(.todo-panel-pane) { height: auto; overflow: visible; }
+  .calendar-view:has(.todo-panel-pane) .cal-body { overflow: visible; }
+  .calendar-view:has(.todo-panel-pane) .cal-main { flex: none; height: 72vh; }
 
   /* Month calendar: shrink everything so a full week always fits on screen without scrolling */
   .cal-nav { padding: 10px 12px 8px; }
@@ -2676,7 +2740,9 @@ input, textarea, select { font-family: inherit; }
     align-items: center;
     justify-content: center;
   }
-  .week-backlog-collapse-btn { min-width: 34px; min-height: 34px; }
+  .todo-panel-collapse-btn { min-width: 34px; min-height: 34px; }
+  .tp-action { min-height: 30px; padding: 3px 12px; }
+  .todo-panel-expand-btn { min-height: 36px; }
   .week-sweep-btn { min-height: 34px; }
   .agenda-add-btn { min-width: 40px; min-height: 34px; }
   /* 달력 칸은 한 주가 화면에 다 들어가야 해서 아주 촘촘하다.
