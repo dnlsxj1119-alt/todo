@@ -7,6 +7,7 @@ import {
 } from '../utils/todoRows';
 import { useDayKeys } from '../hooks/useDayKeys';
 import { buildCategoryIndex, suggestCategory } from '../utils/autoCategory';
+import { parseTitleTime } from '../utils/titleTime';
 import { linkify } from '../utils/linkify';
 import { habitAppliesToDate, habitStreak, habitRecentStats, habitChipLabel, habitStreakLabel, isWeeklyHabit, habitWeekStats, habitWeekStreak } from '../utils/habitStats';
 
@@ -68,7 +69,8 @@ const GROUPS = [
   { key: 'unplanned', label: '미정', add: false },
 ];
 
-function QuickAdd({ placeholder, onAdd, withDates, categories = [], defaultProjectId = null, onCreateCategory }) {
+// hasDate: 날짜를 안 골라도 계획일이 정해지는 칸(오늘·내일 그룹)인지
+function QuickAdd({ placeholder, onAdd, withDates, hasDate = false, categories = [], defaultProjectId = null, onCreateCategory }) {
   const [val, setVal] = useState('');
   const [expected, setExpected] = useState('');
   const [due, setDue] = useState('');
@@ -84,11 +86,22 @@ function QuickAdd({ placeholder, onAdd, withDates, categories = [], defaultProje
   const selectedCat = categories.find(c => String(c.id) === String(projectId)) ?? null;
   const prio = PRIO[priority];
 
+  // 제목 끝에 '1400' 처럼 적으면 시작시간으로 옮긴다 (utils/titleTime.js, 항목 창과 같은 규칙).
+  // **계획일이 정해질 때만** 읽는다 — 날짜 없는 할일의 시간은 어디에도 안 보여서,
+  // 읽으면 제목에서 숫자만 사라진 것처럼 된다. 읽은 결과는 ⏰ 칩으로 미리 보여 주고,
+  // 숫자가 진짜 제목이면('계획 2026') 칩을 눌러 끈다.
+  const [keepDigits, setKeepDigits] = useState(false);
+  const typedTime = !keepDigits && (hasDate || expected) ? parseTitleTime(val) : null;
+
   const submit = () => {
     const t = val.trim();
     if (!t) return;
-    onAdd(t, { expected, due, projectId, priority });
+    onAdd(typedTime ? typedTime.title : t, {
+      expected, due, projectId, priority,
+      time: typedTime?.time ?? '', endTime: typedTime?.endTime ?? '',
+    });
     setVal('');
+    setKeepDigits(false);
     setExpected('');
     setDue('');
     // 중요도는 매번 초기화, 카테고리는 지금 보고 있는 카테고리로 되돌린다
@@ -112,6 +125,16 @@ function QuickAdd({ placeholder, onAdd, withDates, categories = [], defaultProje
         }}
       />
       <span className="lv-quick-meta">
+        {typedTime && (
+          <button
+            type="button"
+            className="lv-quick-prio lv-quick-time"
+            onClick={() => setKeepDigits(true)}
+            title="제목 끝 숫자를 시작시간으로 저장합니다. 누르면 숫자를 제목에 그대로 둡니다"
+          >
+            ⏰ {typedTime.time}{typedTime.endTime ? `~${typedTime.endTime}` : ''} ✕
+          </button>
+        )}
         <span className="lv-quick-pick">
           <button
             type="button"
@@ -863,7 +886,11 @@ export default function ListView({
     const dueDate = (extra && extra.due) || '';
     // 카테고리를 안 골랐으면 제목으로 자동 지정 (애매하면 비워 둔다)
     const autoProjectId = projectId ?? suggestFor(title)?.id ?? null;
-    onAddItem({ type: 'todo', title, date, dueDate, timeSlot: 'all', projectId: autoProjectId, priority });
+    // 제목 끝에 적은 시간(QuickAdd 가 읽어 넘긴다). 날짜가 없으면 넘어오지 않는다.
+    const time = date ? (extra?.time ?? '') : '';
+    // 빠른추가엔 종료 날짜가 없으니 자정을 넘는 범위('2200-0100')는 종료시간을 버린다(뒤집힌 범위 방지)
+    const endTime = time && (extra?.endTime ?? '') > time ? extra.endTime : '';
+    onAddItem({ type: 'todo', title, date, time, endTime, dueDate, timeSlot: 'all', projectId: autoProjectId, priority });
   };
 
   // 완료 처리한 카테고리의 항목은 아카이브 취급이므로 마감 안내 줄에서도 제외한다
@@ -1243,6 +1270,7 @@ export default function ListView({
                       '제목만 적어두기 (날짜는 나중에)…'
                     }
                     onAdd={(t, extra) => quickAdd(g.key, t, extra)}
+                    hasDate={g.key === 'today' || g.key === 'tomorrow'}
                     categories={activeCats}
                     defaultProjectId={quickAddDefaultCat}
                     onCreateCategory={quickAddCreateCat}

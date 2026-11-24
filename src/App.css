@@ -2677,6 +2677,8 @@ input, textarea, select { font-family: inherit; }
   padding: 3px 10px; border: 1px solid var(--border); border-radius: 20px;
   background: var(--surface); cursor: pointer; }
 .lv-quick-prio:hover { border-color: var(--accent); }
+/* 제목 끝에 적은 시간을 읽었다는 칩 — 누르면 끈다 */
+.lv-quick-time { color: var(--accent); border-color: var(--accent); font-variant-numeric: tabular-nums; }
 /* 빠른추가 안에서는 행 hover 가 없으니 '+ 카테고리' 를 항상 보이게 */
 .lv-quick-meta .lv-pill--empty { opacity: 1; }
 .lv-quick-date { display: inline-flex; align-items: center; gap: 4px; font-size: 12px;
