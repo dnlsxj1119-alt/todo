@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { getTimeSlotFromTime, getSpanCount, TIME_SLOTS, getRecurrenceDates, addDays } from '../utils/dateUtils';
 import { getProjectType } from '../utils/projectTypes';
 import TimePicker from './TimePicker';
+import { parseTitleTime } from '../utils/titleTime';
 
 // education('매우중요')는 새로 만들 때는 못 고르게 했지만(중요도로 대체),
 // 이미 만들어 둔 항목을 그대로 보고 편집할 수 있어야 하므로 정의는 남겨 둔다.
@@ -63,6 +64,16 @@ export default function ItemModal({ item, defaultDate, defaultSlot, defaultType,
   }, [onClose]);
 
   const set = (key, val) => setForm(f => ({ ...f, [key]: val }));
+
+  // 제목 끝에 '1400' 처럼 시간을 적으면 저장할 때 시작시간으로 옮긴다 (utils/titleTime.js).
+  // 시간 칸에서 시·분을 일일이 고르기 귀찮다는 요청으로 넣었다.
+  // - 이 창에서 **제목을 고쳤을 때만** 읽는다. 원래 제목이 '계획 2026' 인 항목을 열어
+  //   다른 칸만 고쳐 저장해도 제목이 잘리고 시간이 20:26 으로 바뀌면 안 된다.
+  // - 읽은 결과는 제목 아래에 미리 보여 주고, 숫자가 진짜 제목이면 '그대로 두기' 로 끈다.
+  const [keepTitleDigits, setKeepTitleDigits] = useState(false);
+  const typedTime = !keepTitleDigits && form.title !== (item?.title ?? '')
+    ? parseTitleTime(form.title)
+    : null;
 
   const handleTypeChange = (type) => {
     // 이미 선택된 종류를 다시 누르면 입력해둔 시간이 지워지던 문제 → 아무것도 하지 않음
@@ -129,15 +140,28 @@ export default function ItemModal({ item, defaultDate, defaultSlot, defaultType,
       setForm(f => ({ ...f, title: '' }));
       return;
     }
-    const timeSlot = form.type === 'todo' ? 'all' : form.timeSlot;
+    // 제목 끝에 적은 시간을 시간 칸 값으로 옮긴다. 시간 칸을 직접 고쳤을 때와 같은 규칙:
+    // 종료시간을 안 적었으면 있던 값을 두고, 종료 날짜는 직접 넣은 적이 없을 때만 다시 계산한다.
+    let saved = { ...form, title };
+    if (typedTime) {
+      saved = {
+        ...saved,
+        title: typedTime.title,
+        time: typedTime.time,
+        endTime: typedTime.endTime || form.endTime,
+        timeSlot: getTimeSlotFromTime(typedTime.time),
+      };
+      if (!endDateManuallySet.current) saved.endDate = '';
+    }
+    const timeSlot = saved.type === 'todo' ? 'all' : saved.timeSlot;
     // 화면에서 이미 맞춰 두지만, 저장되는 값에서도 뒤집힌 시간 범위를 한 번 더 막는다
-    const endDate = fixedEndDate(form);
-    if (!isEdit && form.date && form.repeat !== 'none' && form.repeatEndDate) {
-      const occurrenceDates = getRecurrenceDates(form.date, form.repeatEndDate, form.repeat, form.repeatDays);
-      onSave({ ...form, title, timeSlot, endDate, occurrenceDates });
+    const endDate = fixedEndDate(saved);
+    if (!isEdit && saved.date && saved.repeat !== 'none' && saved.repeatEndDate) {
+      const occurrenceDates = getRecurrenceDates(saved.date, saved.repeatEndDate, saved.repeat, saved.repeatDays);
+      onSave({ ...saved, timeSlot, endDate, occurrenceDates });
       return;
     }
-    onSave({ ...form, title, timeSlot, endDate });
+    onSave({ ...saved, timeSlot, endDate });
   };
 
   const occurrenceCount = !isEdit && form.date && form.repeat !== 'none' && form.repeatEndDate
@@ -220,8 +244,20 @@ export default function ItemModal({ item, defaultDate, defaultSlot, defaultType,
           <div className="field-group">
             <label className="field-label" htmlFor="title">제목 *</label>
             <input id="title" ref={titleRef} className="field-input" type="text"
-              placeholder="무엇을 해야 하나요?" value={form.title}
+              placeholder="무엇을 해야 하나요? (끝에 1400 → 14:00 시작)" value={form.title}
               onChange={(e) => set('title', e.target.value)} autoFocus required />
+            {typedTime && (
+              <div className="title-time-hint">
+                <span>
+                  ⏰ <b>{typedTime.time}{typedTime.endTime ? ` ~ ${typedTime.endTime}` : ''}</b>
+                  {typedTime.endTime ? '' : ' 시작'}으로 저장 · 제목은 “{typedTime.title}”
+                </span>
+                <button type="button" className="title-time-hint-off"
+                  onClick={() => setKeepTitleDigits(true)}>
+                  숫자 그대로 두기
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Date + 시작/종료 시간 */}

@@ -46,7 +46,8 @@ export default function TimePicker({ value, onChange, placeholder = '시간 선�
       <span className="time-colon">:</span>
       <select className="time-select" value={displayM ?? ''} onChange={handleMinute}>
         <option value="">분</option>
-        {MINUTES.map(i => (
+        {/* 제목에 '1405' 처럼 적어 넣은 10분 단위가 아닌 값도 빈칸이 아니라 그대로 보이게 */}
+        {(displayM === null || MINUTES.includes(displayM) ? MINUTES : [...MINUTES, displayM].sort((x, y) => x - y)).map(i => (
           <option key={i} value={i}>{String(i).padStart(2, '0')}</option>
         ))}
       </select>

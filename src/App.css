@@ -1026,6 +1026,29 @@ input, textarea, select { font-family: inherit; }
   border-radius: var(--radius-sm);
   padding: 7px 12px;
 }
+/* 제목 끝에 적은 시간을 읽었다는 안내 (ItemModal) */
+.title-time-hint {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.title-time-hint b { color: var(--text-primary); font-variant-numeric: tabular-nums; }
+.title-time-hint-off {
+  flex-shrink: 0;
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: none;
+  color: var(--text-muted);
+  font-size: 11px;
+  cursor: pointer;
+}
+.title-time-hint-off:hover { color: var(--text-primary); }
+
 .slot-hint--all {
   background: var(--purple-light);
   color: var(--purple-dark);
